@@ -1,0 +1,59 @@
+syntax = "proto3";
+package sample;
+option go_package = "github.com/f110/protoc-gen-ddl/sample;sample";
+
+import "genddl.proto";
+import "google/protobuf/timestamp.proto";
+
+message User {
+    int32 id  = 1 [(genddl.column) = {sequence: true}];
+    int32 age = 2 [(genddl.column) = {default: "20"}];
+    google.protobuf.Timestamp created_at = 3;
+
+    option (genddl.table) = {
+        table_name: "users",
+        primary_key: "id",
+    };
+}
+
+message Blog {
+    int32  id          = 1 [(genddl.column) = {sequence: true}];
+    int32  user_id     = 2 [(genddl.column) = {null: true}];
+    string title       = 3 [(genddl.column) = {size: 100}];
+    string body        = 4 [(genddl.column) = {type: "text"}];
+    int32  category_id = 5;
+
+    option (genddl.table) = {
+        primary_key: "id",
+        indexes: {
+            name: "idx_user_id_and_id"
+            columns: "user_id"
+            columns: "id"
+            unique: true
+        };
+        indexes: {
+            columns: "user_id"
+            columns: "category_id"
+        };
+    };
+}
+
+message Comment {
+    int32 blog_id = 1;
+    int32 user_id = 2;
+
+    option (genddl.table) = {
+        primary_key: "blog_id"
+        primary_key: "user_id"
+    };
+}
+
+message Like {
+    uint64 id = 1 [(genddl.column) = {sequence: true}];
+    int32 user_id = 2;
+    int32 blog_id = 3;
+
+    option (genddl.table) = {
+        primary_key: "id"
+    };
+}
