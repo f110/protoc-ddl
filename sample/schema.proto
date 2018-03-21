@@ -22,6 +22,7 @@ message Blog {
     string title       = 3 [(genddl.column) = {size: 100}];
     string body        = 4 [(genddl.column) = {type: "text"}];
     int32  category_id = 5;
+    bytes  attach      = 6 [(genddl.column) = {type: "long"}];
 
     option (genddl.table) = {
         primary_key: "id",
