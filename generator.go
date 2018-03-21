@@ -2,6 +2,6 @@ package genddl
 
 import "bytes"
 
-type Dialect interface {
+type Generator interface {
 	Generate(*bytes.Buffer, []Table)
 }
