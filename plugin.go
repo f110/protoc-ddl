@@ -3,7 +3,6 @@ package genddl
 import (
 	"bytes"
 	"io/ioutil"
-	"log"
 	"os"
 	"strings"
 
@@ -30,6 +29,11 @@ type Table struct {
 	Engine     string
 }
 
+type Option struct {
+	Dialect    string
+	OutputFile string
+}
+
 func ParseInput() (*plugin_go.CodeGeneratorRequest, error) {
 	buf, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
@@ -46,6 +50,8 @@ func ParseInput() (*plugin_go.CodeGeneratorRequest, error) {
 
 func Process(req *plugin_go.CodeGeneratorRequest) *plugin_go.CodeGeneratorResponse {
 	tables := make([]Table, 0)
+
+	opt := parseOption(req.GetParameter())
 
 	files := make(map[string]*descriptor.FileDescriptorProto)
 	for _, f := range req.ProtoFile {
@@ -69,13 +75,15 @@ func Process(req *plugin_go.CodeGeneratorRequest) *plugin_go.CodeGeneratorRespon
 	var res plugin_go.CodeGeneratorResponse
 	var buf bytes.Buffer
 
-	MySQLDialect{}.Generate(&buf, tables)
+	switch opt.Dialect {
+	case "mysql":
+		MySQLDialect{}.Generate(&buf, tables)
+	}
 
-	//res.File = append(res.File, &plugin_go.CodeGeneratorResponse_File{
-	//	Name:    proto.String("sample/schema.sql"),
-	//	Content: proto.String(buf.String()),
-	//})
-	log.Print(buf.String())
+	res.File = append(res.File, &plugin_go.CodeGeneratorResponse_File{
+		Name:    proto.String(opt.OutputFile),
+		Content: proto.String(buf.String()),
+	})
 
 	return &res
 }
@@ -126,4 +134,24 @@ func convertToColumn(field *descriptor.FieldDescriptorProto) Column {
 	f.TypeName = ext.Type
 
 	return f
+}
+
+func parseOption(p string) Option {
+	opt := Option{OutputFile: "sql/schema.sql"}
+	params := strings.Split(p, ",")
+	for _, param := range params {
+		s := strings.SplitN(param, "=", 2)
+		if len(s) == 1 {
+			opt.OutputFile = s[0]
+			continue
+		}
+		key := s[0]
+		value := s[1]
+
+		switch key {
+		case "dialect":
+			opt.Dialect = value
+		}
+	}
+	return opt
 }
