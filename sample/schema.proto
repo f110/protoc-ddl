@@ -17,8 +17,8 @@ message User {
 }
 
 message Blog {
-    int32  id          = 1 [(genddl.column) = {sequence: true}];
-    int32  user_id     = 2 [(genddl.column) = {null: true}];
+    int64  id          = 1 [(genddl.column) = {sequence: true}];
+    User   user        = 2;
     string title       = 3 [(genddl.column) = {size: 100}];
     string body        = 4 [(genddl.column) = {type: "text"}];
     int32  category_id = 5;
@@ -40,8 +40,8 @@ message Blog {
 }
 
 message Comment {
-    int32 blog_id = 1;
-    int32 user_id = 2;
+    Blog blog = 1;
+    User user = 2;
 
     option (genddl.table) = {
         primary_key: "blog_id"
@@ -51,8 +51,8 @@ message Comment {
 
 message Like {
     uint64 id = 1 [(genddl.column) = {sequence: true}];
-    int32 user_id = 2;
-    int32 blog_id = 3;
+    User user = 2;
+    Blog blog = 3;
 
     option (genddl.table) = {
         primary_key: "id"

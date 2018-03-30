@@ -22,11 +22,15 @@ type Column struct {
 }
 
 type Table struct {
-	Name       string
-	Columns    []Column
-	PrimaryKey []string
-	Indexes    []*IndexOption
-	Engine     string
+	Name           string
+	Columns        []Column
+	PrimaryKey     []string
+	PrimaryKeyType string
+	Indexes        []*IndexOption
+	Engine         string
+
+	packageName string
+	descriptor  *descriptor.DescriptorProto
 }
 
 type Option struct {
@@ -49,7 +53,7 @@ func ParseInput() (*plugin_go.CodeGeneratorRequest, error) {
 }
 
 func Process(req *plugin_go.CodeGeneratorRequest) *plugin_go.CodeGeneratorResponse {
-	tables := make([]Table, 0)
+	tables := make([]*Table, 0)
 
 	opt := parseOption(req.GetParameter())
 
@@ -58,17 +62,35 @@ func Process(req *plugin_go.CodeGeneratorRequest) *plugin_go.CodeGeneratorRespon
 		files[f.GetName()] = f
 	}
 
+	targetMessages := make([]struct {
+		Package    string
+		Descriptor *descriptor.DescriptorProto
+	}, 0)
 	for _, fileName := range req.FileToGenerate {
 		f := files[fileName]
 		for _, m := range f.GetMessageType() {
 			opt := m.GetOptions()
-			e, err := proto.GetExtension(opt, E_Table)
+			_, err := proto.GetExtension(opt, E_Table)
 			if err == proto.ErrMissingExtension {
 				continue
 			}
-			ext := e.(*TableOptions)
 
-			tables = append(tables, convertToTable(m, ext))
+			targetMessages = append(targetMessages, struct {
+				Package    string
+				Descriptor *descriptor.DescriptorProto
+			}{Package: f.GetPackage(), Descriptor: m})
+		}
+	}
+	for _, m := range targetMessages {
+		e, _ := proto.GetExtension(m.Descriptor.GetOptions(), E_Table)
+		ext := e.(*TableOptions)
+
+		tables = append(tables, convertToTable(m.Package, m.Descriptor, ext))
+	}
+
+	for _, t := range tables {
+		for _, f := range t.descriptor.GetField() {
+			t.Columns = append(t.Columns, convertToColumn(f, tables))
 		}
 	}
 
@@ -89,8 +111,8 @@ func Process(req *plugin_go.CodeGeneratorRequest) *plugin_go.CodeGeneratorRespon
 	return &res
 }
 
-func convertToTable(msg *descriptor.DescriptorProto, opt *TableOptions) Table {
-	t := Table{}
+func convertToTable(packageName string, msg *descriptor.DescriptorProto, opt *TableOptions) *Table {
+	t := &Table{descriptor: msg, packageName: packageName}
 
 	if opt.TableName != "" {
 		t.Name = opt.TableName
@@ -100,10 +122,12 @@ func convertToTable(msg *descriptor.DescriptorProto, opt *TableOptions) Table {
 
 	if len(opt.PrimaryKey) > 0 {
 		t.PrimaryKey = opt.PrimaryKey
-	}
-
-	for _, f := range msg.GetField() {
-		t.Columns = append(t.Columns, convertToColumn(f))
+		for _, f := range msg.GetField() {
+			if f.GetName() == t.PrimaryKey[0] {
+				t.PrimaryKeyType = f.GetType().String()
+				break
+			}
+		}
 	}
 
 	t.Indexes = opt.GetIndexes()
@@ -112,12 +136,22 @@ func convertToTable(msg *descriptor.DescriptorProto, opt *TableOptions) Table {
 	return t
 }
 
-func convertToColumn(field *descriptor.FieldDescriptorProto) Column {
+func convertToColumn(field *descriptor.FieldDescriptorProto, tables []*Table) Column {
 	f := Column{}
 
 	f.Name = field.GetName()
 	if field.GetType() == descriptor.FieldDescriptorProto_TYPE_MESSAGE {
-		f.DataType = field.GetTypeName()
+		foreignTable := false
+		for _, t := range tables {
+			if "."+t.packageName+"."+t.descriptor.GetName() == field.GetTypeName() {
+				foreignTable = true
+				f.Name += "_" + t.PrimaryKey[0]
+				f.DataType = t.PrimaryKeyType
+			}
+		}
+		if !foreignTable {
+			f.DataType = field.GetTypeName()
+		}
 	} else {
 		f.DataType = field.GetType().String()
 	}
