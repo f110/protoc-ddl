@@ -28,7 +28,7 @@ go_library(
         "mysql.go",
         "plugin.go",
     ],
-    embed = [":genddl_go_proto"],
+    embed = [":ddl_go_proto"],
     importpath = "go.f110.dev/protoc-ddl",
     visibility = ["//visibility:public"],
     deps = [

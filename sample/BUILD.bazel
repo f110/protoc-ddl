@@ -7,7 +7,7 @@ proto_library(
     srcs = ["schema.proto"],
     visibility = ["//visibility:public"],
     deps = [
-        "//:genddl_proto",
+        "//:ddl_proto",
         "@com_google_protobuf//:timestamp_proto",
     ],
 )

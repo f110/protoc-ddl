@@ -6,3 +6,6 @@ sample/schema.sql: sample/schema.proto
 
 bin/%: cmd/%/main.go
 	go build -o $@ $^
+
+update-deps:
+	bazel run //:gazelle -- update
