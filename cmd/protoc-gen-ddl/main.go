@@ -9,11 +9,11 @@ import (
 )
 
 func main() {
-	req, err := genddl.ParseInput()
+	req, err := ddl.ParseInput()
 	if err != nil {
 		panic(err)
 	}
-	res := genddl.Process(req)
+	res := ddl.Process(req)
 
 	buf, err := proto.Marshal(res)
 	if err != nil {
