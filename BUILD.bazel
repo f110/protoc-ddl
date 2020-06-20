@@ -1,0 +1,38 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
+load("@bazel_gazelle//:def.bzl", "gazelle")
+
+# gazelle:prefix go.f110.dev/protoc-ddl
+gazelle(name = "gazelle")
+
+proto_library(
+    name = "genddl_proto",
+    srcs = ["genddl.proto"],
+    visibility = ["//visibility:public"],
+    deps = ["@com_google_protobuf//:descriptor_proto"],
+)
+
+go_proto_library(
+    name = "genddl_go_proto",
+    importpath = "go.f110.dev/protoc-ddl",
+    proto = ":genddl_proto",
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "generator.go",
+        "mysql.go",
+        "plugin.go",
+    ],
+    embed = [":genddl_go_proto"],
+    importpath = "go.f110.dev/protoc-ddl",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_golang_protobuf//proto:go_default_library",
+        "@io_bazel_rules_go//proto/wkt:compiler_plugin_go_proto",
+        "@io_bazel_rules_go//proto/wkt:descriptor_go_proto",
+    ],
+)
