@@ -1,4 +1,4 @@
-module github.com/f110/protoc-gen-ddl
+module go.f110.dev/protoc-ddl
 
 go 1.14
 

@@ -1,4 +1,4 @@
-protoc-gen-ddl
+protoc-ddl
 ---
 
 THIS PROJECT IS WORKING IN PROGRESS!!

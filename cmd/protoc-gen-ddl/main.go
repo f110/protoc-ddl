@@ -3,8 +3,9 @@ package main
 import (
 	"os"
 
-	"github.com/f110/protoc-gen-ddl"
 	"github.com/golang/protobuf/proto"
+
+	"go.f110.dev/protoc-ddl"
 )
 
 func main() {

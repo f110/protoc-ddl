@@ -1,6 +1,6 @@
 syntax = "proto3";
 package genddl;
-option go_package = "github.com/f110/protoc-gen-ddl;genddl";
+option go_package = "go.f110.dev/protoc-ddl;genddl";
 
 import "google/protobuf/descriptor.proto";
 
