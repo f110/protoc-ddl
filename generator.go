@@ -1,4 +1,4 @@
-package genddl
+package ddl
 
 import "bytes"
 
