@@ -5,15 +5,15 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
-	"go.f110.dev/protoc-ddl"
+	"go.f110.dev/protoc-ddl/internal/generator"
 )
 
 func main() {
-	req, err := ddl.ParseInput()
+	req, err := generator.ParseInput()
 	if err != nil {
 		panic(err)
 	}
-	res := ddl.Process(req)
+	res := generator.Process(req)
 
 	buf, err := proto.Marshal(res)
 	if err != nil {

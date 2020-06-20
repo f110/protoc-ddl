@@ -6,7 +6,7 @@ go_library(
     importpath = "go.f110.dev/protoc-ddl/cmd/protoc-gen-ddl",
     visibility = ["//visibility:private"],
     deps = [
-        "//:go_default_library",
+        "//internal/generator:go_default_library",
         "@com_github_golang_protobuf//proto:go_default_library",
     ],
 )

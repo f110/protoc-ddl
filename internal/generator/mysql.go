@@ -1,4 +1,4 @@
-package ddl
+package generator
 
 import (
 	"bytes"

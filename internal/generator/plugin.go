@@ -1,4 +1,4 @@
-package ddl
+package generator
 
 import (
 	"bytes"
@@ -9,6 +9,8 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/golang/protobuf/protoc-gen-go/plugin"
+
+	"go.f110.dev/protoc-ddl"
 )
 
 type Column struct {
@@ -26,7 +28,7 @@ type Table struct {
 	Columns        []Column
 	PrimaryKey     []string
 	PrimaryKeyType string
-	Indexes        []*IndexOption
+	Indexes        []*ddl.IndexOption
 	Engine         string
 
 	packageName string
@@ -70,7 +72,7 @@ func Process(req *plugin_go.CodeGeneratorRequest) *plugin_go.CodeGeneratorRespon
 		f := files[fileName]
 		for _, m := range f.GetMessageType() {
 			opt := m.GetOptions()
-			_, err := proto.GetExtension(opt, E_Table)
+			_, err := proto.GetExtension(opt, ddl.E_Table)
 			if err == proto.ErrMissingExtension {
 				continue
 			}
@@ -82,8 +84,8 @@ func Process(req *plugin_go.CodeGeneratorRequest) *plugin_go.CodeGeneratorRespon
 		}
 	}
 	for _, m := range targetMessages {
-		e, _ := proto.GetExtension(m.Descriptor.GetOptions(), E_Table)
-		ext := e.(*TableOptions)
+		e, _ := proto.GetExtension(m.Descriptor.GetOptions(), ddl.E_Table)
+		ext := e.(*ddl.TableOptions)
 
 		tables = append(tables, convertToTable(m.Package, m.Descriptor, ext))
 	}
@@ -111,7 +113,7 @@ func Process(req *plugin_go.CodeGeneratorRequest) *plugin_go.CodeGeneratorRespon
 	return &res
 }
 
-func convertToTable(packageName string, msg *descriptor.DescriptorProto, opt *TableOptions) *Table {
+func convertToTable(packageName string, msg *descriptor.DescriptorProto, opt *ddl.TableOptions) *Table {
 	t := &Table{descriptor: msg, packageName: packageName}
 
 	if opt.TableName != "" {
@@ -160,11 +162,11 @@ func convertToColumn(field *descriptor.FieldDescriptorProto, tables []*Table) Co
 	if opt == nil {
 		return f
 	}
-	e, err := proto.GetExtension(opt, E_Column)
+	e, err := proto.GetExtension(opt, ddl.E_Column)
 	if err == proto.ErrMissingExtension {
 		return f
 	}
-	ext := e.(*ColumnOptions)
+	ext := e.(*ddl.ColumnOptions)
 	f.Sequence = ext.Sequence
 	f.Null = ext.Null
 	f.Default = ext.Default

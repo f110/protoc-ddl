@@ -23,19 +23,9 @@ go_proto_library(
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "generator.go",
-        "mysql.go",
-        "plugin.go",
-    ],
     embed = [":ddl_go_proto"],
     importpath = "go.f110.dev/protoc-ddl",
     visibility = ["//visibility:public"],
-    deps = [
-        "@com_github_golang_protobuf//proto:go_default_library",
-        "@io_bazel_rules_go//proto/wkt:compiler_plugin_go_proto",
-        "@io_bazel_rules_go//proto/wkt:descriptor_go_proto",
-    ],
 )
 
 load("//build:proto.bzl", "vendor_proto_source")
