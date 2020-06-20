@@ -6,4 +6,4 @@ update-deps:
 	bazel run //:vendor_proto_source
 	bazel run //:gazelle -- update
 
-.PHONY: gen
+.PHONY: update-deps

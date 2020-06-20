@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["plugin.go"],
+    importpath = "go.f110.dev/protoc-ddl/internal/schema",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//:go_default_library",
+        "@com_github_golang_protobuf//proto:go_default_library",
+        "@io_bazel_rules_go//proto/wkt:compiler_plugin_go_proto",
+        "@io_bazel_rules_go//proto/wkt:descriptor_go_proto",
+    ],
+)

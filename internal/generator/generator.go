@@ -1,7 +1,11 @@
 package generator
 
-import "bytes"
+import (
+	"bytes"
+
+	"go.f110.dev/protoc-ddl/internal/schema"
+)
 
 type Generator interface {
-	Generate(*bytes.Buffer, []*Table)
+	Generate(*bytes.Buffer, []*schema.Table)
 }
