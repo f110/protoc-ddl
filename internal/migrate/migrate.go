@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/schemalex/schemalex"
 	"golang.org/x/xerrors"
 
@@ -49,6 +48,18 @@ type Migration struct {
 }
 
 func NewMigration(schemaFile, driver, dsn string) (*Migration, error) {
+	switch driver {
+	case "mysql":
+		cfg, err := mysql.ParseDSN(dsn)
+		if err != nil {
+			return nil, xerrors.Errorf(": %w", err)
+		}
+		cfg.MultiStatements = true
+		cfg.ParseTime = true
+
+		dsn = cfg.FormatDSN()
+	}
+
 	db, err := sql.Open(driver, dsn)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
