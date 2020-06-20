@@ -6,25 +6,25 @@ import "ddl.proto";
 import "google/protobuf/timestamp.proto";
 
 message User {
-    int32 id  = 1 [(genddl.column) = {sequence: true}];
-    int32 age = 2 [(genddl.column) = {default: "20"}];
+    int32 id  = 1 [(dev.f110.ddl.column) = {sequence: true}];
+    int32 age = 2 [(dev.f110.ddl.column) = {default: "20"}];
     google.protobuf.Timestamp created_at = 3;
 
-    option (genddl.table) = {
+    option (dev.f110.ddl.table) = {
         table_name: "users",
         primary_key: "id",
     };
 }
 
 message Blog {
-    int64  id          = 1 [(genddl.column) = {sequence: true}];
+    int64  id          = 1 [(dev.f110.ddl.column) = {sequence: true}];
     User   user        = 2;
-    string title       = 3 [(genddl.column) = {size: 100}];
-    string body        = 4 [(genddl.column) = {type: "text"}];
+    string title       = 3 [(dev.f110.ddl.column) = {size: 100}];
+    string body        = 4 [(dev.f110.ddl.column) = {type: "text"}];
     int32  category_id = 5;
-    bytes  attach      = 6 [(genddl.column) = {type: "long"}];
+    bytes  attach      = 6 [(dev.f110.ddl.column) = {type: "long"}];
 
-    option (genddl.table) = {
+    option (dev.f110.ddl.table) = {
         primary_key: "id",
         indexes: {
             name: "idx_user_id_and_id"
@@ -43,18 +43,18 @@ message Comment {
     Blog blog = 1;
     User user = 2;
 
-    option (genddl.table) = {
+    option (dev.f110.ddl.table) = {
         primary_key: "blog_id"
         primary_key: "user_id"
     };
 }
 
 message Like {
-    uint64 id = 1 [(genddl.column) = {sequence: true}];
+    uint64 id = 1 [(dev.f110.ddl.column) = {sequence: true}];
     User user = 2;
     Blog blog = 3;
 
-    option (genddl.table) = {
+    option (dev.f110.ddl.table) = {
         primary_key: "id"
     };
 }

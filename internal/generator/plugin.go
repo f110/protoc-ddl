@@ -2,8 +2,8 @@ package generator
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
-	"os"
 	"strings"
 
 	"github.com/golang/protobuf/proto"
@@ -40,8 +40,8 @@ type Option struct {
 	OutputFile string
 }
 
-func ParseInput() (*plugin_go.CodeGeneratorRequest, error) {
-	buf, err := ioutil.ReadAll(os.Stdin)
+func ParseInput(in io.Reader) (*plugin_go.CodeGeneratorRequest, error) {
+	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		return nil, err
 	}

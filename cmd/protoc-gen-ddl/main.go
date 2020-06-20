@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	req, err := generator.ParseInput()
+	req, err := generator.ParseInput(os.Stdin)
 	if err != nil {
 		panic(err)
 	}
