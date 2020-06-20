@@ -25,7 +25,8 @@ message Blog {
     bytes  attach      = 6 [(dev.f110.ddl.column) = {type: "long"}];
 
     option (dev.f110.ddl.table) = {
-        primary_key: "id",
+        primary_key: "id"
+        with_timestamp: true
         indexes: {
             name: "idx_user_id_and_id"
             columns: "user_id"

@@ -30,6 +30,7 @@ type Table struct {
 	PrimaryKeyType string
 	Indexes        []*ddl.IndexOption
 	Engine         string
+	WithTimestamp  bool
 
 	packageName string
 	descriptor  *descriptor.DescriptorProto
@@ -94,6 +95,13 @@ func Process(req *plugin_go.CodeGeneratorRequest) *plugin_go.CodeGeneratorRespon
 		for _, f := range t.descriptor.GetField() {
 			t.Columns = append(t.Columns, convertToColumn(f, tables))
 		}
+
+		if t.WithTimestamp {
+			t.Columns = append(t.Columns,
+				Column{Name: "created_at", DataType: ".google.protobuf.Timestamp"},
+				Column{Name: "updated_at", DataType: ".google.protobuf.Timestamp"},
+			)
+		}
 	}
 
 	var res plugin_go.CodeGeneratorResponse
@@ -114,7 +122,7 @@ func Process(req *plugin_go.CodeGeneratorRequest) *plugin_go.CodeGeneratorRespon
 }
 
 func convertToTable(packageName string, msg *descriptor.DescriptorProto, opt *ddl.TableOptions) *Table {
-	t := &Table{descriptor: msg, packageName: packageName}
+	t := &Table{descriptor: msg, packageName: packageName, WithTimestamp: opt.WithTimestamp}
 
 	if opt.TableName != "" {
 		t.Name = opt.TableName

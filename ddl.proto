@@ -23,6 +23,7 @@ message TableOptions {
     repeated string      primary_key = 2;
     repeated IndexOption indexes = 3;
     string engine = 4;
+    bool with_timestamp = 5;
 }
 
 extend google.protobuf.MessageOptions {
