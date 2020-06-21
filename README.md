@@ -99,3 +99,13 @@ $ bazel run //:vendor_sql_schema
 ```
 
 You will see the generated schema file in the same directory at `*.sql`.
+
+# Migration
+
+This tool also supports the migration.
+
+```
+$ migrate --schema ./schema.sql --driver mysql --dsn "root@tcp(localhost)/protoc_ddl" --execute
+```
+
+Currently, Only mysql is supported.
