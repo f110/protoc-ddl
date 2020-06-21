@@ -26,3 +26,15 @@ go_library(
     importpath = "github.com/f110/protoc-gen-ddl/sample",
     visibility = ["//visibility:public"],
 )
+
+load("//rules:def.bzl", "sql_schema", "vendor_sql_schema")
+
+sql_schema(
+    name = "schema",
+    proto = ":sample_proto"
+)
+
+vendor_sql_schema(
+    name = "vendor_schema",
+    src = ":schema"
+)
