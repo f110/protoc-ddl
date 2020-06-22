@@ -103,7 +103,7 @@ func Process(req *plugin_go.CodeGeneratorRequest) (Option, []*Table) {
 		if t.WithTimestamp {
 			t.Columns = append(t.Columns,
 				Column{Name: "created_at", DataType: TimestampType},
-				Column{Name: "updated_at", DataType: TimestampType},
+				Column{Name: "updated_at", DataType: TimestampType, Null: true},
 			)
 		}
 	}

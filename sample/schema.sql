@@ -20,7 +20,7 @@ CREATE TABLE `blog` (
 	`category_id` INTEGER NOT NULL,
 	`attach` LONGBLOB NOT NULL,
 	`created_at` DATETIME NOT NULL,
-	`updated_at` DATETIME NOT NULL,
+	`updated_at` DATETIME NULL,
 	UNIQUE `idx_user_id_and_id` (`user_id`,`id`),
 	INDEX `idx_user_id_category_id` (`user_id`,`category_id`),
 	PRIMARY KEY(`id`)
