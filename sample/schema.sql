@@ -41,4 +41,11 @@ CREATE TABLE `like` (
 	PRIMARY KEY(`id`)
 ) Engine=InnoDB;
 
+DROP TABLE IF EXISTS `post_image`;
+CREATE TABLE `post_image` (
+	`id` INTEGER NOT NULL,
+	`url` VARCHAR(0) NOT NULL,
+	PRIMARY KEY(`id`)
+) Engine=InnoDB;
+
 SET foreign_key_checks=1;

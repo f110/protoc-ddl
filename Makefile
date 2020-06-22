@@ -1,6 +1,6 @@
 .PHONY: sample/schema.sql
 sample/schema.sql: sample/schema.proto
-	protoc --plugin=bazel-bin/cmd/protoc-gen-ddl/protoc-gen-ddl_/protoc-gen-ddl --ddl_out=dialect=mysql,$@:. -I=. $^
+	bazel run //sample:vendor_schema
 
 update-deps:
 	bazel run //:vendor_proto_source

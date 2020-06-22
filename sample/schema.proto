@@ -59,3 +59,12 @@ message Like {
         primary_key: "id"
     };
 }
+
+message PostImage {
+    int32  id = 1;
+    string url = 2;
+
+    option (dev.f110.ddl.table) = {
+        primary_key: "id"
+    };
+}

@@ -3,6 +3,7 @@ package schema
 import (
 	"io"
 	"io/ioutil"
+	"regexp"
 	"strings"
 
 	"github.com/golang/protobuf/proto"
@@ -116,7 +117,7 @@ func convertToTable(packageName string, msg *descriptor.DescriptorProto, opt *dd
 	if opt.TableName != "" {
 		t.Name = opt.TableName
 	} else {
-		t.Name = strings.ToLower(msg.GetName())
+		t.Name = ToSnake(msg.GetName())
 	}
 
 	if len(opt.PrimaryKey) > 0 {
@@ -191,4 +192,13 @@ func parseOption(p string) Option {
 		}
 	}
 	return opt
+}
+
+var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
+var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
+
+func ToSnake(str string) string {
+	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")
+	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
+	return strings.ToLower(snake)
 }
