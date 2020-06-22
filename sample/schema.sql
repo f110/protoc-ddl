@@ -44,7 +44,7 @@ CREATE TABLE `like` (
 DROP TABLE IF EXISTS `post_image`;
 CREATE TABLE `post_image` (
 	`id` INTEGER NOT NULL,
-	`url` VARCHAR(0) NOT NULL,
+	`url` VARCHAR(255) NOT NULL,
 	PRIMARY KEY(`id`)
 ) Engine=InnoDB;
 

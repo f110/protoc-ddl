@@ -127,6 +127,9 @@ func (MySQLGenerator) columnType(col schema.Column) string {
 			case "text":
 				columnType = "TEXT"
 			default:
+				if col.Size == 0 {
+					col.Size = 255
+				}
 				columnType = t + "(" + strconv.Itoa(col.Size) + ")"
 			}
 		case "TYPE_BYTES":
