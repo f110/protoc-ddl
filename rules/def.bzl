@@ -10,15 +10,17 @@ def _sql_schema_impl(ctx):
     proto = ctx.attr.proto[ProtoInfo]
 
     args = ctx.actions.args()
-    args.add(("--plugin=protoc-gen-ddl=%s" % ctx.executable.compiler.path))
+    args.add("--plugin", ("protoc-gen-ddl=%s" % ctx.executable.compiler.path))
     args.add_all(proto.transitive_proto_path, format_each = "--proto_path=%s")
-    args.add(("--ddl_out=dialect=%s,%s:.") % (dialect, out.path))
+    args.add("--ddl_opt", ("dialect=%s" % dialect))
+    args.add("--ddl_out", ("%s:." % out.path))
 
     proto_files = []
     for i in proto.direct_sources:
         args.add(i.path)
         proto_files.append(i)
 
+    print(args)
     ctx.actions.run(
         executable = ctx.executable.protoc,
         tools = [ctx.executable.compiler],
