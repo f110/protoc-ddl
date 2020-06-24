@@ -82,6 +82,9 @@ func (d *Diff) parse() error {
 	if err := d.createTable(fromSet, toSet); err != nil {
 		return xerrors.Errorf(": %w", err)
 	}
+	if err := d.alterTable(fromSet, toSet); err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
 
 	return nil
 }
