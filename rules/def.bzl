@@ -20,7 +20,6 @@ def _sql_schema_impl(ctx):
         args.add(i.path)
         proto_files.append(i)
 
-    print(args)
     ctx.actions.run(
         executable = ctx.executable.protoc,
         tools = [ctx.executable.compiler],
