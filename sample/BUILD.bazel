@@ -22,19 +22,30 @@ go_proto_library(
 
 go_library(
     name = "go_default_library",
-    embed = [":sample_go_proto"],
-    importpath = "github.com/f110/protoc-gen-ddl/sample",
+    srcs = ["schema.entity.go"],
+    importpath = "go.f110.dev/protoc-ddl/sample",
     visibility = ["//visibility:public"],
 )
 
-load("//rules:def.bzl", "sql_schema", "vendor_sql_schema")
+load("//rules:def.bzl", "sql_schema","schema_entity", "vendor_ddl")
 
 sql_schema(
     name = "schema",
-    proto = ":sample_proto"
+    proto = ":sample_proto",
 )
 
-vendor_sql_schema(
+vendor_ddl(
     name = "vendor_schema",
-    src = ":schema"
+    src = ":schema",
+)
+
+schema_entity(
+    name = "entity",
+    proto = ":sample_proto",
+    lang = "go",
+)
+
+vendor_ddl(
+    name = "vendor_entity",
+    src = ":entity"
 )

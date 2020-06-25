@@ -27,11 +27,28 @@ CREATE TABLE `blog` (
 	PRIMARY KEY(`id`)
 ) Engine=InnoDB;
 
+DROP TABLE IF EXISTS `comment_image`;
+CREATE TABLE `comment_image` (
+	`comment_blog_id` BIGINT NOT NULL,
+	`comment_user_id` INTEGER NOT NULL,
+	`like_id` BIGINT UNSIGNED NOT NULL,
+	PRIMARY KEY(`comment_blog_id`,`comment_user_id`,`like_id`)
+) Engine=InnoDB;
+
 DROP TABLE IF EXISTS `comment`;
 CREATE TABLE `comment` (
 	`blog_id` BIGINT NOT NULL,
 	`user_id` INTEGER NOT NULL,
 	PRIMARY KEY(`blog_id`,`user_id`)
+) Engine=InnoDB;
+
+DROP TABLE IF EXISTS `reply`;
+CREATE TABLE `reply` (
+	`id` INTEGER NOT NULL AUTO_INCREMENT,
+	`comment_blog_id` BIGINT NULL,
+	`comment_user_id` INTEGER NULL,
+	`body` VARCHAR(255) NOT NULL,
+	PRIMARY KEY(`id`)
 ) Engine=InnoDB;
 
 DROP TABLE IF EXISTS `like`;

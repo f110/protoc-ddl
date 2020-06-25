@@ -41,13 +41,33 @@ message Blog {
     };
 }
 
+message CommentImage {
+    Comment comment = 1;
+    Like    like    = 2;
+
+    option (dev.f110.ddl.table) = {
+        primary_key: "comment"
+        primary_key: "like"
+    };
+}
+
 message Comment {
     Blog blog = 1;
     User user = 2;
 
     option (dev.f110.ddl.table) = {
-        primary_key: "blog_id"
-        primary_key: "user_id"
+        primary_key: "blog"
+        primary_key: "user"
+    };
+}
+
+message Reply {
+    int32   id      = 1 [(dev.f110.ddl.column) = {sequence: true}];
+    Comment comment = 2 [(dev.f110.ddl.column) = {null: true}];
+    string  body    = 3;
+
+    option (dev.f110.ddl.table) = {
+        primary_key: "id"
     };
 }
 

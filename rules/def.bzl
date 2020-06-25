@@ -1,19 +1,12 @@
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
+load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//lib:shell.bzl", "shell")
 
-def _sql_schema_impl(ctx):
-    dialect = ctx.attr.dialect
-    if not dialect:
-        dialect = "mysql"
-    out = ctx.actions.declare_file("schema.sql")
+def _execute_protoc(ctx, protoc, lang_name, plugin, proto, args, out, well_known_protos):
+    proto = proto[ProtoInfo]
 
-    proto = ctx.attr.proto[ProtoInfo]
-
-    args = ctx.actions.args()
-    args.add("--plugin", ("protoc-gen-ddl=%s" % ctx.executable.compiler.path))
+    args.add("--plugin", ("protoc-gen-%s=%s" % (lang_name, plugin.path)))
     args.add_all(proto.transitive_proto_path, format_each = "--proto_path=%s")
-    args.add("--ddl_opt", ("dialect=%s" % dialect))
-    args.add("--ddl_out", ("%s:." % out.path))
 
     proto_files = []
     for i in proto.direct_sources:
@@ -21,18 +14,41 @@ def _sql_schema_impl(ctx):
         proto_files.append(i)
 
     ctx.actions.run(
-        executable = ctx.executable.protoc,
-        tools = [ctx.executable.compiler],
+        executable = protoc,
+        tools = [plugin],
         inputs = depset(
             direct = proto_files,
             transitive = [depset(
-                direct = ctx.files._well_known_protos,
+                direct = well_known_protos,
                 transitive = [proto.transitive_sources],
             )],
         ),
         outputs = [out],
         arguments = [args],
     )
+
+def _sql_schema_impl(ctx):
+    dialect = ctx.attr.dialect
+    if not dialect:
+        dialect = "mysql"
+    name, ext = paths.split_extension(ctx.attr.proto[ProtoInfo].direct_sources[0].basename)
+    out = ctx.actions.declare_file("%s.sql" % name)
+
+    args = ctx.actions.args()
+    args.add("--ddl_opt", ("dialect=%s" % dialect))
+    args.add("--ddl_out", ("%s:." % out.path))
+
+    _execute_protoc(
+        ctx,
+        ctx.executable.protoc,
+        "ddl",
+        ctx.executable.compiler,
+        ctx.attr.proto,
+        args,
+        out,
+        ctx.files._well_known_protos,
+    )
+
     return [
         DefaultInfo(
             files = depset([out]),
@@ -65,7 +81,7 @@ sql_schema = rule(
     },
 )
 
-def _vendor_sql_schema_impl(ctx):
+def _vendor_ddl_impl(ctx):
     generated = ctx.attr.src[OutputGroupInfo].schema.to_list()
     substitutions = {
         "@@FROM@@": shell.quote(generated[0].path),
@@ -86,8 +102,8 @@ def _vendor_sql_schema_impl(ctx):
         ),
     ]
 
-_vendor_sql_schema = rule(
-    implementation = _vendor_sql_schema_impl,
+_vendor_ddl = rule(
+    implementation = _vendor_ddl_impl,
     executable = True,
     attrs = {
         "dir": attr.string(),
@@ -99,9 +115,60 @@ _vendor_sql_schema = rule(
     },
 )
 
-def vendor_sql_schema(name, **kwargs):
+def vendor_ddl(name, **kwargs):
     if not "dir" in kwargs:
         dir = native.package_name()
         kwargs["dir"] = dir
 
-    _vendor_sql_schema(name = name, **kwargs)
+    _vendor_ddl(name = name, **kwargs)
+
+def _schema_entity_impl(ctx):
+    name, ext = paths.split_extension(ctx.attr.proto[ProtoInfo].direct_sources[0].basename)
+    out = ctx.actions.declare_file("%s.entity.go" % name)
+
+    args = ctx.actions.args()
+    args.add("--entity_opt", ("lang=%s" % ctx.attr.lang))
+    args.add("--entity_out", ("%s:." % out.path))
+
+    _execute_protoc(
+        ctx,
+        ctx.executable.protoc,
+        "entity",
+        ctx.executable.compiler,
+        ctx.attr.proto,
+        args,
+        out,
+        ctx.files._well_known_protos,
+    )
+
+    return [
+        DefaultInfo(
+            files = depset([out]),
+        ),
+        OutputGroupInfo(
+            schema = [out],
+        ),
+    ]
+
+schema_entity = rule(
+    implementation = _schema_entity_impl,
+    output_to_genfiles = True,
+    attrs = {
+        "proto": attr.label(providers = [ProtoInfo]),
+        "lang": attr.string(),
+        "protoc": attr.label(
+            executable = True,
+            cfg = "host",
+            default = "@com_google_protobuf//:protoc",
+        ),
+        "compiler": attr.label(
+            executable = True,
+            cfg = "host",
+            default = "//cmd/protoc-gen-entity",
+        ),
+        "_well_known_protos": attr.label(
+            default = "@com_google_protobuf//:well_known_protos",
+            allow_files = True,
+        ),
+    },
+)

@@ -3,12 +3,18 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "entity.go",
         "generator.go",
         "mysql.go",
     ],
     importpath = "go.f110.dev/protoc-ddl/internal/generator",
     visibility = ["//:__subpackages__"],
-    deps = ["//internal/schema:go_default_library"],
+    deps = [
+        "//:go_default_library",
+        "//internal/schema:go_default_library",
+        "@com_github_golang_protobuf//proto:go_default_library",
+        "@io_bazel_rules_go//proto/wkt:descriptor_go_proto",
+    ],
 )
 
 go_test(
