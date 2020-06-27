@@ -25,14 +25,19 @@ var (
 	ErrMigrated = errors.New("already migrated")
 )
 
-var SchemaVersionTable = &schema.Table{
-	Name: "schema_version",
-	Columns: []schema.Column{
-		{Name: "sha256", DataType: "TYPE_STRING", Size: 64},
-		{Name: "start_at", DataType: schema.TimestampType},
-		{Name: "finished_at", DataType: schema.TimestampType, Null: true},
-	},
-	PrimaryKey: []string{"sha256"},
+var SchemaVersionTable *schema.Message
+
+func init() {
+	primaryKey := &schema.Field{Name: "sha256", Type: "TYPE_STRING", Size: 64}
+	SchemaVersionTable = &schema.Message{
+		TableName: "schema_version",
+		Fields: schema.NewFields([]*schema.Field{
+			primaryKey,
+			{Name: "start_at", Type: schema.TimestampType},
+			{Name: "finished_at", Type: schema.TimestampType, Null: true},
+		}),
+		PrimaryKeys: []*schema.Field{primaryKey},
+	}
 }
 
 type Migration struct {
@@ -68,7 +73,7 @@ func NewMigration(schemaFile, driver, dsn string) (*Migration, error) {
 	buf := new(bytes.Buffer)
 	switch driver {
 	case "mysql":
-		generator.MySQLGenerator{}.Generate(buf, []*schema.Table{SchemaVersionTable})
+		generator.MySQLGenerator{}.Generate(buf, schema.NewMessages([]*schema.Message{SchemaVersionTable}))
 	}
 
 	sch, err := ioutil.ReadFile(schemaFile)
@@ -139,7 +144,7 @@ func (m *Migration) plan() error {
 }
 
 func (m *Migration) checkSchemaVersionTable(ctx context.Context) bool {
-	row := m.db.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s", SchemaVersionTable.Name))
+	row := m.db.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s", SchemaVersionTable.TableName))
 	var table, sch string
 	if err := row.Scan(&table, &sch); err != nil {
 		return false
@@ -166,7 +171,7 @@ func (m *Migration) getLock(ctx context.Context) error {
 	}
 	m.mu.Unlock()
 
-	_, err := m.db.ExecContext(ctx, fmt.Sprintf("INSERT INTO `%s` (`sha256`, `start_at`) VALUES (?, ?)", SchemaVersionTable.Name), m.schemaHash, time.Now())
+	_, err := m.db.ExecContext(ctx, fmt.Sprintf("INSERT INTO `%s` (`sha256`, `start_at`) VALUES (?, ?)", SchemaVersionTable.TableName), m.schemaHash, time.Now())
 	if err != nil {
 		mysqlErr, ok := err.(*mysql.MySQLError)
 		if !ok {
@@ -181,7 +186,7 @@ func (m *Migration) getLock(ctx context.Context) error {
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
 	}
-	row := tx.QueryRowContext(ctx, fmt.Sprintf("SELECT `finished_at` FROM `%s` WHERE `sha256` = ? FOR UPDATE", SchemaVersionTable.Name), m.schemaHash)
+	row := tx.QueryRowContext(ctx, fmt.Sprintf("SELECT `finished_at` FROM `%s` WHERE `sha256` = ? FOR UPDATE", SchemaVersionTable.TableName), m.schemaHash)
 	var finishedAt *time.Time
 	if err := row.Scan(&finishedAt); err != nil {
 		tx.Rollback()
@@ -212,7 +217,7 @@ func (m *Migration) finishMigration(ctx context.Context, now time.Time) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	result, err := m.lock.ExecContext(ctx, fmt.Sprintf("UPDATE `%s` SET `finished_at` = ? WHERE `sha256` = ?", SchemaVersionTable.Name), now, m.schemaHash)
+	result, err := m.lock.ExecContext(ctx, fmt.Sprintf("UPDATE `%s` SET `finished_at` = ? WHERE `sha256` = ?", SchemaVersionTable.TableName), now, m.schemaHash)
 	if err != nil {
 		m.lock.Rollback()
 		m.lock = nil

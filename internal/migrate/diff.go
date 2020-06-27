@@ -63,7 +63,7 @@ func (d *Diff) parse() error {
 	fromSet := mapset.NewSet()
 	for _, stmt := range d.fromStatement {
 		if cs, ok := stmt.(model.Table); ok {
-			if cs.Name() == SchemaVersionTable.Name {
+			if cs.Name() == SchemaVersionTable.TableName {
 				continue
 			}
 			fromSet.Add(cs.ID())
