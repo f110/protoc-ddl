@@ -1,6 +1,6 @@
 syntax = "proto3";
 package sample;
-option go_package = "github.com/f110/protoc-gen-ddl/sample;sample";
+option go_package = "github.com/f110/protoc-gen-ddl/sample";
 
 import "ddl.proto";
 import "google/protobuf/timestamp.proto";

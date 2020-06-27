@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/format"
 	"log"
+	"path/filepath"
 	"strings"
 
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
@@ -46,6 +47,8 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 	if strings.Contains(packageName, ";") {
 		s := strings.SplitN(packageName, ";", 2)
 		packageName = s[1]
+	} else {
+		packageName = filepath.Base(packageName)
 	}
 	src.WriteString(fmt.Sprintf("package %s\n", packageName))
 	src.WriteString("import (\n")
