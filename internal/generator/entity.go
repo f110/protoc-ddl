@@ -27,10 +27,10 @@ var (
 		"TYPE_UINT64":        "uint64",
 		"TYPE_SINT32":        "int",
 		"TYPE_SINT64":        "int64",
-		"TYPE_FIXED32":       "INTEGER UNSIGNED",
-		"TYPE_FIXED64":       "BIGINT UNSIGNED",
-		"TYPE_SFIXED32":      "INTEGER",
-		"TYPE_SFIXED64":      "BIGINT",
+		"TYPE_FIXED32":       "uint32",
+		"TYPE_FIXED64":       "uint64",
+		"TYPE_SFIXED32":      "int",
+		"TYPE_SFIXED64":      "int64",
 		"TYPE_BOOL":          "bool",
 		"TYPE_BYTES":         "[]byte",
 		"TYPE_STRING":        "string",
@@ -61,7 +61,11 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 	messages.Each(func(m *schema.Message) {
 		src.WriteString(fmt.Sprintf("type %s struct {\n", m.Descriptor.GetName()))
 		m.Fields.Each(func(f *schema.Field) {
-			src.WriteString(fmt.Sprintf("%s %s\n", schema.ToCamel(f.Name), GoDataTypeMap[f.Type]))
+			null := ""
+			if f.Null {
+				null = "*"
+			}
+			src.WriteString(fmt.Sprintf("%s %s%s\n", schema.ToCamel(f.Name), null, GoDataTypeMap[f.Type]))
 		})
 		for _, v := range m.Descriptor.Field {
 			if v.GetType() == descriptor.FieldDescriptorProto_TYPE_MESSAGE && v.GetTypeName() != schema.TimestampType {

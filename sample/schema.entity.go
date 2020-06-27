@@ -23,7 +23,7 @@ type Blog struct {
 	CategoryId int32
 	Attach     []byte
 	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	UpdatedAt  *time.Time
 	User       *User
 }
 
@@ -44,8 +44,8 @@ type Comment struct {
 
 type Reply struct {
 	Id            int32
-	CommentBlogId int64
-	CommentUserId int32
+	CommentBlogId *int64
+	CommentUserId *int32
 	Body          string
 	Comment       *Comment
 }

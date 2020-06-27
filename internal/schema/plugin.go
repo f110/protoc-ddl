@@ -316,59 +316,7 @@ func ProcessEntity(req *plugin_go.CodeGeneratorRequest) (EntityOption, *descript
 	for _, filename := range req.FileToGenerate {
 		opt = files[filename].GetOptions()
 	}
-
-	targetMessages := make([]*Message, 0)
-	for _, filename := range req.FileToGenerate {
-		f := files[filename]
-		for _, m := range f.GetMessageType() {
-			opt := m.GetOptions()
-			e, err := proto.GetExtension(opt, ddl.E_Table)
-			if err == proto.ErrMissingExtension {
-				continue
-			}
-			ext := e.(*ddl.TableOptions)
-
-			foundFields := make([]*Field, 0)
-			for _, v := range m.Field {
-				switch v.GetType() {
-				case descriptor.FieldDescriptorProto_TYPE_MESSAGE:
-					foundFields = append(foundFields, &Field{
-						Name: v.GetName(),
-						Type: v.GetTypeName(),
-					})
-				default:
-					foundFields = append(foundFields, &Field{
-						Name: v.GetName(),
-						Type: v.GetType().String(),
-					})
-				}
-			}
-			if ext.WithTimestamp {
-				foundFields = append(foundFields,
-					&Field{Name: "created_at", Type: TimestampType},
-					&Field{Name: "updated_at", Type: TimestampType},
-				)
-			}
-
-			fields := NewFields(foundFields)
-			primaryKey := make([]*Field, 0)
-			for _, v := range ext.PrimaryKey {
-				primaryKey = append(primaryKey, fields.Get(v))
-			}
-
-			targetMessages = append(targetMessages, &Message{
-				Descriptor:  m,
-				Package:     "." + f.GetPackage(),
-				FullName:    "." + f.GetPackage() + "." + m.GetName(),
-				Fields:      fields,
-				PrimaryKeys: primaryKey,
-			})
-		}
-	}
-
-	msgs := NewMessages(targetMessages)
-	msgs.Denormalize()
-	return parseOptionEntity(req.GetParameter()), opt, msgs
+	return parseOptionEntity(req.GetParameter()), opt, parseTables(req)
 }
 
 func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
