@@ -155,7 +155,7 @@ schema_entity = rule(
     output_to_genfiles = True,
     attrs = {
         "proto": attr.label(providers = [ProtoInfo]),
-        "lang": attr.string(),
+        "lang": attr.string(mandatory = True),
         "protoc": attr.label(
             executable = True,
             cfg = "host",
