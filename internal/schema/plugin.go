@@ -372,8 +372,6 @@ func ProcessEntity(req *plugin_go.CodeGeneratorRequest) (EntityOption, *descript
 }
 
 func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
-	tables := make([]*Table, 0)
-
 	files := make(map[string]*descriptor.FileDescriptorProto)
 	for _, f := range req.ProtoFile {
 		files[f.GetName()] = f
@@ -467,84 +465,8 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 		})
 	})
 
-	for _, t := range tables {
-		for _, f := range t.descriptor.GetField() {
-			t.Columns = append(t.Columns, convertToColumn(f, tables))
-		}
-
-		if t.WithTimestamp {
-			t.Columns = append(t.Columns,
-				Column{Name: "created_at", DataType: TimestampType},
-				Column{Name: "updated_at", DataType: TimestampType, Null: true},
-			)
-		}
-	}
-
 	msgs.Denormalize()
 	return msgs
-}
-
-func convertToTable(packageName string, msg *descriptor.DescriptorProto, opt *ddl.TableOptions) *Table {
-	t := &Table{descriptor: msg, packageName: packageName, WithTimestamp: opt.WithTimestamp}
-
-	if opt.TableName != "" {
-		t.Name = opt.TableName
-	} else {
-		t.Name = ToSnake(msg.GetName())
-	}
-
-	if len(opt.PrimaryKey) > 0 {
-		t.PrimaryKey = opt.PrimaryKey
-		for _, f := range msg.GetField() {
-			if f.GetName() == t.PrimaryKey[0] {
-				t.PrimaryKeyType = f.GetType().String()
-				break
-			}
-		}
-	}
-
-	t.Indexes = opt.GetIndexes()
-	t.Engine = opt.Engine
-
-	return t
-}
-
-func convertToColumn(field *descriptor.FieldDescriptorProto, tables []*Table) Column {
-	f := Column{}
-
-	f.Name = field.GetName()
-	if field.GetType() == descriptor.FieldDescriptorProto_TYPE_MESSAGE {
-		foreignTable := false
-		for _, t := range tables {
-			if "."+t.packageName+"."+t.descriptor.GetName() == field.GetTypeName() {
-				foreignTable = true
-				f.Name += "_" + t.PrimaryKey[0]
-				f.DataType = t.PrimaryKeyType
-			}
-		}
-		if !foreignTable {
-			f.DataType = field.GetTypeName()
-		}
-	} else {
-		f.DataType = field.GetType().String()
-	}
-
-	opt := field.GetOptions()
-	if opt == nil {
-		return f
-	}
-	e, err := proto.GetExtension(opt, ddl.E_Column)
-	if err == proto.ErrMissingExtension {
-		return f
-	}
-	ext := e.(*ddl.ColumnOptions)
-	f.Sequence = ext.Sequence
-	f.Null = ext.Null
-	f.Default = ext.Default
-	f.Size = int(ext.Size)
-	f.TypeName = ext.Type
-
-	return f
 }
 
 func parseOptionDDL(p string) DDLOption {
