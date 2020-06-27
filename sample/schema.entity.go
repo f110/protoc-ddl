@@ -24,17 +24,22 @@ type Blog struct {
 	Attach     []byte
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
+	User       *User
 }
 
 type CommentImage struct {
 	CommentBlogId int64
 	CommentUserId int32
 	LikeId        uint64
+	Comment       *Comment
+	Like          *Like
 }
 
 type Comment struct {
 	BlogId int64
 	UserId int32
+	Blog   *Blog
+	User   *User
 }
 
 type Reply struct {
@@ -42,12 +47,15 @@ type Reply struct {
 	CommentBlogId int64
 	CommentUserId int32
 	Body          string
+	Comment       *Comment
 }
 
 type Like struct {
 	Id     uint64
 	UserId int32
 	BlogId int64
+	User   *User
+	Blog   *Blog
 }
 
 type PostImage struct {

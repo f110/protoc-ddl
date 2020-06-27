@@ -63,6 +63,12 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 		m.Fields.Each(func(f *schema.Field) {
 			src.WriteString(fmt.Sprintf("%s %s\n", schema.ToCamel(f.Name), GoDataTypeMap[f.Type]))
 		})
+		for _, v := range m.Descriptor.Field {
+			if v.GetType() == descriptor.FieldDescriptorProto_TYPE_MESSAGE && v.GetTypeName() != schema.TimestampType {
+				s := strings.Split(v.GetTypeName(), ".")
+				src.WriteString(fmt.Sprintf("%s *%s\n", schema.ToCamel(v.GetName()), s[len(s)-1]))
+			}
+		}
 		src.WriteString("}\n\n")
 	})
 
@@ -70,6 +76,7 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 	buf.WriteString(fmt.Sprintf("// protoc-gen-entity: %s\n", GoEntityGeneratorVersion))
 	b, err := format.Source(src.Bytes())
 	if err != nil {
+		log.Print(src.String())
 		log.Print(err)
 		return
 	}
