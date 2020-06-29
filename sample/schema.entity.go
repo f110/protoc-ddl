@@ -61,6 +61,7 @@ func (e *User) ChangedColumn() []ddl.Column {
 
 	return res
 }
+
 func (e *User) Copy() *User {
 	n := &User{
 		Id:        e.Id,
@@ -132,13 +133,17 @@ func (e *Blog) ChangedColumn() []ddl.Column {
 		res = append(res, ddl.Column{Name: "created_at", Value: e.CreatedAt})
 	}
 	if e.UpdatedAt != nil {
-		if !e.UpdatedAt.Equal(*e.mark.UpdatedAt) {
+		if e.mark.UpdatedAt != nil && !e.UpdatedAt.Equal(*e.mark.UpdatedAt) {
+			res = append(res, ddl.Column{Name: "updated_at", Value: *e.UpdatedAt})
+		}
+		if e.mark.UpdatedAt == nil {
 			res = append(res, ddl.Column{Name: "updated_at", Value: *e.UpdatedAt})
 		}
 	}
 
 	return res
 }
+
 func (e *Blog) Copy() *Blog {
 	n := &Blog{
 		Id:         e.Id,
@@ -191,6 +196,7 @@ func (e *CommentImage) ChangedColumn() []ddl.Column {
 
 	return res
 }
+
 func (e *CommentImage) Copy() *CommentImage {
 	n := &CommentImage{
 		CommentBlogId: e.CommentBlogId,
@@ -234,6 +240,7 @@ func (e *Comment) ChangedColumn() []ddl.Column {
 
 	return res
 }
+
 func (e *Comment) Copy() *Comment {
 	n := &Comment{
 		BlogId: e.BlogId,
@@ -292,6 +299,7 @@ func (e *Reply) ChangedColumn() []ddl.Column {
 
 	return res
 }
+
 func (e *Reply) Copy() *Reply {
 	n := &Reply{
 		Id:   e.Id,
@@ -350,6 +358,7 @@ func (e *Like) ChangedColumn() []ddl.Column {
 
 	return res
 }
+
 func (e *Like) Copy() *Like {
 	n := &Like{
 		Id:     e.Id,
@@ -393,6 +402,7 @@ func (e *PostImage) ChangedColumn() []ddl.Column {
 
 	return res
 }
+
 func (e *PostImage) Copy() *PostImage {
 	n := &PostImage{
 		Id:  e.Id,

@@ -146,16 +146,31 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 				null = "*"
 				src.WriteString(fmt.Sprintf("if e.%s != nil {\n", schema.ToCamel(f.Name)))
 			}
+
+			addToRes := fmt.Sprintf("res = append(res, ddl.Column{Name:\"%s\",Value:%se.%s})\n", schema.ToSnake(f.Name), null, schema.ToCamel(f.Name))
 			switch f.Type {
 			case "TYPE_BYTES":
 				src.WriteString(fmt.Sprintf("if !bytes.Equal(e.%s, e.mark.%s) {\n", schema.ToCamel(f.Name), schema.ToCamel(f.Name)))
+				src.WriteString(addToRes)
+				src.WriteString("}\n")
 			case schema.TimestampType:
-				src.WriteString(fmt.Sprintf("if !e.%s.Equal(%se.mark.%s) {\n", schema.ToCamel(f.Name), null, schema.ToCamel(f.Name)))
+				src.WriteString("if ")
+				if f.Null {
+					src.WriteString(fmt.Sprintf("e.mark.%s != nil &&", schema.ToCamel(f.Name)))
+				}
+				src.WriteString(fmt.Sprintf("!e.%s.Equal(%se.mark.%s) {\n", schema.ToCamel(f.Name), null, schema.ToCamel(f.Name)))
+				src.WriteString(addToRes)
+				src.WriteString("}\n")
+				if f.Null {
+					src.WriteString(fmt.Sprintf("if e.mark.%s == nil {\n", schema.ToCamel(f.Name)))
+					src.WriteString(addToRes)
+					src.WriteString("}\n")
+				}
 			default:
 				src.WriteString(fmt.Sprintf("if %se.%s != %se.mark.%s {\n", null, schema.ToCamel(f.Name), null, schema.ToCamel(f.Name)))
+				src.WriteString(addToRes)
+				src.WriteString("}\n")
 			}
-			src.WriteString(fmt.Sprintf("res = append(res, ddl.Column{Name:\"%s\",Value:%se.%s})\n", schema.ToSnake(f.Name), null, schema.ToCamel(f.Name)))
-			src.WriteString("}\n")
 			if f.Null {
 				src.WriteString("}\n")
 			}
@@ -163,6 +178,7 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 		src.WriteRune('\n')
 		src.WriteString("return res\n")
 		src.WriteString("}\n")
+		src.WriteRune('\n')
 
 		// Copy() *Entity
 		src.WriteString(fmt.Sprintf("func (e *%s) Copy() *%s {\n", m.Descriptor.GetName(), m.Descriptor.GetName()))
