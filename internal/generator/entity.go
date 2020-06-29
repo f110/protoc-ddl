@@ -144,6 +144,7 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 			null := ""
 			if f.Null {
 				null = "*"
+				src.WriteString(fmt.Sprintf("if e.%s != nil {\n", schema.ToCamel(f.Name)))
 			}
 			switch f.Type {
 			case "TYPE_BYTES":
@@ -155,6 +156,9 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 			}
 			src.WriteString(fmt.Sprintf("res = append(res, ddl.Column{Name:\"%s\",Value:%se.%s})\n", schema.ToSnake(f.Name), null, schema.ToCamel(f.Name)))
 			src.WriteString("}\n")
+			if f.Null {
+				src.WriteString("}\n")
+			}
 		})
 		src.WriteRune('\n')
 		src.WriteString("return res\n")

@@ -131,8 +131,10 @@ func (e *Blog) ChangedColumn() []ddl.Column {
 	if !e.CreatedAt.Equal(e.mark.CreatedAt) {
 		res = append(res, ddl.Column{Name: "created_at", Value: e.CreatedAt})
 	}
-	if !e.UpdatedAt.Equal(*e.mark.UpdatedAt) {
-		res = append(res, ddl.Column{Name: "updated_at", Value: *e.UpdatedAt})
+	if e.UpdatedAt != nil {
+		if !e.UpdatedAt.Equal(*e.mark.UpdatedAt) {
+			res = append(res, ddl.Column{Name: "updated_at", Value: *e.UpdatedAt})
+		}
 	}
 
 	return res
@@ -274,11 +276,15 @@ func (e *Reply) ChangedColumn() []ddl.Column {
 	e.mu.Unlock()
 
 	res := make([]ddl.Column, 0)
-	if *e.CommentBlogId != *e.mark.CommentBlogId {
-		res = append(res, ddl.Column{Name: "comment_blog_id", Value: *e.CommentBlogId})
+	if e.CommentBlogId != nil {
+		if *e.CommentBlogId != *e.mark.CommentBlogId {
+			res = append(res, ddl.Column{Name: "comment_blog_id", Value: *e.CommentBlogId})
+		}
 	}
-	if *e.CommentUserId != *e.mark.CommentUserId {
-		res = append(res, ddl.Column{Name: "comment_user_id", Value: *e.CommentUserId})
+	if e.CommentUserId != nil {
+		if *e.CommentUserId != *e.mark.CommentUserId {
+			res = append(res, ddl.Column{Name: "comment_user_id", Value: *e.CommentUserId})
+		}
 	}
 	if e.Body != e.mark.Body {
 		res = append(res, ddl.Column{Name: "body", Value: e.Body})
