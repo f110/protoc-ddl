@@ -38,7 +38,8 @@ var (
 	}
 )
 
-var importPackages = []string{"time"}
+var importPackages = []string{"time", "bytes", "sync"}
+var thirdPartyPackages = []string{"go.f110.dev/protoc-ddl"}
 
 func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOptions, messages *schema.Messages) {
 	src := new(bytes.Buffer)
@@ -55,8 +56,19 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 	for _, v := range importPackages {
 		src.WriteString("\"" + v + "\"\n")
 	}
+	src.WriteRune('\n')
+	for _, v := range thirdPartyPackages {
+		src.WriteString("\"" + v + "\"\n")
+	}
 	src.WriteString(")\n")
 	src.WriteString("var _ = time.Time{}\n")
+	src.WriteString("var _ = bytes.Buffer{}\n")
+	src.WriteRune('\n')
+	src.WriteString("type Column struct {\n")
+	src.WriteString("Name string\n")
+	src.WriteString("Value interface{}\n")
+	src.WriteString("}\n")
+	src.WriteRune('\n')
 
 	messages.Each(func(m *schema.Message) {
 		src.WriteString(fmt.Sprintf("type %s struct {\n", m.Descriptor.GetName()))
@@ -67,13 +79,109 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 			}
 			src.WriteString(fmt.Sprintf("%s %s%s\n", schema.ToCamel(f.Name), null, GoDataTypeMap[f.Type]))
 		})
+		src.WriteRune('\n')
 		for _, v := range m.Descriptor.Field {
 			if v.GetType() == descriptor.FieldDescriptorProto_TYPE_MESSAGE && v.GetTypeName() != schema.TimestampType {
 				s := strings.Split(v.GetTypeName(), ".")
 				src.WriteString(fmt.Sprintf("%s *%s\n", schema.ToCamel(v.GetName()), s[len(s)-1]))
 			}
 		}
+		src.WriteString("\n")
+		src.WriteString("mu sync.Mutex\n")
+		src.WriteString(fmt.Sprintf("mark *%s\n", m.Descriptor.GetName()))
 		src.WriteString("}\n\n")
+
+		// ResetMark()
+		src.WriteString(fmt.Sprintf("func (e *%s) ResetMark() {\n", m.Descriptor.GetName()))
+		src.WriteString("e.mu.Lock()\n")
+		src.WriteString("defer e.mu.Unlock()\n")
+		src.WriteRune('\n')
+		src.WriteString("e.mark = e.Copy()\n")
+		src.WriteString("}\n\n")
+
+		// IsChanged() bool
+		src.WriteString(fmt.Sprintf("func (e *%s) IsChanged() bool {\n", m.Descriptor.GetName()))
+		expr := make([]string, 0)
+		m.Fields.Each(func(f *schema.Field) {
+			if m.IsPrimaryKey(f) {
+				return
+			}
+
+			null := ""
+			if f.Null {
+				null = "*"
+			}
+			switch f.Type {
+			case "TYPE_BYTES":
+				expr = append(expr, fmt.Sprintf("!bytes.Equal(e.%s, e.mark.%s)", schema.ToCamel(f.Name), schema.ToCamel(f.Name)))
+			case schema.TimestampType:
+				expr = append(expr, fmt.Sprintf("!e.%s.Equal(%se.mark.%s)", schema.ToCamel(f.Name), null, schema.ToCamel(f.Name)))
+			default:
+				expr = append(expr, fmt.Sprintf("%se.%s != %se.mark.%s", null, schema.ToCamel(f.Name), null, schema.ToCamel(f.Name)))
+			}
+		})
+		src.WriteString("e.mu.Lock()\n")
+		src.WriteString("e.mu.Unlock()\n")
+		src.WriteRune('\n')
+		if len(expr) > 0 {
+			src.WriteString(fmt.Sprintf("return %s\n", strings.Join(expr, " || \n")))
+		} else {
+			src.WriteString("return false\n")
+		}
+		src.WriteString("}\n\n")
+
+		// ChangedColumn() []ddl.Column
+		src.WriteString(fmt.Sprintf("func (e *%s) ChangedColumn() []ddl.Column {\n", m.Descriptor.GetName()))
+		src.WriteString("e.mu.Lock()\n")
+		src.WriteString("e.mu.Unlock()\n")
+		src.WriteRune('\n')
+		src.WriteString("res := make([]ddl.Column, 0)\n")
+		m.Fields.Each(func(f *schema.Field) {
+			if m.IsPrimaryKey(f) {
+				return
+			}
+
+			null := ""
+			if f.Null {
+				null = "*"
+			}
+			switch f.Type {
+			case "TYPE_BYTES":
+				src.WriteString(fmt.Sprintf("if !bytes.Equal(e.%s, e.mark.%s) {\n", schema.ToCamel(f.Name), schema.ToCamel(f.Name)))
+			case schema.TimestampType:
+				src.WriteString(fmt.Sprintf("if !e.%s.Equal(%se.mark.%s) {\n", schema.ToCamel(f.Name), null, schema.ToCamel(f.Name)))
+			default:
+				src.WriteString(fmt.Sprintf("if %se.%s != %se.mark.%s {\n", null, schema.ToCamel(f.Name), null, schema.ToCamel(f.Name)))
+			}
+			src.WriteString(fmt.Sprintf("res = append(res, ddl.Column{Name:\"%s\",Value:%se.%s})\n", schema.ToSnake(f.Name), null, schema.ToCamel(f.Name)))
+			src.WriteString("}\n")
+		})
+		src.WriteRune('\n')
+		src.WriteString("return res\n")
+		src.WriteString("}\n")
+
+		// Copy() *Entity
+		src.WriteString(fmt.Sprintf("func (e *%s) Copy() *%s {\n", m.Descriptor.GetName(), m.Descriptor.GetName()))
+		src.WriteString(fmt.Sprintf("n := &%s{\n", m.Descriptor.GetName()))
+		m.Fields.Each(func(f *schema.Field) {
+			if f.Null {
+				return
+			}
+			src.WriteString(fmt.Sprintf("%s: e.%s,\n", schema.ToCamel(f.Name), schema.ToCamel(f.Name)))
+		})
+		src.WriteString("}\n")
+		m.Fields.Each(func(f *schema.Field) {
+			if !f.Null {
+				return
+			}
+			src.WriteString(fmt.Sprintf("if e.%s != nil {\n", schema.ToCamel(f.Name)))
+			src.WriteString(fmt.Sprintf("v := *e.%s\n", schema.ToCamel(f.Name)))
+			src.WriteString(fmt.Sprintf("n.%s = &v\n", schema.ToCamel(f.Name)))
+			src.WriteString("}\n")
+		})
+		src.WriteRune('\n')
+		src.WriteString("return n\n")
+		src.WriteString("}\n")
 	})
 
 	buf.WriteString("// Generated by protoc-ddl.\n")

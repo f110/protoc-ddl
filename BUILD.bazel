@@ -23,6 +23,7 @@ go_proto_library(
 
 go_library(
     name = "go_default_library",
+    srcs = ["column.go"],
     embed = [":ddl_go_proto"],
     importpath = "go.f110.dev/protoc-ddl",
     visibility = ["//visibility:public"],

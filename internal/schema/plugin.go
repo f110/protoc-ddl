@@ -80,6 +80,16 @@ type Message struct {
 	Engine      string
 }
 
+func (m *Message) IsPrimaryKey(f *Field) bool {
+	for _, v := range m.PrimaryKeys {
+		if v == f {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (m *Message) String() string {
 	s := make([]string, 0, m.Fields.Len()+2)
 	s = append(s, m.FullName)

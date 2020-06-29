@@ -10,9 +10,7 @@ go_library(
     importpath = "go.f110.dev/protoc-ddl/internal/generator",
     visibility = ["//:__subpackages__"],
     deps = [
-        "//:go_default_library",
         "//internal/schema:go_default_library",
-        "@com_github_golang_protobuf//proto:go_default_library",
         "@io_bazel_rules_go//proto/wkt:descriptor_go_proto",
     ],
 )

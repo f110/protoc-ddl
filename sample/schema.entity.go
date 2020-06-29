@@ -3,16 +3,73 @@
 package sample
 
 import (
+	"bytes"
+	"sync"
 	"time"
+
+	"go.f110.dev/protoc-ddl"
 )
 
 var _ = time.Time{}
+var _ = bytes.Buffer{}
+
+type Column struct {
+	Name  string
+	Value interface{}
+}
 
 type User struct {
 	Id        int32
 	Age       int32
 	Name      string
 	CreatedAt time.Time
+
+	mu   sync.Mutex
+	mark *User
+}
+
+func (e *User) ResetMark() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.mark = e.Copy()
+}
+
+func (e *User) IsChanged() bool {
+	e.mu.Lock()
+	e.mu.Unlock()
+
+	return e.Age != e.mark.Age ||
+		e.Name != e.mark.Name ||
+		!e.CreatedAt.Equal(e.mark.CreatedAt)
+}
+
+func (e *User) ChangedColumn() []ddl.Column {
+	e.mu.Lock()
+	e.mu.Unlock()
+
+	res := make([]ddl.Column, 0)
+	if e.Age != e.mark.Age {
+		res = append(res, ddl.Column{Name: "age", Value: e.Age})
+	}
+	if e.Name != e.mark.Name {
+		res = append(res, ddl.Column{Name: "name", Value: e.Name})
+	}
+	if !e.CreatedAt.Equal(e.mark.CreatedAt) {
+		res = append(res, ddl.Column{Name: "created_at", Value: e.CreatedAt})
+	}
+
+	return res
+}
+func (e *User) Copy() *User {
+	n := &User{
+		Id:        e.Id,
+		Age:       e.Age,
+		Name:      e.Name,
+		CreatedAt: e.CreatedAt,
+	}
+
+	return n
 }
 
 type Blog struct {
@@ -24,22 +81,164 @@ type Blog struct {
 	Attach     []byte
 	CreatedAt  time.Time
 	UpdatedAt  *time.Time
-	User       *User
+
+	User *User
+
+	mu   sync.Mutex
+	mark *Blog
+}
+
+func (e *Blog) ResetMark() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.mark = e.Copy()
+}
+
+func (e *Blog) IsChanged() bool {
+	e.mu.Lock()
+	e.mu.Unlock()
+
+	return e.UserId != e.mark.UserId ||
+		e.Title != e.mark.Title ||
+		e.Body != e.mark.Body ||
+		e.CategoryId != e.mark.CategoryId ||
+		!bytes.Equal(e.Attach, e.mark.Attach) ||
+		!e.CreatedAt.Equal(e.mark.CreatedAt) ||
+		!e.UpdatedAt.Equal(*e.mark.UpdatedAt)
+}
+
+func (e *Blog) ChangedColumn() []ddl.Column {
+	e.mu.Lock()
+	e.mu.Unlock()
+
+	res := make([]ddl.Column, 0)
+	if e.UserId != e.mark.UserId {
+		res = append(res, ddl.Column{Name: "user_id", Value: e.UserId})
+	}
+	if e.Title != e.mark.Title {
+		res = append(res, ddl.Column{Name: "title", Value: e.Title})
+	}
+	if e.Body != e.mark.Body {
+		res = append(res, ddl.Column{Name: "body", Value: e.Body})
+	}
+	if e.CategoryId != e.mark.CategoryId {
+		res = append(res, ddl.Column{Name: "category_id", Value: e.CategoryId})
+	}
+	if !bytes.Equal(e.Attach, e.mark.Attach) {
+		res = append(res, ddl.Column{Name: "attach", Value: e.Attach})
+	}
+	if !e.CreatedAt.Equal(e.mark.CreatedAt) {
+		res = append(res, ddl.Column{Name: "created_at", Value: e.CreatedAt})
+	}
+	if !e.UpdatedAt.Equal(*e.mark.UpdatedAt) {
+		res = append(res, ddl.Column{Name: "updated_at", Value: *e.UpdatedAt})
+	}
+
+	return res
+}
+func (e *Blog) Copy() *Blog {
+	n := &Blog{
+		Id:         e.Id,
+		UserId:     e.UserId,
+		Title:      e.Title,
+		Body:       e.Body,
+		CategoryId: e.CategoryId,
+		Attach:     e.Attach,
+		CreatedAt:  e.CreatedAt,
+	}
+	if e.UpdatedAt != nil {
+		v := *e.UpdatedAt
+		n.UpdatedAt = &v
+	}
+
+	return n
 }
 
 type CommentImage struct {
 	CommentBlogId int64
 	CommentUserId int32
 	LikeId        uint64
-	Comment       *Comment
-	Like          *Like
+
+	Comment *Comment
+	Like    *Like
+
+	mu   sync.Mutex
+	mark *CommentImage
+}
+
+func (e *CommentImage) ResetMark() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.mark = e.Copy()
+}
+
+func (e *CommentImage) IsChanged() bool {
+	e.mu.Lock()
+	e.mu.Unlock()
+
+	return false
+}
+
+func (e *CommentImage) ChangedColumn() []ddl.Column {
+	e.mu.Lock()
+	e.mu.Unlock()
+
+	res := make([]ddl.Column, 0)
+
+	return res
+}
+func (e *CommentImage) Copy() *CommentImage {
+	n := &CommentImage{
+		CommentBlogId: e.CommentBlogId,
+		CommentUserId: e.CommentUserId,
+		LikeId:        e.LikeId,
+	}
+
+	return n
 }
 
 type Comment struct {
 	BlogId int64
 	UserId int32
-	Blog   *Blog
-	User   *User
+
+	Blog *Blog
+	User *User
+
+	mu   sync.Mutex
+	mark *Comment
+}
+
+func (e *Comment) ResetMark() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.mark = e.Copy()
+}
+
+func (e *Comment) IsChanged() bool {
+	e.mu.Lock()
+	e.mu.Unlock()
+
+	return false
+}
+
+func (e *Comment) ChangedColumn() []ddl.Column {
+	e.mu.Lock()
+	e.mu.Unlock()
+
+	res := make([]ddl.Column, 0)
+
+	return res
+}
+func (e *Comment) Copy() *Comment {
+	n := &Comment{
+		BlogId: e.BlogId,
+		UserId: e.UserId,
+	}
+
+	return n
 }
 
 type Reply struct {
@@ -47,18 +246,152 @@ type Reply struct {
 	CommentBlogId *int64
 	CommentUserId *int32
 	Body          string
-	Comment       *Comment
+
+	Comment *Comment
+
+	mu   sync.Mutex
+	mark *Reply
+}
+
+func (e *Reply) ResetMark() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.mark = e.Copy()
+}
+
+func (e *Reply) IsChanged() bool {
+	e.mu.Lock()
+	e.mu.Unlock()
+
+	return *e.CommentBlogId != *e.mark.CommentBlogId ||
+		*e.CommentUserId != *e.mark.CommentUserId ||
+		e.Body != e.mark.Body
+}
+
+func (e *Reply) ChangedColumn() []ddl.Column {
+	e.mu.Lock()
+	e.mu.Unlock()
+
+	res := make([]ddl.Column, 0)
+	if *e.CommentBlogId != *e.mark.CommentBlogId {
+		res = append(res, ddl.Column{Name: "comment_blog_id", Value: *e.CommentBlogId})
+	}
+	if *e.CommentUserId != *e.mark.CommentUserId {
+		res = append(res, ddl.Column{Name: "comment_user_id", Value: *e.CommentUserId})
+	}
+	if e.Body != e.mark.Body {
+		res = append(res, ddl.Column{Name: "body", Value: e.Body})
+	}
+
+	return res
+}
+func (e *Reply) Copy() *Reply {
+	n := &Reply{
+		Id:   e.Id,
+		Body: e.Body,
+	}
+	if e.CommentBlogId != nil {
+		v := *e.CommentBlogId
+		n.CommentBlogId = &v
+	}
+	if e.CommentUserId != nil {
+		v := *e.CommentUserId
+		n.CommentUserId = &v
+	}
+
+	return n
 }
 
 type Like struct {
 	Id     uint64
 	UserId int32
 	BlogId int64
-	User   *User
-	Blog   *Blog
+
+	User *User
+	Blog *Blog
+
+	mu   sync.Mutex
+	mark *Like
+}
+
+func (e *Like) ResetMark() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.mark = e.Copy()
+}
+
+func (e *Like) IsChanged() bool {
+	e.mu.Lock()
+	e.mu.Unlock()
+
+	return e.UserId != e.mark.UserId ||
+		e.BlogId != e.mark.BlogId
+}
+
+func (e *Like) ChangedColumn() []ddl.Column {
+	e.mu.Lock()
+	e.mu.Unlock()
+
+	res := make([]ddl.Column, 0)
+	if e.UserId != e.mark.UserId {
+		res = append(res, ddl.Column{Name: "user_id", Value: e.UserId})
+	}
+	if e.BlogId != e.mark.BlogId {
+		res = append(res, ddl.Column{Name: "blog_id", Value: e.BlogId})
+	}
+
+	return res
+}
+func (e *Like) Copy() *Like {
+	n := &Like{
+		Id:     e.Id,
+		UserId: e.UserId,
+		BlogId: e.BlogId,
+	}
+
+	return n
 }
 
 type PostImage struct {
 	Id  int32
 	Url string
+
+	mu   sync.Mutex
+	mark *PostImage
+}
+
+func (e *PostImage) ResetMark() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.mark = e.Copy()
+}
+
+func (e *PostImage) IsChanged() bool {
+	e.mu.Lock()
+	e.mu.Unlock()
+
+	return e.Url != e.mark.Url
+}
+
+func (e *PostImage) ChangedColumn() []ddl.Column {
+	e.mu.Lock()
+	e.mu.Unlock()
+
+	res := make([]ddl.Column, 0)
+	if e.Url != e.mark.Url {
+		res = append(res, ddl.Column{Name: "url", Value: e.Url})
+	}
+
+	return res
+}
+func (e *PostImage) Copy() *PostImage {
+	n := &PostImage{
+		Id:  e.Id,
+		Url: e.Url,
+	}
+
+	return n
 }
