@@ -107,17 +107,27 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 				return
 			}
 
-			null := ""
-			if f.Null {
-				null = "*"
-			}
+			fieldName := schema.ToCamel(f.Name)
 			switch f.Type {
 			case "TYPE_BYTES":
 				expr = append(expr, fmt.Sprintf("!bytes.Equal(e.%s, e.mark.%s)", schema.ToCamel(f.Name), schema.ToCamel(f.Name)))
 			case schema.TimestampType:
-				expr = append(expr, fmt.Sprintf("!e.%s.Equal(%se.mark.%s)", schema.ToCamel(f.Name), null, schema.ToCamel(f.Name)))
+				if f.Null {
+					expr = append(expr,
+						fmt.Sprintf("((e.%s != nil && (e.mark.%s == nil || !e.%s.Equal(*e.mark.%s))) || (e.%s == nil && e.mark.%s != nil))",
+							fieldName, fieldName, fieldName, fieldName, fieldName, fieldName),
+					)
+				} else {
+					expr = append(expr, fmt.Sprintf("!e.%s.Equal(e.mark.%s)", fieldName, fieldName))
+				}
 			default:
-				expr = append(expr, fmt.Sprintf("%se.%s != %se.mark.%s", null, schema.ToCamel(f.Name), null, schema.ToCamel(f.Name)))
+				if f.Null {
+					expr = append(expr, fmt.Sprintf("((e.%s != nil && (e.mark.%s == nil || *e.%s != *e.mark.%s)) || e.%s == nil && e.mark.%s != nil)",
+						fieldName, fieldName, fieldName, fieldName, fieldName, fieldName),
+					)
+				} else {
+					expr = append(expr, fmt.Sprintf("e.%s != e.mark.%s", fieldName, fieldName))
+				}
 			}
 		})
 		src.WriteString("e.mu.Lock()\n")
@@ -140,39 +150,52 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 			if m.IsPrimaryKey(f) {
 				return
 			}
+			fieldName := schema.ToCamel(f.Name)
 
-			null := ""
+			var addToRes string
 			if f.Null {
-				null = "*"
-				src.WriteString(fmt.Sprintf("if e.%s != nil {\n", schema.ToCamel(f.Name)))
+				addToRes = fmt.Sprintf("if e.%s != nil {\n"+
+					"res = append(res, ddl.Column{Name:\"%s\",Value:*e.%s})\n"+
+					"} else {\n"+
+					"res = append(res, ddl.Column{Name:\"%s\",Value:nil})\n"+
+					"}\n",
+					fieldName, fieldName, fieldName, fieldName,
+				)
+			} else {
+				addToRes = fmt.Sprintf("res = append(res, ddl.Column{Name:\"%s\",Value:e.%s})\n", fieldName, fieldName)
 			}
 
-			addToRes := fmt.Sprintf("res = append(res, ddl.Column{Name:\"%s\",Value:%se.%s})\n", schema.ToSnake(f.Name), null, schema.ToCamel(f.Name))
 			switch f.Type {
 			case "TYPE_BYTES":
-				src.WriteString(fmt.Sprintf("if !bytes.Equal(e.%s, e.mark.%s) {\n", schema.ToCamel(f.Name), schema.ToCamel(f.Name)))
+				src.WriteString(fmt.Sprintf("if !bytes.Equal(e.%s, e.mark.%s) {\n", fieldName, fieldName))
 				src.WriteString(addToRes)
 				src.WriteString("}\n")
 			case schema.TimestampType:
-				src.WriteString("if ")
 				if f.Null {
-					src.WriteString(fmt.Sprintf("e.mark.%s != nil &&", schema.ToCamel(f.Name)))
-				}
-				src.WriteString(fmt.Sprintf("!e.%s.Equal(%se.mark.%s) {\n", schema.ToCamel(f.Name), null, schema.ToCamel(f.Name)))
-				src.WriteString(addToRes)
-				src.WriteString("}\n")
-				if f.Null {
-					src.WriteString(fmt.Sprintf("if e.mark.%s == nil {\n", schema.ToCamel(f.Name)))
+					src.WriteString(fmt.Sprintf(
+						"if (e.%s != nil && (e.mark.%s == nil || !e.%s.Equal(*e.mark.%s))) || (e.%s == nil && e.mark.%s != nil) {\n",
+						fieldName, fieldName, fieldName, fieldName, fieldName, fieldName,
+					))
+					src.WriteString(addToRes)
+					src.WriteString("}\n")
+				} else {
+					src.WriteString(fmt.Sprintf("if !e.%s.Equal(e.mark.%s) {\n", fieldName, fieldName))
 					src.WriteString(addToRes)
 					src.WriteString("}\n")
 				}
 			default:
-				src.WriteString(fmt.Sprintf("if %se.%s != %se.mark.%s {\n", null, schema.ToCamel(f.Name), null, schema.ToCamel(f.Name)))
-				src.WriteString(addToRes)
-				src.WriteString("}\n")
-			}
-			if f.Null {
-				src.WriteString("}\n")
+				if f.Null {
+					src.WriteString(fmt.Sprintf(
+						"if (e.%s != nil && (e.mark.%s == nil || *e.%s != *e.mark.%s)) || (e.%s == nil && e.mark.%s != nil) {\n",
+						fieldName, fieldName, fieldName, fieldName, fieldName, fieldName,
+					))
+					src.WriteString(addToRes)
+					src.WriteString("}\n")
+				} else {
+					src.WriteString(fmt.Sprintf("if e.%s != e.mark.%s {\n", fieldName, fieldName))
+					src.WriteString(addToRes)
+					src.WriteString("}\n")
+				}
 			}
 		})
 		src.WriteRune('\n')

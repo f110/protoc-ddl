@@ -18,7 +18,7 @@ CREATE TABLE `blog` (
 	`user_id` INTEGER NOT NULL,
 	`title` VARCHAR(100) NOT NULL,
 	`body` TEXT NOT NULL,
-	`category_id` INTEGER NOT NULL,
+	`category_id` INTEGER NULL,
 	`attach` LONGBLOB NOT NULL,
 	`created_at` DATETIME NOT NULL,
 	`updated_at` DATETIME NULL,
