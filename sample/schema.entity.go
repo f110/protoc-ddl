@@ -50,13 +50,13 @@ func (e *User) ChangedColumn() []ddl.Column {
 
 	res := make([]ddl.Column, 0)
 	if e.Age != e.mark.Age {
-		res = append(res, ddl.Column{Name: "Age", Value: e.Age})
+		res = append(res, ddl.Column{Name: "age", Value: e.Age})
 	}
 	if e.Name != e.mark.Name {
-		res = append(res, ddl.Column{Name: "Name", Value: e.Name})
+		res = append(res, ddl.Column{Name: "name", Value: e.Name})
 	}
 	if !e.CreatedAt.Equal(e.mark.CreatedAt) {
-		res = append(res, ddl.Column{Name: "CreatedAt", Value: e.CreatedAt})
+		res = append(res, ddl.Column{Name: "created_at", Value: e.CreatedAt})
 	}
 
 	return res
@@ -115,32 +115,32 @@ func (e *Blog) ChangedColumn() []ddl.Column {
 
 	res := make([]ddl.Column, 0)
 	if e.UserId != e.mark.UserId {
-		res = append(res, ddl.Column{Name: "UserId", Value: e.UserId})
+		res = append(res, ddl.Column{Name: "user_id", Value: e.UserId})
 	}
 	if e.Title != e.mark.Title {
-		res = append(res, ddl.Column{Name: "Title", Value: e.Title})
+		res = append(res, ddl.Column{Name: "title", Value: e.Title})
 	}
 	if e.Body != e.mark.Body {
-		res = append(res, ddl.Column{Name: "Body", Value: e.Body})
+		res = append(res, ddl.Column{Name: "body", Value: e.Body})
 	}
 	if (e.CategoryId != nil && (e.mark.CategoryId == nil || *e.CategoryId != *e.mark.CategoryId)) || (e.CategoryId == nil && e.mark.CategoryId != nil) {
 		if e.CategoryId != nil {
-			res = append(res, ddl.Column{Name: "CategoryId", Value: *e.CategoryId})
+			res = append(res, ddl.Column{Name: "category_id", Value: *e.CategoryId})
 		} else {
-			res = append(res, ddl.Column{Name: "CategoryId", Value: nil})
+			res = append(res, ddl.Column{Name: "category_id", Value: nil})
 		}
 	}
 	if !bytes.Equal(e.Attach, e.mark.Attach) {
-		res = append(res, ddl.Column{Name: "Attach", Value: e.Attach})
+		res = append(res, ddl.Column{Name: "attach", Value: e.Attach})
 	}
 	if !e.CreatedAt.Equal(e.mark.CreatedAt) {
-		res = append(res, ddl.Column{Name: "CreatedAt", Value: e.CreatedAt})
+		res = append(res, ddl.Column{Name: "created_at", Value: e.CreatedAt})
 	}
 	if (e.UpdatedAt != nil && (e.mark.UpdatedAt == nil || !e.UpdatedAt.Equal(*e.mark.UpdatedAt))) || (e.UpdatedAt == nil && e.mark.UpdatedAt != nil) {
 		if e.UpdatedAt != nil {
-			res = append(res, ddl.Column{Name: "UpdatedAt", Value: *e.UpdatedAt})
+			res = append(res, ddl.Column{Name: "updated_at", Value: *e.UpdatedAt})
 		} else {
-			res = append(res, ddl.Column{Name: "UpdatedAt", Value: nil})
+			res = append(res, ddl.Column{Name: "updated_at", Value: nil})
 		}
 	}
 
@@ -291,20 +291,20 @@ func (e *Reply) ChangedColumn() []ddl.Column {
 	res := make([]ddl.Column, 0)
 	if (e.CommentBlogId != nil && (e.mark.CommentBlogId == nil || *e.CommentBlogId != *e.mark.CommentBlogId)) || (e.CommentBlogId == nil && e.mark.CommentBlogId != nil) {
 		if e.CommentBlogId != nil {
-			res = append(res, ddl.Column{Name: "CommentBlogId", Value: *e.CommentBlogId})
+			res = append(res, ddl.Column{Name: "comment_blog_id", Value: *e.CommentBlogId})
 		} else {
-			res = append(res, ddl.Column{Name: "CommentBlogId", Value: nil})
+			res = append(res, ddl.Column{Name: "comment_blog_id", Value: nil})
 		}
 	}
 	if (e.CommentUserId != nil && (e.mark.CommentUserId == nil || *e.CommentUserId != *e.mark.CommentUserId)) || (e.CommentUserId == nil && e.mark.CommentUserId != nil) {
 		if e.CommentUserId != nil {
-			res = append(res, ddl.Column{Name: "CommentUserId", Value: *e.CommentUserId})
+			res = append(res, ddl.Column{Name: "comment_user_id", Value: *e.CommentUserId})
 		} else {
-			res = append(res, ddl.Column{Name: "CommentUserId", Value: nil})
+			res = append(res, ddl.Column{Name: "comment_user_id", Value: nil})
 		}
 	}
 	if e.Body != e.mark.Body {
-		res = append(res, ddl.Column{Name: "Body", Value: e.Body})
+		res = append(res, ddl.Column{Name: "body", Value: e.Body})
 	}
 
 	return res
@@ -360,10 +360,10 @@ func (e *Like) ChangedColumn() []ddl.Column {
 
 	res := make([]ddl.Column, 0)
 	if e.UserId != e.mark.UserId {
-		res = append(res, ddl.Column{Name: "UserId", Value: e.UserId})
+		res = append(res, ddl.Column{Name: "user_id", Value: e.UserId})
 	}
 	if e.BlogId != e.mark.BlogId {
-		res = append(res, ddl.Column{Name: "BlogId", Value: e.BlogId})
+		res = append(res, ddl.Column{Name: "blog_id", Value: e.BlogId})
 	}
 
 	return res
@@ -407,7 +407,7 @@ func (e *PostImage) ChangedColumn() []ddl.Column {
 
 	res := make([]ddl.Column, 0)
 	if e.Url != e.mark.Url {
-		res = append(res, ddl.Column{Name: "Url", Value: e.Url})
+		res = append(res, ddl.Column{Name: "url", Value: e.Url})
 	}
 
 	return res

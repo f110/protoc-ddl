@@ -151,6 +151,7 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 				return
 			}
 			fieldName := schema.ToCamel(f.Name)
+			columnName := schema.ToSnake(f.Name)
 
 			var addToRes string
 			if f.Null {
@@ -159,10 +160,10 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 					"} else {\n"+
 					"res = append(res, ddl.Column{Name:\"%s\",Value:nil})\n"+
 					"}\n",
-					fieldName, fieldName, fieldName, fieldName,
+					fieldName, columnName, fieldName, columnName,
 				)
 			} else {
-				addToRes = fmt.Sprintf("res = append(res, ddl.Column{Name:\"%s\",Value:e.%s})\n", fieldName, fieldName)
+				addToRes = fmt.Sprintf("res = append(res, ddl.Column{Name:\"%s\",Value:e.%s})\n", columnName, fieldName)
 			}
 
 			switch f.Type {
