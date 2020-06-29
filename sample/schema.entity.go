@@ -37,7 +37,7 @@ func (e *User) ResetMark() {
 
 func (e *User) IsChanged() bool {
 	e.mu.Lock()
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
 	return e.Age != e.mark.Age ||
 		e.Name != e.mark.Name ||
@@ -46,7 +46,7 @@ func (e *User) IsChanged() bool {
 
 func (e *User) ChangedColumn() []ddl.Column {
 	e.mu.Lock()
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
 	res := make([]ddl.Column, 0)
 	if e.Age != e.mark.Age {
@@ -97,7 +97,7 @@ func (e *Blog) ResetMark() {
 
 func (e *Blog) IsChanged() bool {
 	e.mu.Lock()
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
 	return e.UserId != e.mark.UserId ||
 		e.Title != e.mark.Title ||
@@ -110,7 +110,7 @@ func (e *Blog) IsChanged() bool {
 
 func (e *Blog) ChangedColumn() []ddl.Column {
 	e.mu.Lock()
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
 	res := make([]ddl.Column, 0)
 	if e.UserId != e.mark.UserId {
@@ -178,14 +178,14 @@ func (e *CommentImage) ResetMark() {
 
 func (e *CommentImage) IsChanged() bool {
 	e.mu.Lock()
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
 	return false
 }
 
 func (e *CommentImage) ChangedColumn() []ddl.Column {
 	e.mu.Lock()
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
 	res := make([]ddl.Column, 0)
 
@@ -221,14 +221,14 @@ func (e *Comment) ResetMark() {
 
 func (e *Comment) IsChanged() bool {
 	e.mu.Lock()
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
 	return false
 }
 
 func (e *Comment) ChangedColumn() []ddl.Column {
 	e.mu.Lock()
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
 	res := make([]ddl.Column, 0)
 
@@ -264,7 +264,7 @@ func (e *Reply) ResetMark() {
 
 func (e *Reply) IsChanged() bool {
 	e.mu.Lock()
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
 	return *e.CommentBlogId != *e.mark.CommentBlogId ||
 		*e.CommentUserId != *e.mark.CommentUserId ||
@@ -273,7 +273,7 @@ func (e *Reply) IsChanged() bool {
 
 func (e *Reply) ChangedColumn() []ddl.Column {
 	e.mu.Lock()
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
 	res := make([]ddl.Column, 0)
 	if e.CommentBlogId != nil {
@@ -330,7 +330,7 @@ func (e *Like) ResetMark() {
 
 func (e *Like) IsChanged() bool {
 	e.mu.Lock()
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
 	return e.UserId != e.mark.UserId ||
 		e.BlogId != e.mark.BlogId
@@ -338,7 +338,7 @@ func (e *Like) IsChanged() bool {
 
 func (e *Like) ChangedColumn() []ddl.Column {
 	e.mu.Lock()
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
 	res := make([]ddl.Column, 0)
 	if e.UserId != e.mark.UserId {
@@ -377,14 +377,14 @@ func (e *PostImage) ResetMark() {
 
 func (e *PostImage) IsChanged() bool {
 	e.mu.Lock()
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
 	return e.Url != e.mark.Url
 }
 
 func (e *PostImage) ChangedColumn() []ddl.Column {
 	e.mu.Lock()
-	e.mu.Unlock()
+	defer e.mu.Unlock()
 
 	res := make([]ddl.Column, 0)
 	if e.Url != e.mark.Url {

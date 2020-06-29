@@ -121,7 +121,7 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 			}
 		})
 		src.WriteString("e.mu.Lock()\n")
-		src.WriteString("e.mu.Unlock()\n")
+		src.WriteString("defer e.mu.Unlock()\n")
 		src.WriteRune('\n')
 		if len(expr) > 0 {
 			src.WriteString(fmt.Sprintf("return %s\n", strings.Join(expr, " || \n")))
@@ -133,7 +133,7 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 		// ChangedColumn() []ddl.Column
 		src.WriteString(fmt.Sprintf("func (e *%s) ChangedColumn() []ddl.Column {\n", m.Descriptor.GetName()))
 		src.WriteString("e.mu.Lock()\n")
-		src.WriteString("e.mu.Unlock()\n")
+		src.WriteString("defer e.mu.Unlock()\n")
 		src.WriteRune('\n')
 		src.WriteString("res := make([]ddl.Column, 0)\n")
 		m.Fields.Each(func(f *schema.Field) {
