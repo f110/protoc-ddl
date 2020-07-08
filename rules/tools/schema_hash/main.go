@@ -42,9 +42,10 @@ func main() {
 	h := sha256.Sum256(b)
 	schemaHash := hex.EncodeToString(h[:])
 
-	var formatted []byte
-	buf := new(bytes.Buffer)
-	if lang == "go" {
+	var out []byte
+	switch lang {
+	case "go":
+		buf := new(bytes.Buffer)
 		fmt.Fprintf(buf, "package %s\n", packageName)
 		fmt.Fprintln(buf, "const SchemaHash = \""+schemaHash+"\"")
 		f, err := format.Source(buf.Bytes())
@@ -53,11 +54,14 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Failed format: %v\n", err)
 			os.Exit(1)
 		}
-		formatted = f
+		out = f
+	case "txt":
+		out = []byte(schemaHash + "\n")
 	}
+
 	if outfile != "" {
-		ioutil.WriteFile(outfile, formatted, 0644)
+		ioutil.WriteFile(outfile, out, 0644)
 	} else {
-		os.Stdout.Write(formatted)
+		os.Stdout.Write(out)
 	}
 }

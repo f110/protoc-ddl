@@ -52,30 +52,35 @@ def _sql_schema_impl(ctx):
         ctx.files._well_known_protos,
     )
 
+    hash_out = None
     extra = []
     extra_out = []
-    if ctx.attr.lang == "go":
-        go = go_context(ctx)
-        if ctx.attr.with_hash:
+    if ctx.attr.with_hash:
+        if ctx.attr.lang == "txt":
+            hash_out = ctx.actions.declare_file("%s.hash.txt" % name)
+
+        if ctx.attr.lang == "go":
+            go = go_context(ctx)
             hash_out = ctx.actions.declare_file("%s.hash.go" % name)
 
-            args = ctx.actions.args()
-            args.add("--package=" + paths.basename(ctx.attr.importpath))
-            args.add("--lang=" + ctx.attr.lang)
-            args.add("--outfile=" + hash_out.path)
-            args.add(out.path)
+        args = ctx.actions.args()
+        args.add("--package=" + paths.basename(ctx.attr.importpath))
+        args.add("--lang=" + ctx.attr.lang)
+        args.add("--outfile=" + hash_out.path)
+        args.add(out.path)
 
-            ctx.actions.run(
-                executable = ctx.executable._schema_hash,
-                inputs = depset(direct = [out]),
-                outputs = [hash_out],
-                arguments = [args],
-            )
+        ctx.actions.run(
+            executable = ctx.executable._schema_hash,
+            inputs = depset(direct = [out]),
+            outputs = [hash_out],
+            arguments = [args],
+        )
 
+        extra_out.append(hash_out)
+        if ctx.attr.lang == "go":
             library = go.new_library(go, srcs = [hash_out])
             source = go.library_to_source(go, {}, library, ctx.coverage_instrumented())
             extra += [library, source]
-            extra_out.append(hash_out)
 
     return [
         DefaultInfo(
@@ -83,6 +88,7 @@ def _sql_schema_impl(ctx):
         ),
         OutputGroupInfo(
             schema = [out],
+            hash = [hash_out],
         ),
     ] + extra
 
@@ -93,7 +99,7 @@ sql_schema = go_rule(
         "proto": attr.label(providers = [ProtoInfo]),
         "dialect": attr.string(),
         "lang": attr.string(
-            doc = "A language name of hash file. Currently go is supported.",
+            doc = "A language name of hash file. Currently go and txt is supported.",
         ),
         "importpath": attr.string(
             doc = "The source import path. This attr will be used only if lang is go.",
@@ -127,7 +133,10 @@ def _vendor_ddl_impl(ctx):
         generated += [x for x in ctx.attr.src[GoSource].orig_srcs if not x in generated]
 
     if OutputGroupInfo in ctx.attr.src:
-        generated += [x for x in ctx.attr.src[OutputGroupInfo].schema.to_list() if not x in generated]
+        if "schema" in ctx.attr.src[OutputGroupInfo]:
+            generated += [x for x in ctx.attr.src[OutputGroupInfo].schema.to_list() if not x in generated]
+        if "hash" in ctx.attr.src[OutputGroupInfo]:
+            generated += [x for x in ctx.attr.src[OutputGroupInfo].hash.to_list() if not x in generated]
 
     substitutions = {
         "@@FROM@@": shell.array_literal([x.path for x in generated]),
