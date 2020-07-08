@@ -52,21 +52,53 @@ def _sql_schema_impl(ctx):
         ctx.files._well_known_protos,
     )
 
+    extra = []
+    extra_out = []
+    if ctx.attr.lang == "go":
+        go = go_context(ctx)
+        if ctx.attr.with_hash:
+            hash_out = ctx.actions.declare_file("%s.hash.go" % name)
+
+            args = ctx.actions.args()
+            args.add("--package=" + paths.basename(ctx.attr.importpath))
+            args.add("--lang=" + ctx.attr.lang)
+            args.add("--outfile=" + hash_out.path)
+            args.add(out.path)
+
+            ctx.actions.run(
+                executable = ctx.executable._schema_hash,
+                inputs = depset(direct = [out]),
+                outputs = [hash_out],
+                arguments = [args],
+            )
+
+            library = go.new_library(go, srcs = [hash_out])
+            source = go.library_to_source(go, {}, library, ctx.coverage_instrumented())
+            extra += [library, source]
+            extra_out.append(hash_out)
+
     return [
         DefaultInfo(
-            files = depset([out]),
+            files = depset([out] + extra_out),
         ),
         OutputGroupInfo(
             schema = [out],
         ),
-    ]
+    ] + extra
 
-sql_schema = rule(
+sql_schema = go_rule(
     implementation = _sql_schema_impl,
     output_to_genfiles = True,
     attrs = {
         "proto": attr.label(providers = [ProtoInfo]),
         "dialect": attr.string(),
+        "lang": attr.string(
+            doc = "A language name of hash file. Currently go is supported.",
+        ),
+        "importpath": attr.string(
+            doc = "The source import path. This attr will be used only if lang is go.",
+        ),
+        "with_hash": attr.bool(),
         "protoc": attr.label(
             executable = True,
             cfg = "host",
@@ -81,18 +113,24 @@ sql_schema = rule(
             default = "@com_google_protobuf//:well_known_protos",
             allow_files = True,
         ),
+        "_schema_hash": attr.label(
+            executable = True,
+            cfg = "host",
+            default = "//rules/tools/schema_hash",
+        ),
     },
 )
 
 def _vendor_ddl_impl(ctx):
     generated = []
     if GoSource in ctx.attr.src:
-        generated += ctx.attr.src[GoSource].orig_srcs
-    else:
-        generated = ctx.attr.src[OutputGroupInfo].schema.to_list()
+        generated += [x for x in ctx.attr.src[GoSource].orig_srcs if not x in generated]
+
+    if OutputGroupInfo in ctx.attr.src:
+        generated += [x for x in ctx.attr.src[OutputGroupInfo].schema.to_list() if not x in generated]
 
     substitutions = {
-        "@@FROM@@": shell.quote(generated[0].path),
+        "@@FROM@@": shell.array_literal([x.path for x in generated]),
         "@@TO@@": shell.quote(ctx.attr.dir),
     }
     out = ctx.actions.declare_file(ctx.label.name + ".sh")
@@ -102,7 +140,7 @@ def _vendor_ddl_impl(ctx):
         substitutions = substitutions,
         is_executable = True,
     )
-    runfiles = ctx.runfiles(files = [generated[0]])
+    runfiles = ctx.runfiles(files = generated)
     return [
         DefaultInfo(
             runfiles = runfiles,
