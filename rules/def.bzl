@@ -1,6 +1,9 @@
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//lib:shell.bzl", "shell")
+load("@io_bazel_rules_go//go/private:context.bzl", "go_context")
+load("@io_bazel_rules_go//go/private:rules/rule.bzl", "go_rule")
+load("@io_bazel_rules_go//go/private:providers.bzl", "GoSource")
 
 def _execute_protoc(ctx, protoc, lang_name, plugin, proto, args, out, well_known_protos):
     proto = proto[ProtoInfo]
@@ -82,7 +85,12 @@ sql_schema = rule(
 )
 
 def _vendor_ddl_impl(ctx):
-    generated = ctx.attr.src[OutputGroupInfo].schema.to_list()
+    generated = []
+    if GoSource in ctx.attr.src:
+        generated += ctx.attr.src[GoSource].orig_srcs
+    else:
+        generated = ctx.attr.src[OutputGroupInfo].schema.to_list()
+
     substitutions = {
         "@@FROM@@": shell.quote(generated[0].path),
         "@@TO@@": shell.quote(ctx.attr.dir),
@@ -141,6 +149,13 @@ def _schema_entity_impl(ctx):
         ctx.files._well_known_protos,
     )
 
+    extra = []
+    if ctx.attr.lang == "go":
+        go = go_context(ctx)
+        library = go.new_library(go, srcs = [out])
+        source = go.library_to_source(go, {}, library, ctx.coverage_instrumented())
+        extra += [library, source]
+
     return [
         DefaultInfo(
             files = depset([out]),
@@ -148,9 +163,9 @@ def _schema_entity_impl(ctx):
         OutputGroupInfo(
             schema = [out],
         ),
-    ]
+    ] + extra
 
-schema_entity = rule(
+schema_entity = go_rule(
     implementation = _schema_entity_impl,
     output_to_genfiles = True,
     attrs = {
