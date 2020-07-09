@@ -24,6 +24,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "schema.entity.go",
+        "schema.hash.go",
     ],
     importpath = "go.f110.dev/protoc-ddl/sample",
     visibility = ["//visibility:public"],
