@@ -23,14 +23,10 @@ go_proto_library(
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "column.go",
-        "readiness.go",
-    ],
+    srcs = ["column.go"],
     embed = [":ddl_go_proto"],
     importpath = "go.f110.dev/protoc-ddl",
     visibility = ["//visibility:public"],
-    deps = ["//internal/migrate:go_default_library"],
 )
 
 load("//build:proto.bzl", "vendor_proto_source")
