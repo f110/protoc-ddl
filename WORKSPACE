@@ -18,13 +18,17 @@ http_archive(
     ],
 )
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
 http_archive(
     name = "com_google_protobuf",
     sha256 = "9748c0d90e54ea09e5e75fb7fac16edce15d2028d4356f32211cfa3c0e956564",
     strip_prefix = "protobuf-3.11.4",
     urls = ["https://github.com/protocolbuffers/protobuf/archive/v3.11.4.zip"],
+)
+
+git_repository(
+    name = "dev_f110_mono",
+    commit = "78a1b6f5e793eaf1e420a33f544b2be2e20b7906",
+    remote = "https://github.com/f110/mono",
 )
 
 load("@io_bazel_rules_go//go:deps.bzl", "go_rules_dependencies", "go_register_toolchains")

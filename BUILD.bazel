@@ -36,3 +36,13 @@ vendor_proto_source(
     src = ":ddl_go_proto",
     visibility = ["//visibility:public"],
 )
+
+load("@dev_f110_mono//build:job.bzl", "job")
+
+job(
+    name = "test_all",
+    all_revision = True,
+    command = "test",
+    github_status = True,
+    targets = "//...",
+)
