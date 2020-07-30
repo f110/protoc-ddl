@@ -1,9 +1,7 @@
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//lib:shell.bzl", "shell")
-load("@io_bazel_rules_go//go/private:context.bzl", "go_context")
-load("@io_bazel_rules_go//go/private:rules/rule.bzl", "go_rule")
-load("@io_bazel_rules_go//go/private:providers.bzl", "GoSource")
+load("@io_bazel_rules_go//go:def.bzl", "go_rule", "go_context", "GoSource")
 
 def _execute_protoc(ctx, protoc, lang_name, plugin, proto, args, out, well_known_protos):
     proto = proto[ProtoInfo]
