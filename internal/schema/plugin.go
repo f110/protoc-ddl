@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
@@ -70,14 +71,27 @@ func ProcessDDL(req *plugin_go.CodeGeneratorRequest) (DDLOption, *Messages) {
 }
 
 type Message struct {
-	Descriptor  *descriptor.DescriptorProto
-	Package     string
-	FullName    string
-	TableName   string
-	Fields      *Fields
-	PrimaryKeys []*Field
-	Indexes     []*ddl.IndexOption
-	Engine      string
+	Descriptor    *descriptor.DescriptorProto
+	Package       string
+	FullName      string
+	TableName     string
+	Fields        *Fields
+	PrimaryKeys   []*Field
+	Indexes       []*ddl.IndexOption
+	Relations     Relations
+	Engine        string
+	WithTimestamp bool
+
+	SelectQueries []*Query
+}
+
+func NewMessage(d *descriptor.DescriptorProto, f *descriptor.FileDescriptorProto) *Message {
+	return &Message{
+		Descriptor: d,
+		Package:    "." + f.GetPackage(),
+		FullName:   "." + f.GetPackage() + "." + d.GetName(),
+		Relations:  make(map[*Field][]*Field),
+	}
 }
 
 func (m *Message) IsPrimaryKey(f *Field) bool {
@@ -143,11 +157,16 @@ func (m *Messages) denormalizePrimaryKey() {
 					for _, primaryKey := range v.PrimaryKeys {
 						newField := primaryKey.Reference()
 						newField.Name = f.Name + "_" + newField.Name
+						if !newField.IsPrimitiveType() {
+							newField.Virtual = true
+						}
 						newFields = append(newFields, newField)
 
 						newPrimaryKey = append(newPrimaryKey, newField)
 					}
 					msg.Fields.Replace(f.Name, newFields...)
+					msg.Relations.Replace(f, newFields...)
+					// msg.Relations[f] = newFields
 				}
 			}
 			msg.PrimaryKeys = newPrimaryKey
@@ -171,9 +190,14 @@ func (m *Messages) denormalizeFields() {
 						if f.Ext != nil && f.Ext.Null {
 							newField.Null = true
 						}
+						if !newField.IsPrimitiveType() {
+							newField.Virtual = true
+						}
 						newFields = append(newFields, newField)
 					}
 					msg.Fields.Replace(f.Name, newFields...)
+					msg.Relations.Replace(f, newFields...)
+					// msg.Relations[f] = newFields
 				}
 			})
 		}
@@ -241,6 +265,8 @@ type Field struct {
 	Null         bool
 	Sequence     bool
 	Default      string
+
+	Virtual bool
 }
 
 func (f *Field) Copy() *Field {
@@ -258,6 +284,10 @@ func (f *Field) Reference() *Field {
 
 func (f *Field) String() string {
 	return fmt.Sprintf("%s %s", f.Name, f.Type)
+}
+
+func (f *Field) IsPrimitiveType() bool {
+	return isPrimitiveType(f.Type)
 }
 
 type Fields struct {
@@ -316,6 +346,30 @@ func (f *Fields) String() string {
 	return strings.Join(s, "\n")
 }
 
+func (f *Fields) List() []*Field {
+	return f.list
+}
+
+type Relations map[*Field][]*Field
+
+func (r Relations) Replace(old *Field, newFields ...*Field) {
+	if _, ok := r[old]; !ok {
+		r[old] = newFields
+	}
+
+	for key, rels := range r {
+		newList := make([]*Field, 0, len(rels))
+		for _, v := range rels {
+			if v.Name == old.Name {
+				newList = append(newList, newFields...)
+				continue
+			}
+			newList = append(newList, v)
+		}
+		r[key] = newList
+	}
+}
+
 func ProcessEntity(req *plugin_go.CodeGeneratorRequest) (EntityOption, *descriptor.FileOptions, *Messages) {
 	files := make(map[string]*descriptor.FileDescriptorProto)
 	for _, f := range req.ProtoFile {
@@ -345,11 +399,7 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 				continue
 			}
 
-			targetMessages = append(targetMessages, &Message{
-				Descriptor: m,
-				Package:    "." + f.GetPackage(),
-				FullName:   "." + f.GetPackage() + "." + m.GetName(),
-			})
+			targetMessages = append(targetMessages, NewMessage(m, f))
 		}
 	}
 
@@ -407,6 +457,15 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 		m.PrimaryKeys = primaryKey
 		m.Indexes = ext.GetIndexes()
 		m.Engine = ext.Engine
+		m.WithTimestamp = ext.WithTimestamp
+
+		e, err = proto.GetExtension(m.Descriptor.GetOptions(), ddl.E_Dao)
+		if err == nil {
+			ext := e.(*ddl.DAOOptions)
+			for _, v := range ext.Queries {
+				m.SelectQueries = append(m.SelectQueries, &Query{Name: v.Name, Query: v.Query})
+			}
+		}
 
 		m.Fields.Each(func(f *Field) {
 			e, err := proto.GetExtension(f.Descriptor.GetOptions(), ddl.E_Column)
@@ -425,6 +484,11 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 
 	msgs.Denormalize()
 	return msgs
+}
+
+type Query struct {
+	Name  string
+	Query string
 }
 
 func parseOptionDDL(p string) DDLOption {
@@ -483,4 +547,9 @@ func ToCamel(str string) string {
 	return link.ReplaceAllStringFunc(str, func(s string) string {
 		return strings.ToUpper(strings.Replace(s, "_", "", -1))
 	})
+}
+
+func ToLowerCamel(str string) string {
+	v := ToCamel(str)
+	return string(unicode.ToLower(rune(v[0]))) + v[1:]
 }

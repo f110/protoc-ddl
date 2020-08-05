@@ -26,8 +26,18 @@ message TableOptions {
     bool with_timestamp = 5;
 }
 
+message QueryOption {
+    string name = 1;
+    string query = 2;
+}
+
+message DAOOptions {
+    repeated QueryOption queries = 1;
+}
+
 extend google.protobuf.MessageOptions {
     TableOptions table = 60000;
+    DAOOptions   dao   = 60001;
 }
 
 extend google.protobuf.FieldOptions {

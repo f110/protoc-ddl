@@ -1,0 +1,12 @@
+load("//rules:def.bzl", "schema_dao", "vendor_ddl")
+
+schema_dao(
+    name = "dao",
+    lang = "go",
+    proto = "//sample:sample_proto",
+)
+
+vendor_ddl(
+    name = "vendor_dao",
+    src = ":dao",
+)

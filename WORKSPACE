@@ -27,12 +27,12 @@ http_archive(
 )
 
 git_repository(
-    name = "dev_f110_mono",
-    commit = "87abf727cdda6787fd356669bad2c263ca87210b",
-    remote = "https://github.com/f110/mono",
+    name = "dev_f110_rules_extras",
+    commit = "9f2df3337bfd8eca58235285cf048fcadb8eddef",
+    remote = "https://github.com/f110/rules_extras",
 )
 
-load("@io_bazel_rules_go//go:deps.bzl", "go_rules_dependencies", "go_register_toolchains")
+load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
 
 go_rules_dependencies()
 

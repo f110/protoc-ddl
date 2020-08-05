@@ -232,3 +232,61 @@ schema_entity = go_rule(
         ),
     },
 )
+
+def _schema_dao_impl(ctx):
+    name, ext = paths.split_extension(ctx.attr.proto[ProtoInfo].direct_sources[0].basename)
+    out = ctx.actions.declare_file("%s.dao.go" % name)
+
+    args = ctx.actions.args()
+    args.add("--dao_opt", ("lang=%s" % ctx.attr.lang))
+    args.add("--dao_out", ("%s:." % out.path))
+
+    _execute_protoc(
+        ctx,
+        ctx.executable.protoc,
+        "dao",
+        ctx.executable.compiler,
+        ctx.attr.proto,
+        args,
+        out,
+        ctx.files._well_known_protos,
+    )
+
+    extra = []
+    if ctx.attr.lang == "go":
+        go = go_context(ctx)
+        library = go.new_library(go, srcs = [out])
+        source = go.library_to_source(go, {}, library, ctx.coverage_instrumented())
+        extra += [library, source]
+
+    return [
+        DefaultInfo(
+            files = depset([out]),
+        ),
+        OutputGroupInfo(
+            schema = [out],
+        ),
+    ] + extra
+
+schema_dao = go_rule(
+    implementation = _schema_dao_impl,
+        output_to_genfiles = True,
+        attrs = {
+            "proto": attr.label(providers = [ProtoInfo]),
+            "lang": attr.string(mandatory = True),
+            "protoc": attr.label(
+                executable = True,
+                cfg = "host",
+                default = "@com_google_protobuf//:protoc",
+            ),
+            "compiler": attr.label(
+                executable = True,
+                cfg = "host",
+                default = "//cmd/protoc-gen-dao",
+            ),
+            "_well_known_protos": attr.label(
+                default = "@com_google_protobuf//:well_known_protos",
+                allow_files = True,
+            ),
+        },
+)

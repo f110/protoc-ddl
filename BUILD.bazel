@@ -37,7 +37,7 @@ vendor_proto_source(
     visibility = ["//visibility:public"],
 )
 
-load("@dev_f110_mono//build:job.bzl", "job")
+load("@dev_f110_rules_extras//job:job.bzl", "job")
 
 job(
     name = "test_all",
