@@ -36,6 +36,28 @@ func (d *User) Select(ctx context.Context, id int32) (*sample.User, error) {
 	return v, nil
 }
 
+func (d *User) ListAll(ctx context.Context) ([]*sample.User, error) {
+	rows, err := d.conn.QueryContext(
+		ctx,
+		"SELECT * FROM user",
+	)
+	if err != nil {
+		return nil, xerrors.Errorf(": %w", err)
+	}
+
+	res := make([]*sample.User, 0)
+	for rows.Next() {
+		r := &sample.User{}
+		if err := rows.Scan(&r.Id, &r.Age, &r.Name, &r.CreatedAt); err != nil {
+			return nil, xerrors.Errorf(": %w", err)
+		}
+		r.ResetMark()
+		res = append(res, r)
+	}
+
+	return res, nil
+}
+
 func (d *User) ListOverTwenty(ctx context.Context) ([]*sample.User, error) {
 	rows, err := d.conn.QueryContext(
 		ctx,

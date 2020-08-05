@@ -288,10 +288,6 @@ func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, raw, n
 		log.Printf("Multiple tables is not supported")
 		return
 	}
-	if stmt.Where == nil {
-		log.Printf("Select the query of all records is not supported")
-		return
-	}
 
 	allColumn := false
 	var cols []string
@@ -321,7 +317,10 @@ func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, raw, n
 		}
 	}
 
-	comp := g.findArgs(m.Fields.List(), stmt.Where)
+	var comp []*schema.Field
+	if stmt.Where != nil {
+		comp = g.findArgs(m.Fields.List(), stmt.Where)
+	}
 
 	args := make([]string, len(comp))
 	for i := range comp {
