@@ -421,3 +421,48 @@ func (e *PostImage) Copy() *PostImage {
 
 	return n
 }
+
+type Task struct {
+	Id      int32
+	ImageId int32
+
+	Image *PostImage
+
+	mu   sync.Mutex
+	mark *Task
+}
+
+func (e *Task) ResetMark() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.mark = e.Copy()
+}
+
+func (e *Task) IsChanged() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	return e.ImageId != e.mark.ImageId
+}
+
+func (e *Task) ChangedColumn() []ddl.Column {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	res := make([]ddl.Column, 0)
+	if e.ImageId != e.mark.ImageId {
+		res = append(res, ddl.Column{Name: "image_id", Value: e.ImageId})
+	}
+
+	return res
+}
+
+func (e *Task) Copy() *Task {
+	n := &Task{
+		Id:      e.Id,
+		ImageId: e.ImageId,
+	}
+
+	return n
+}

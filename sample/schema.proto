@@ -56,6 +56,10 @@ message Blog {
             name: "ByTitle"
             query: "SELECT * FROM blog WHERE title = ?"
         };
+        queries: {
+            name: "ByUserAndCategory"
+            query: "SELECT * FROM blog WHERE user_id = ? AND category_id = ?"
+        };
     };
 }
 
@@ -119,5 +123,21 @@ message PostImage {
 
     option (dev.f110.ddl.table) = {
         primary_key: "id"
+    };
+}
+
+message Task {
+    int32 id = 1 [(dev.f110.ddl.column) = {sequence: true}];
+    PostImage image = 2;
+
+    option (dev.f110.ddl.table) = {
+        primary_key: "id"
+    };
+
+    option (dev.f110.ddl.dao) = {
+        queries: {
+            name: "All"
+            query: "SELECT * FROM task"
+        };
     };
 }

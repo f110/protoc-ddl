@@ -220,6 +220,41 @@ func (d *Blog) ListByTitle(ctx context.Context, title string) ([]*sample.Blog, e
 	return res, nil
 }
 
+func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, categoryId int32) ([]*sample.Blog, error) {
+	rows, err := d.conn.QueryContext(
+		ctx,
+		"SELECT * FROM blog WHERE user_id = ? AND category_id = ?",
+		userId,
+		categoryId,
+	)
+	if err != nil {
+		return nil, xerrors.Errorf(": %w", err)
+	}
+
+	res := make([]*sample.Blog, 0)
+	for rows.Next() {
+		r := &sample.Blog{}
+		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.CreatedAt, &r.UpdatedAt); err != nil {
+			return nil, xerrors.Errorf(": %w", err)
+		}
+		r.ResetMark()
+		res = append(res, r)
+	}
+	if len(res) > 0 {
+		for _, v := range res {
+			{
+				rel, err := d.user.Select(ctx, v.UserId)
+				if err != nil {
+					return nil, xerrors.Errorf(": %w", err)
+				}
+				v.User = rel
+			}
+		}
+	}
+
+	return res, nil
+}
+
 func (d *Blog) Create(ctx context.Context, v *sample.Blog) (*sample.Blog, error) {
 	res, err := d.conn.ExecContext(
 		ctx,
@@ -337,11 +372,11 @@ func (d *CommentImage) Select(ctx context.Context, commentBlogId int64, commentU
 	return v, nil
 }
 
-func (d *CommentImage) ListByLikeId(ctx context.Context, like_id uint64) ([]*sample.CommentImage, error) {
+func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64) ([]*sample.CommentImage, error) {
 	rows, err := d.conn.QueryContext(
 		ctx,
 		"SELECT * FROM comment_image WHERE like_id = ?",
-		like_id,
+		likeId,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -449,15 +484,15 @@ func (d *CommentImage) Update(ctx context.Context, v *sample.CommentImage) error
 type Comment struct {
 	conn *sql.DB
 
-	blog *Blog
 	user *User
+	blog *Blog
 }
 
 func NewComment(conn *sql.DB) *Comment {
 	return &Comment{
 		conn: conn,
-		blog: NewBlog(conn),
 		user: NewUser(conn),
+		blog: NewBlog(conn),
 	}
 }
 
@@ -887,6 +922,145 @@ func (d *PostImage) Update(ctx context.Context, v *sample.PostImage) error {
 	}
 
 	query := fmt.Sprintf("UPDATE `post_image` SET %s WHERE `id` = ?", strings.Join(cols, ", "))
+	res, err := d.conn.ExecContext(
+		ctx,
+		query,
+		append(values, v.Id)...,
+	)
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return xerrors.Errorf(": %w", err)
+	} else if n == 0 {
+		return sql.ErrNoRows
+	}
+
+	v.ResetMark()
+	return nil
+}
+
+type Task struct {
+	conn *sql.DB
+
+	postImage *PostImage
+}
+
+func NewTask(conn *sql.DB) *Task {
+	return &Task{
+		conn:      conn,
+		postImage: NewPostImage(conn),
+	}
+}
+
+func (d *Task) Select(ctx context.Context, id int32) (*sample.Task, error) {
+	row := d.conn.QueryRowContext(ctx, "SELECT * FROM `task` WHERE `id` = ?", id)
+
+	v := &sample.Task{}
+	if err := row.Scan(&v.Id, &v.ImageId); err != nil {
+		return nil, xerrors.Errorf(": %w", err)
+	}
+
+	{
+		rel, err := d.postImage.Select(ctx, v.ImageId)
+		if err != nil {
+			return nil, xerrors.Errorf(": %w", err)
+		}
+		v.Image = rel
+	}
+
+	v.ResetMark()
+	return v, nil
+}
+
+func (d *Task) ListAll(ctx context.Context) ([]*sample.Task, error) {
+	rows, err := d.conn.QueryContext(
+		ctx,
+		"SELECT * FROM task",
+	)
+	if err != nil {
+		return nil, xerrors.Errorf(": %w", err)
+	}
+
+	res := make([]*sample.Task, 0)
+	for rows.Next() {
+		r := &sample.Task{}
+		if err := rows.Scan(&r.Id, &r.ImageId); err != nil {
+			return nil, xerrors.Errorf(": %w", err)
+		}
+		r.ResetMark()
+		res = append(res, r)
+	}
+	if len(res) > 0 {
+		for _, v := range res {
+			{
+				rel, err := d.postImage.Select(ctx, v.ImageId)
+				if err != nil {
+					return nil, xerrors.Errorf(": %w", err)
+				}
+				v.Image = rel
+			}
+		}
+	}
+
+	return res, nil
+}
+
+func (d *Task) Create(ctx context.Context, v *sample.Task) (*sample.Task, error) {
+	res, err := d.conn.ExecContext(
+		ctx,
+		"INSERT INTO `task` (`image_id`) VALUES (?)", v.ImageId,
+	)
+	if err != nil {
+		return nil, xerrors.Errorf(": %w", err)
+	}
+
+	if n, err := res.RowsAffected(); err != nil {
+		return nil, xerrors.Errorf(": %w", err)
+	} else if n == 0 {
+		return nil, sql.ErrNoRows
+	}
+
+	v = v.Copy()
+	insertedId, err := res.LastInsertId()
+	if err != nil {
+		return nil, xerrors.Errorf(": %w", err)
+	}
+	v.Id = int32(insertedId)
+
+	v.ResetMark()
+	return v, nil
+}
+
+func (d *Task) Delete(ctx context.Context, id int32) error {
+	res, err := d.conn.ExecContext(ctx, "DELETE FROM `task` WHERE `id` = ?", id)
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+
+	if n, err := res.RowsAffected(); err != nil {
+		return xerrors.Errorf(": %w", err)
+	} else if n == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+func (d *Task) Update(ctx context.Context, v *sample.Task) error {
+	if !v.IsChanged() {
+		return nil
+	}
+
+	changedColumn := v.ChangedColumn()
+	cols := make([]string, len(changedColumn)+1)
+	values := make([]interface{}, len(changedColumn)+1)
+	for i := range changedColumn {
+		cols[i] = "`" + changedColumn[i].Name + "` = ?"
+		values[i] = changedColumn[i].Value
+	}
+
+	query := fmt.Sprintf("UPDATE `task` SET %s WHERE `id` = ?", strings.Join(cols, ", "))
 	res, err := d.conn.ExecContext(
 		ctx,
 		query,

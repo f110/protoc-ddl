@@ -45,10 +45,12 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpti
 
 	messages.Each(func(m *schema.Message) {
 		relation := make([]string, 0)
-		for _, v := range m.Descriptor.Field {
-			if v.GetType() == descriptor.FieldDescriptorProto_TYPE_MESSAGE && v.GetTypeName() != schema.TimestampType {
-				relation = append(relation, v.GetName())
+		for f := range m.Relations {
+			if f.Virtual {
+				continue
 			}
+			s := strings.Split(f.Type, ".")
+			relation = append(relation, s[len(s)-1])
 		}
 
 		src.WriteString(fmt.Sprintf("type %s struct {\nconn *sql.DB\n\n", m.Descriptor.GetName()))
@@ -266,7 +268,8 @@ func (g GoDAOGenerator) primaryKeySelect(src *bytes.Buffer, m *schema.Message, e
 			if f.Null {
 				src.WriteString(fmt.Sprintf("if %s {\n", strings.Join(check, " && ")))
 			}
-			src.WriteString(fmt.Sprintf("rel, err := d.%s.Select(ctx, %s)\n", schema.ToLowerCamel(f.Name), strings.Join(r, ",")))
+			s := strings.Split(f.Type, ".")
+			src.WriteString(fmt.Sprintf("rel, err := d.%s.Select(ctx, %s)\n", schema.ToLowerCamel(s[len(s)-1]), strings.Join(r, ",")))
 			src.WriteString("if err != nil {\n")
 			src.WriteString("return nil, xerrors.Errorf(\": %w\", err)\n")
 			src.WriteString("}\n")
@@ -324,7 +327,7 @@ func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, raw, n
 
 	args := make([]string, len(comp))
 	for i := range comp {
-		args[i] = fmt.Sprintf("%s %s", comp[i].Name, GoDataTypeMap[comp[i].Type])
+		args[i] = fmt.Sprintf("%s %s", schema.ToLowerCamel(comp[i].Name), GoDataTypeMap[comp[i].Type])
 	}
 	// Query execution
 	src.WriteString(
@@ -337,7 +340,7 @@ func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, raw, n
 	src.WriteString("rows, err := d.conn.QueryContext(\nctx,\n")
 	src.WriteString(fmt.Sprintf("\"%s\",\n", raw))
 	for _, a := range comp {
-		src.WriteString(a.Name + ",\n")
+		src.WriteString(schema.ToLowerCamel(a.Name) + ",\n")
 	}
 	src.WriteString(")\n")
 	src.WriteString("if err != nil {\nreturn nil, xerrors.Errorf(\": %w\", err)\n}\n")
@@ -389,7 +392,8 @@ func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, raw, n
 			if f.Null {
 				src.WriteString(fmt.Sprintf("if %s {\n", strings.Join(check, " && ")))
 			}
-			src.WriteString(fmt.Sprintf("rel, err := d.%s.Select(ctx, %s)\n", schema.ToLowerCamel(f.Name), strings.Join(r, ",")))
+			s := strings.Split(f.Type, ".")
+			src.WriteString(fmt.Sprintf("rel, err := d.%s.Select(ctx, %s)\n", schema.ToLowerCamel(s[len(s)-1]), strings.Join(r, ",")))
 			src.WriteString("if err != nil {\n")
 			src.WriteString("return nil, xerrors.Errorf(\": %w\", err)\n")
 			src.WriteString("}\n")
