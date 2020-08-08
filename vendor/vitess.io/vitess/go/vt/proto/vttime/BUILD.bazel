@@ -6,5 +6,5 @@ go_library(
     importmap = "go.f110.dev/protoc-ddl/vendor/vitess.io/vitess/go/vt/proto/vttime",
     importpath = "vitess.io/vitess/go/vt/proto/vttime",
     visibility = ["//visibility:public"],
-    deps = ["@com_github_golang_protobuf//proto:go_default_library"],
+    deps = ["//vendor/github.com/golang/protobuf/proto:go_default_library"],
 )

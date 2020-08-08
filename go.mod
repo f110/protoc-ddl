@@ -13,6 +13,6 @@ require (
 	golang.org/x/net v0.0.0-20200707034311-ab3426394381 // indirect
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 	google.golang.org/grpc v1.31.0 // indirect
-	google.golang.org/protobuf v1.23.0
+	google.golang.org/protobuf v1.25.0
 	vitess.io/vitess v0.0.0-20200802191451-c4054aab035e
 )

@@ -1,3 +1,4 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("//rules:def.bzl", "schema_dao", "vendor_ddl")
 
 schema_dao(
@@ -9,4 +10,15 @@ schema_dao(
 vendor_ddl(
     name = "vendor_dao",
     src = ":dao",
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = ["schema.dao.go"],
+    importpath = "go.f110.dev/protoc-ddl/sample/dao",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//sample:go_default_library",
+        "//vendor/golang.org/x/xerrors:go_default_library",
+    ],
 )

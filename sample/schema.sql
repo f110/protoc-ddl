@@ -66,4 +66,11 @@ CREATE TABLE `post_image` (
 	PRIMARY KEY(`id`)
 ) Engine=InnoDB;
 
+DROP TABLE IF EXISTS `task`;
+CREATE TABLE `task` (
+	`id` INTEGER NOT NULL AUTO_INCREMENT,
+	`image_id` INTEGER NOT NULL,
+	PRIMARY KEY(`id`)
+) Engine=InnoDB;
+
 SET foreign_key_checks=1;

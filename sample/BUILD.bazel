@@ -2,6 +2,8 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
 
+# gazelle:resolve go go.f110.dev/protoc-ddl/sample :go_default_library
+
 proto_library(
     name = "sample_proto",
     srcs = ["schema.proto"],
@@ -14,7 +16,7 @@ proto_library(
 
 go_proto_library(
     name = "sample_go_proto",
-    importpath = "github.com/f110/protoc-gen-ddl/sample",
+    importpath = "go.f110.dev/protoc-ddl/sample",
     proto = ":sample_proto",
     visibility = ["//visibility:public"],
     deps = ["//:go_default_library"],
@@ -26,12 +28,13 @@ go_library(
         "schema.entity.go",
         "schema.hash.go",
     ],
+    embed = [],  # keep
     importpath = "go.f110.dev/protoc-ddl/sample",
     visibility = ["//visibility:public"],
     deps = ["//:go_default_library"],
 )
 
-load("//rules:def.bzl", "schema_entity", "schema_dao", "sql_schema", "vendor_ddl")
+load("//rules:def.bzl", "schema_dao", "schema_entity", "sql_schema", "vendor_ddl")
 
 sql_schema(
     name = "schema",
