@@ -14,6 +14,31 @@ import (
 	"go.f110.dev/protoc-ddl/sample"
 )
 
+type ListOption func(opt *listOpt)
+
+func Limit(limit int) func(opt *listOpt) {
+	return func(opt *listOpt) {
+		opt.limit = limit
+	}
+}
+
+func Desc(opt *listOpt) {
+	opt.desc = true
+}
+
+type listOpt struct {
+	limit int
+	desc  bool
+}
+
+func newListOpt(opts ...ListOption) *listOpt {
+	opt := &listOpt{}
+	for _, v := range opts {
+		v(opt)
+	}
+	return opt
+}
+
 type User struct {
 	conn *sql.DB
 }
@@ -36,10 +61,19 @@ func (d *User) Select(ctx context.Context, id int32) (*sample.User, error) {
 	return v, nil
 }
 
-func (d *User) ListAll(ctx context.Context) ([]*sample.User, error) {
+func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, error) {
+	listOpts := newListOpt(opt...)
+	query := "SELECT * FROM user"
+	if listOpts.limit > 0 {
+		order := "ASC"
+		if listOpts.desc {
+			order = "DESC"
+		}
+		query = query + fmt.Sprintf("ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
+	}
 	rows, err := d.conn.QueryContext(
 		ctx,
-		"SELECT * FROM user",
+		query,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -58,10 +92,19 @@ func (d *User) ListAll(ctx context.Context) ([]*sample.User, error) {
 	return res, nil
 }
 
-func (d *User) ListOverTwenty(ctx context.Context) ([]*sample.User, error) {
+func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample.User, error) {
+	listOpts := newListOpt(opt...)
+	query := "SELECT * FROM user WHERE age > 20"
+	if listOpts.limit > 0 {
+		order := "ASC"
+		if listOpts.desc {
+			order = "DESC"
+		}
+		query = query + fmt.Sprintf("ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
+	}
 	rows, err := d.conn.QueryContext(
 		ctx,
-		"SELECT * FROM user WHERE age > 20",
+		query,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -186,10 +229,19 @@ func (d *Blog) Select(ctx context.Context, id int64) (*sample.Blog, error) {
 	return v, nil
 }
 
-func (d *Blog) ListByTitle(ctx context.Context, title string) ([]*sample.Blog, error) {
+func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption) ([]*sample.Blog, error) {
+	listOpts := newListOpt(opt...)
+	query := "SELECT * FROM blog WHERE title = ?"
+	if listOpts.limit > 0 {
+		order := "ASC"
+		if listOpts.desc {
+			order = "DESC"
+		}
+		query = query + fmt.Sprintf("ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
+	}
 	rows, err := d.conn.QueryContext(
 		ctx,
-		"SELECT * FROM blog WHERE title = ?",
+		query,
 		title,
 	)
 	if err != nil {
@@ -220,10 +272,19 @@ func (d *Blog) ListByTitle(ctx context.Context, title string) ([]*sample.Blog, e
 	return res, nil
 }
 
-func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, categoryId int32) ([]*sample.Blog, error) {
+func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, categoryId int32, opt ...ListOption) ([]*sample.Blog, error) {
+	listOpts := newListOpt(opt...)
+	query := "SELECT * FROM blog WHERE user_id = ? AND category_id = ?"
+	if listOpts.limit > 0 {
+		order := "ASC"
+		if listOpts.desc {
+			order = "DESC"
+		}
+		query = query + fmt.Sprintf("ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
+	}
 	rows, err := d.conn.QueryContext(
 		ctx,
-		"SELECT * FROM blog WHERE user_id = ? AND category_id = ?",
+		query,
 		userId,
 		categoryId,
 	)
@@ -372,10 +433,19 @@ func (d *CommentImage) Select(ctx context.Context, commentBlogId int64, commentU
 	return v, nil
 }
 
-func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64) ([]*sample.CommentImage, error) {
+func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64, opt ...ListOption) ([]*sample.CommentImage, error) {
+	listOpts := newListOpt(opt...)
+	query := "SELECT * FROM comment_image WHERE like_id = ?"
+	if listOpts.limit > 0 {
+		order := "ASC"
+		if listOpts.desc {
+			order = "DESC"
+		}
+		query = query + fmt.Sprintf("ORDER BY `comment_blog_id`, `comment_user_id`, `like_id` %s LIMIT %d", order, listOpts.limit)
+	}
 	rows, err := d.conn.QueryContext(
 		ctx,
-		"SELECT * FROM comment_image WHERE like_id = ?",
+		query,
 		likeId,
 	)
 	if err != nil {
@@ -484,15 +554,15 @@ func (d *CommentImage) Update(ctx context.Context, v *sample.CommentImage) error
 type Comment struct {
 	conn *sql.DB
 
-	user *User
 	blog *Blog
+	user *User
 }
 
 func NewComment(conn *sql.DB) *Comment {
 	return &Comment{
 		conn: conn,
-		user: NewUser(conn),
 		blog: NewBlog(conn),
+		user: NewUser(conn),
 	}
 }
 
@@ -626,10 +696,19 @@ func (d *Reply) Select(ctx context.Context, id int32) (*sample.Reply, error) {
 	return v, nil
 }
 
-func (d *Reply) ListByBody(ctx context.Context, body string) ([]*sample.Reply, error) {
+func (d *Reply) ListByBody(ctx context.Context, body string, opt ...ListOption) ([]*sample.Reply, error) {
+	listOpts := newListOpt(opt...)
+	query := "SELECT * FROM reply WHERE body = ?"
+	if listOpts.limit > 0 {
+		order := "ASC"
+		if listOpts.desc {
+			order = "DESC"
+		}
+		query = query + fmt.Sprintf("ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
+	}
 	rows, err := d.conn.QueryContext(
 		ctx,
-		"SELECT * FROM reply WHERE body = ?",
+		query,
 		body,
 	)
 	if err != nil {
@@ -973,10 +1052,19 @@ func (d *Task) Select(ctx context.Context, id int32) (*sample.Task, error) {
 	return v, nil
 }
 
-func (d *Task) ListAll(ctx context.Context) ([]*sample.Task, error) {
+func (d *Task) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, error) {
+	listOpts := newListOpt(opt...)
+	query := "SELECT * FROM task"
+	if listOpts.limit > 0 {
+		order := "ASC"
+		if listOpts.desc {
+			order = "DESC"
+		}
+		query = query + fmt.Sprintf("ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
+	}
 	rows, err := d.conn.QueryContext(
 		ctx,
-		"SELECT * FROM task",
+		query,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)

@@ -43,6 +43,34 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpti
 	src.WriteString(fmt.Sprintf("\"%s\"\n", entityPackageName))
 	src.WriteString(")\n")
 
+	// ListOption
+	src.WriteString(`
+	type ListOption func(opt *listOpt)
+
+	func Limit(limit int) func(opt *listOpt) {
+		return func(opt *listOpt) {
+			opt.limit = limit
+		}
+	}
+
+    func Desc(opt *listOpt) {
+        opt.desc = true
+    }
+
+	type listOpt struct {
+		limit int
+        desc  bool
+	}
+
+	func newListOpt(opts ...ListOption) *listOpt {
+		opt := &listOpt{}
+		for _, v := range opts {
+			v(opt)
+		}
+		return opt
+	}
+`)
+
 	messages.Each(func(m *schema.Message) {
 		relation := make([]string, 0)
 		for f := range m.Relations {
@@ -329,6 +357,7 @@ func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, raw, n
 	for i := range comp {
 		args[i] = fmt.Sprintf("%s %s", schema.ToLowerCamel(comp[i].Name), GoDataTypeMap[comp[i].Type])
 	}
+	args = append(args, "opt ...ListOption")
 	// Query execution
 	src.WriteString(
 		fmt.Sprintf(
@@ -337,8 +366,20 @@ func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, raw, n
 			strings.Join(args, ","),
 			entityName, m.Descriptor.GetName(),
 		))
-	src.WriteString("rows, err := d.conn.QueryContext(\nctx,\n")
-	src.WriteString(fmt.Sprintf("\"%s\",\n", raw))
+	primaryKeys := make([]string, 0)
+	for _, v := range m.PrimaryKeys {
+		primaryKeys = append(primaryKeys, "`"+v.Name+"`")
+	}
+	src.WriteString("listOpts := newListOpt(opt...)\n")
+	src.WriteString(fmt.Sprintf("query := %q\n", raw))
+	src.WriteString("if listOpts.limit > 0 {\n")
+	src.WriteString("order := \"ASC\"\n")
+	src.WriteString("if listOpts.desc {\n")
+	src.WriteString("order = \"DESC\"\n")
+	src.WriteString("}\n")
+	src.WriteString(fmt.Sprintf("query = query + fmt.Sprintf(\"ORDER BY %s %%s LIMIT %%d\",order, listOpts.limit)\n", strings.Join(primaryKeys, ", ")))
+	src.WriteString("}\n")
+	src.WriteString("rows, err := d.conn.QueryContext(\nctx,\nquery,\n")
 	for _, a := range comp {
 		src.WriteString(schema.ToLowerCamel(a.Name) + ",\n")
 	}
