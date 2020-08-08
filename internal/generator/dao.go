@@ -377,7 +377,7 @@ func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, raw, n
 	src.WriteString("if listOpts.desc {\n")
 	src.WriteString("order = \"DESC\"\n")
 	src.WriteString("}\n")
-	src.WriteString(fmt.Sprintf("query = query + fmt.Sprintf(\"ORDER BY %s %%s LIMIT %%d\",order, listOpts.limit)\n", strings.Join(primaryKeys, ", ")))
+	src.WriteString(fmt.Sprintf("query = query + fmt.Sprintf(\" ORDER BY %s %%s LIMIT %%d\",order, listOpts.limit)\n", strings.Join(primaryKeys, ", ")))
 	src.WriteString("}\n")
 	src.WriteString("rows, err := d.conn.QueryContext(\nctx,\nquery,\n")
 	for _, a := range comp {
