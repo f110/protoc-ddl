@@ -1,5 +1,4 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
 http_archive(
     name = "io_bazel_rules_go",
@@ -24,12 +23,6 @@ http_archive(
     sha256 = "9748c0d90e54ea09e5e75fb7fac16edce15d2028d4356f32211cfa3c0e956564",
     strip_prefix = "protobuf-3.11.4",
     urls = ["https://github.com/protocolbuffers/protobuf/archive/v3.11.4.zip"],
-)
-
-git_repository(
-    name = "dev_f110_rules_extras",
-    commit = "9f2df3337bfd8eca58235285cf048fcadb8eddef",
-    remote = "https://github.com/f110/rules_extras",
 )
 
 load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
