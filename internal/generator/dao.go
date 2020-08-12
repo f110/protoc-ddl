@@ -151,7 +151,7 @@ func (g GoDAOGenerator) create(src *bytes.Buffer, m *schema.Message, entityName 
 		args[i] = "?"
 	}
 
-	src.WriteString(fmt.Sprintf("\"INSERT INTO `task` (%s) VALUES (%s)\",", strings.Join(cols, ", "), strings.Join(args, ", ")))
+	src.WriteString(fmt.Sprintf("\"INSERT INTO `%s` (%s) VALUES (%s)\",", m.TableName, strings.Join(cols, ", "), strings.Join(args, ", ")))
 	src.WriteString(strings.Join(queryArgs, ",") + ",\n")
 	src.WriteString(")\n")
 	src.WriteString("if err != nil {\nreturn nil, xerrors.Errorf(\": %w\", err)\n}\n\n")
