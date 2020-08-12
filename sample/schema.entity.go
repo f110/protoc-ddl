@@ -80,10 +80,12 @@ type Blog struct {
 	Body       string
 	CategoryId *int32
 	Attach     []byte
+	EditorId   int32
 	CreatedAt  time.Time
 	UpdatedAt  *time.Time
 
-	User *User
+	User   *User
+	Editor *User
 
 	mu   sync.Mutex
 	mark *Blog
@@ -105,6 +107,7 @@ func (e *Blog) IsChanged() bool {
 		e.Body != e.mark.Body ||
 		((e.CategoryId != nil && (e.mark.CategoryId == nil || *e.CategoryId != *e.mark.CategoryId)) || e.CategoryId == nil && e.mark.CategoryId != nil) ||
 		!bytes.Equal(e.Attach, e.mark.Attach) ||
+		e.EditorId != e.mark.EditorId ||
 		!e.CreatedAt.Equal(e.mark.CreatedAt) ||
 		((e.UpdatedAt != nil && (e.mark.UpdatedAt == nil || !e.UpdatedAt.Equal(*e.mark.UpdatedAt))) || (e.UpdatedAt == nil && e.mark.UpdatedAt != nil))
 }
@@ -133,6 +136,9 @@ func (e *Blog) ChangedColumn() []ddl.Column {
 	if !bytes.Equal(e.Attach, e.mark.Attach) {
 		res = append(res, ddl.Column{Name: "attach", Value: e.Attach})
 	}
+	if e.EditorId != e.mark.EditorId {
+		res = append(res, ddl.Column{Name: "editor_id", Value: e.EditorId})
+	}
 	if !e.CreatedAt.Equal(e.mark.CreatedAt) {
 		res = append(res, ddl.Column{Name: "created_at", Value: e.CreatedAt})
 	}
@@ -154,6 +160,7 @@ func (e *Blog) Copy() *Blog {
 		Title:     e.Title,
 		Body:      e.Body,
 		Attach:    e.Attach,
+		EditorId:  e.EditorId,
 		CreatedAt: e.CreatedAt,
 	}
 	if e.CategoryId != nil {

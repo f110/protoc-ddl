@@ -35,6 +35,7 @@ message Blog {
     string body        = 4 [(dev.f110.ddl.column) = {type: "text"}];
     int32  category_id = 5 [(dev.f110.ddl.column) = {null: true}];
     bytes  attach      = 6 [(dev.f110.ddl.column) = {type: "long"}];
+    User   editor      = 7;
 
     option (dev.f110.ddl.table) = {
         primary_key: "id"

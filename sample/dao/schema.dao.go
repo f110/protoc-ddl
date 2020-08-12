@@ -69,7 +69,7 @@ func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, 
 		if listOpts.desc {
 			order = "DESC"
 		}
-		query = query + fmt.Sprintf("ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
+		query = query + fmt.Sprintf(" ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
 	}
 	rows, err := d.conn.QueryContext(
 		ctx,
@@ -100,7 +100,7 @@ func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample
 		if listOpts.desc {
 			order = "DESC"
 		}
-		query = query + fmt.Sprintf("ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
+		query = query + fmt.Sprintf(" ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
 	}
 	rows, err := d.conn.QueryContext(
 		ctx,
@@ -126,7 +126,7 @@ func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample
 func (d *User) Create(ctx context.Context, v *sample.User) (*sample.User, error) {
 	res, err := d.conn.ExecContext(
 		ctx,
-		"INSERT INTO `task` (`age`, `name`, `created_at`) VALUES (?, ?, ?)", v.Age, v.Name, v.CreatedAt,
+		"INSERT INTO `users` (`age`, `name`, `created_at`) VALUES (?, ?, ?)", v.Age, v.Name, v.CreatedAt,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -213,10 +213,17 @@ func (d *Blog) Select(ctx context.Context, id int64) (*sample.Blog, error) {
 	row := d.conn.QueryRowContext(ctx, "SELECT * FROM `blog` WHERE `id` = ?", id)
 
 	v := &sample.Blog{}
-	if err := row.Scan(&v.Id, &v.UserId, &v.Title, &v.Body, &v.CategoryId, &v.Attach, &v.CreatedAt, &v.UpdatedAt); err != nil {
+	if err := row.Scan(&v.Id, &v.UserId, &v.Title, &v.Body, &v.CategoryId, &v.Attach, &v.EditorId, &v.CreatedAt, &v.UpdatedAt); err != nil {
 		return nil, xerrors.Errorf(": %w", err)
 	}
 
+	{
+		rel, err := d.user.Select(ctx, v.EditorId)
+		if err != nil {
+			return nil, xerrors.Errorf(": %w", err)
+		}
+		v.Editor = rel
+	}
 	{
 		rel, err := d.user.Select(ctx, v.UserId)
 		if err != nil {
@@ -237,7 +244,7 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 		if listOpts.desc {
 			order = "DESC"
 		}
-		query = query + fmt.Sprintf("ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
+		query = query + fmt.Sprintf(" ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
 	}
 	rows, err := d.conn.QueryContext(
 		ctx,
@@ -251,7 +258,7 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 	res := make([]*sample.Blog, 0)
 	for rows.Next() {
 		r := &sample.Blog{}
-		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, xerrors.Errorf(": %w", err)
 		}
 		r.ResetMark()
@@ -259,6 +266,13 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 	}
 	if len(res) > 0 {
 		for _, v := range res {
+			{
+				rel, err := d.user.Select(ctx, v.EditorId)
+				if err != nil {
+					return nil, xerrors.Errorf(": %w", err)
+				}
+				v.Editor = rel
+			}
 			{
 				rel, err := d.user.Select(ctx, v.UserId)
 				if err != nil {
@@ -280,7 +294,7 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 		if listOpts.desc {
 			order = "DESC"
 		}
-		query = query + fmt.Sprintf("ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
+		query = query + fmt.Sprintf(" ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
 	}
 	rows, err := d.conn.QueryContext(
 		ctx,
@@ -295,7 +309,7 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 	res := make([]*sample.Blog, 0)
 	for rows.Next() {
 		r := &sample.Blog{}
-		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, xerrors.Errorf(": %w", err)
 		}
 		r.ResetMark()
@@ -303,6 +317,13 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 	}
 	if len(res) > 0 {
 		for _, v := range res {
+			{
+				rel, err := d.user.Select(ctx, v.EditorId)
+				if err != nil {
+					return nil, xerrors.Errorf(": %w", err)
+				}
+				v.Editor = rel
+			}
 			{
 				rel, err := d.user.Select(ctx, v.UserId)
 				if err != nil {
@@ -319,7 +340,7 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 func (d *Blog) Create(ctx context.Context, v *sample.Blog) (*sample.Blog, error) {
 	res, err := d.conn.ExecContext(
 		ctx,
-		"INSERT INTO `task` (`user_id`, `title`, `body`, `category_id`, `attach`, `created_at`) VALUES (?, ?, ?, ?, ?, ?)", v.UserId, v.Title, v.Body, v.CategoryId, v.Attach, time.Now(),
+		"INSERT INTO `blog` (`user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?)", v.UserId, v.Title, v.Body, v.CategoryId, v.Attach, v.EditorId, time.Now(),
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -441,7 +462,7 @@ func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64, opt ...L
 		if listOpts.desc {
 			order = "DESC"
 		}
-		query = query + fmt.Sprintf("ORDER BY `comment_blog_id`, `comment_user_id`, `like_id` %s LIMIT %d", order, listOpts.limit)
+		query = query + fmt.Sprintf(" ORDER BY `comment_blog_id`, `comment_user_id`, `like_id` %s LIMIT %d", order, listOpts.limit)
 	}
 	rows, err := d.conn.QueryContext(
 		ctx,
@@ -486,7 +507,7 @@ func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64, opt ...L
 func (d *CommentImage) Create(ctx context.Context, v *sample.CommentImage) (*sample.CommentImage, error) {
 	res, err := d.conn.ExecContext(
 		ctx,
-		"INSERT INTO `task` (`comment_blog_id`, `comment_user_id`, `like_id`) VALUES (?, ?, ?)", v.CommentBlogId, v.CommentUserId, v.LikeId,
+		"INSERT INTO `comment_image` (`comment_blog_id`, `comment_user_id`, `like_id`) VALUES (?, ?, ?)", v.CommentBlogId, v.CommentUserId, v.LikeId,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -596,7 +617,7 @@ func (d *Comment) Select(ctx context.Context, blogId int64, userId int32) (*samp
 func (d *Comment) Create(ctx context.Context, v *sample.Comment) (*sample.Comment, error) {
 	res, err := d.conn.ExecContext(
 		ctx,
-		"INSERT INTO `task` (`blog_id`, `user_id`) VALUES (?, ?)", v.BlogId, v.UserId,
+		"INSERT INTO `comment` (`blog_id`, `user_id`) VALUES (?, ?)", v.BlogId, v.UserId,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -704,7 +725,7 @@ func (d *Reply) ListByBody(ctx context.Context, body string, opt ...ListOption) 
 		if listOpts.desc {
 			order = "DESC"
 		}
-		query = query + fmt.Sprintf("ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
+		query = query + fmt.Sprintf(" ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
 	}
 	rows, err := d.conn.QueryContext(
 		ctx,
@@ -744,7 +765,7 @@ func (d *Reply) ListByBody(ctx context.Context, body string, opt ...ListOption) 
 func (d *Reply) Create(ctx context.Context, v *sample.Reply) (*sample.Reply, error) {
 	res, err := d.conn.ExecContext(
 		ctx,
-		"INSERT INTO `task` (`comment_blog_id`, `comment_user_id`, `body`) VALUES (?, ?, ?)", v.CommentBlogId, v.CommentUserId, v.Body,
+		"INSERT INTO `reply` (`comment_blog_id`, `comment_user_id`, `body`) VALUES (?, ?, ?)", v.CommentBlogId, v.CommentUserId, v.Body,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -817,15 +838,15 @@ func (d *Reply) Update(ctx context.Context, v *sample.Reply) error {
 type Like struct {
 	conn *sql.DB
 
-	user *User
 	blog *Blog
+	user *User
 }
 
 func NewLike(conn *sql.DB) *Like {
 	return &Like{
 		conn: conn,
-		user: NewUser(conn),
 		blog: NewBlog(conn),
+		user: NewUser(conn),
 	}
 }
 
@@ -859,7 +880,7 @@ func (d *Like) Select(ctx context.Context, id uint64) (*sample.Like, error) {
 func (d *Like) Create(ctx context.Context, v *sample.Like) (*sample.Like, error) {
 	res, err := d.conn.ExecContext(
 		ctx,
-		"INSERT INTO `task` (`user_id`, `blog_id`) VALUES (?, ?)", v.UserId, v.BlogId,
+		"INSERT INTO `like` (`user_id`, `blog_id`) VALUES (?, ?)", v.UserId, v.BlogId,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -954,7 +975,7 @@ func (d *PostImage) Select(ctx context.Context, id int32) (*sample.PostImage, er
 func (d *PostImage) Create(ctx context.Context, v *sample.PostImage) (*sample.PostImage, error) {
 	res, err := d.conn.ExecContext(
 		ctx,
-		"INSERT INTO `task` (`id`, `url`) VALUES (?, ?)", v.Id, v.Url,
+		"INSERT INTO `post_image` (`id`, `url`) VALUES (?, ?)", v.Id, v.Url,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -1060,7 +1081,7 @@ func (d *Task) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, 
 		if listOpts.desc {
 			order = "DESC"
 		}
-		query = query + fmt.Sprintf("ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
+		query = query + fmt.Sprintf(" ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
 	}
 	rows, err := d.conn.QueryContext(
 		ctx,

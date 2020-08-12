@@ -72,24 +72,29 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpti
 `)
 
 	messages.Each(func(m *schema.Message) {
-		relation := make([]string, 0)
+		rels := make(map[string]struct{})
 		for f := range m.Relations {
 			if f.Virtual {
 				continue
 			}
 			s := strings.Split(f.Type, ".")
-			relation = append(relation, s[len(s)-1])
+			rels[s[len(s)-1]] = struct{}{}
 		}
+		relations := make([]string, 0)
+		for v := range rels {
+			relations = append(relations, v)
+		}
+		sort.Strings(relations)
 
 		src.WriteString(fmt.Sprintf("type %s struct {\nconn *sql.DB\n\n", m.Descriptor.GetName()))
-		for _, r := range relation {
+		for _, r := range relations {
 			src.WriteString(fmt.Sprintf("%s *%s\n", schema.ToLowerCamel(r), schema.ToCamel(r)))
 		}
 		src.WriteString("}\n")
 		src.WriteRune('\n')
 		src.WriteString(fmt.Sprintf("func New%s(conn *sql.DB) *%s {\n", m.Descriptor.GetName(), m.Descriptor.GetName()))
 		src.WriteString(fmt.Sprintf("return &%s{\nconn: conn,\n", m.Descriptor.GetName()))
-		for _, r := range relation {
+		for _, r := range relations {
 			src.WriteString(fmt.Sprintf("%s: New%s(conn),\n", schema.ToLowerCamel(r), schema.ToCamel(r)))
 		}
 		src.WriteString("}\n")
