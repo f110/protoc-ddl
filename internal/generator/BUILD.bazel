@@ -25,6 +25,7 @@ go_test(
         "//internal/schema:go_default_library",
         "//vendor/github.com/golang/protobuf/proto:go_default_library",
         "//vendor/github.com/golang/protobuf/protoc-gen-go/descriptor:go_default_library",
+        "//vendor/github.com/stretchr/testify/assert:go_default_library",
         "//vendor/vitess.io/vitess/go/vt/sqlparser:go_default_library",
     ],
 )

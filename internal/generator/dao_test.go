@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
+	"github.com/stretchr/testify/assert"
 	"vitess.io/vitess/go/vt/sqlparser"
 
 	"go.f110.dev/protoc-ddl/internal/schema"
@@ -125,5 +126,39 @@ func TestGoDAOGenerator_findArgs(t *testing.T) {
 				t.Errorf("Expect %s got %s", f.Name, fields[i].Name)
 			}
 		}
+	}
+}
+
+func TestPrintSelectQueryAST(t *testing.T) {
+	cases := []struct {
+		Query    string
+		Rendered string
+	}{
+		{
+			Query:    "SELECT * FROM `user`",
+			Rendered: "select * from user",
+		},
+		{
+			Query:    "select * FROM `user` WHERE id = ?",
+			Rendered: "select * from user where id = ?",
+		},
+		{
+			Query:    "SELECT `id`, `name` FROM `user` WHERE `id` = ?",
+			Rendered: "select id, name from user where id = ?",
+		},
+	}
+
+	for _, c := range cases {
+		s, err := sqlparser.Parse(c.Query)
+		if err != nil {
+			t.Fatalf("%s: %v", c.Query, err)
+		}
+		stmt, ok := s.(*sqlparser.Select)
+		if !ok {
+			t.Fatal("Query is not select. This is a bug of test")
+		}
+
+		got := printSelectQueryAST(stmt)
+		assert.Equal(t, c.Rendered, got)
 	}
 }

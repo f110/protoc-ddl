@@ -23,7 +23,7 @@ message User {
         };
         queries: {
             name: "OverTwenty"
-            query: "SELECT * FROM user WHERE age > 20"
+            query: "SELECT * FROM `user` WHERE age > 20"
         };
     };
 }

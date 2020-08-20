@@ -319,7 +319,7 @@ func (g GoDAOGenerator) primaryKeySelect(src *bytes.Buffer, m *schema.Message, e
 	src.WriteString("}\n\n")
 }
 
-func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, raw, name string, stmt *sqlparser.Select, entityName string) {
+func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, rawQuery, name string, stmt *sqlparser.Select, entityName string) {
 	if len(stmt.From) != 1 {
 		log.Printf("Multiple tables is not supported")
 		return
@@ -348,8 +348,14 @@ func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, raw, n
 	}
 	if allColumn {
 		cols = make([]string, 0)
+		stmt.SelectExprs = make([]sqlparser.SelectExpr, 0)
 		for _, v := range m.Fields.List() {
 			cols = append(cols, v.Name)
+			stmt.SelectExprs = append(stmt.SelectExprs, &sqlparser.AliasedExpr{
+				Expr: &sqlparser.ColName{
+					Name: sqlparser.NewColIdent(v.Name),
+				},
+			})
 		}
 	}
 
@@ -376,7 +382,7 @@ func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, raw, n
 		primaryKeys = append(primaryKeys, "`"+v.Name+"`")
 	}
 	src.WriteString("listOpts := newListOpt(opt...)\n")
-	src.WriteString(fmt.Sprintf("query := %q\n", raw))
+	src.WriteString(fmt.Sprintf("query := %q\n", printSelectQueryAST(stmt)))
 	src.WriteString("if listOpts.limit > 0 {\n")
 	src.WriteString("order := \"ASC\"\n")
 	src.WriteString("if listOpts.desc {\n")
@@ -538,4 +544,21 @@ func (g GoDAOGenerator) findArgFieldFromOrExprIfExist(fields map[string]*schema.
 	}
 
 	return res
+}
+
+func printSelectQueryAST(stmt *sqlparser.Select) string {
+	buf := sqlparser.NewTrackedBuffer(func(buf *sqlparser.TrackedBuffer, node sqlparser.SQLNode) {
+		switch v := node.(type) {
+		case *sqlparser.SQLVal:
+			if v.Type == sqlparser.ValArg {
+				buf.WriteString("?")
+				return
+			}
+		}
+
+		node.Format(buf)
+	})
+	stmt.Format(buf)
+
+	return buf.String()
 }

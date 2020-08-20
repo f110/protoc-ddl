@@ -20,6 +20,7 @@ CREATE TABLE `blog` (
 	`body` TEXT NOT NULL,
 	`category_id` INTEGER NULL,
 	`attach` LONGBLOB NOT NULL,
+	`editor_id` INTEGER NOT NULL,
 	`created_at` DATETIME NOT NULL,
 	`updated_at` DATETIME NULL,
 	UNIQUE `idx_user_id_and_id` (`user_id`,`id`),

@@ -63,7 +63,7 @@ func (d *User) Select(ctx context.Context, id int32) (*sample.User, error) {
 
 func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, error) {
 	listOpts := newListOpt(opt...)
-	query := "SELECT * FROM user"
+	query := "select id, age, name, created_at from user"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
@@ -94,7 +94,7 @@ func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, 
 
 func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample.User, error) {
 	listOpts := newListOpt(opt...)
-	query := "SELECT * FROM user WHERE age > 20"
+	query := "select id, age, name, created_at from user where age > 20"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
@@ -238,7 +238,7 @@ func (d *Blog) Select(ctx context.Context, id int64) (*sample.Blog, error) {
 
 func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption) ([]*sample.Blog, error) {
 	listOpts := newListOpt(opt...)
-	query := "SELECT * FROM blog WHERE title = ?"
+	query := "select id, user_id, title, body, category_id, attach, editor_id, created_at, updated_at from blog where title = ?"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
@@ -288,7 +288,7 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 
 func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, categoryId int32, opt ...ListOption) ([]*sample.Blog, error) {
 	listOpts := newListOpt(opt...)
-	query := "SELECT * FROM blog WHERE user_id = ? AND category_id = ?"
+	query := "select id, user_id, title, body, category_id, attach, editor_id, created_at, updated_at from blog where user_id = ? and category_id = ?"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
@@ -456,7 +456,7 @@ func (d *CommentImage) Select(ctx context.Context, commentBlogId int64, commentU
 
 func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64, opt ...ListOption) ([]*sample.CommentImage, error) {
 	listOpts := newListOpt(opt...)
-	query := "SELECT * FROM comment_image WHERE like_id = ?"
+	query := "select comment_blog_id, comment_user_id, like_id from comment_image where like_id = ?"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
@@ -719,7 +719,7 @@ func (d *Reply) Select(ctx context.Context, id int32) (*sample.Reply, error) {
 
 func (d *Reply) ListByBody(ctx context.Context, body string, opt ...ListOption) ([]*sample.Reply, error) {
 	listOpts := newListOpt(opt...)
-	query := "SELECT * FROM reply WHERE body = ?"
+	query := "select id, comment_blog_id, comment_user_id, body from reply where body = ?"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
@@ -1075,7 +1075,7 @@ func (d *Task) Select(ctx context.Context, id int32) (*sample.Task, error) {
 
 func (d *Task) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, error) {
 	listOpts := newListOpt(opt...)
-	query := "SELECT * FROM task"
+	query := "select id, image_id from task"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
