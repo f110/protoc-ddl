@@ -81,6 +81,30 @@ func (m *Message) IsPrimaryKey(f *Field) bool {
 	return false
 }
 
+func (m *Message) IsReturningSingleRow(fields ...*Field) bool {
+	for _, index := range m.Indexes {
+		if !index.Unique {
+			continue
+		}
+		if len(fields) < len(index.Columns) {
+			continue
+		}
+
+		for i, v := range index.Columns {
+			if fields[i].Name == v {
+				if len(fields)-1 == i {
+					return true
+				}
+				continue
+			}
+
+			break
+		}
+	}
+
+	return false
+}
+
 func (m *Message) String() string {
 	s := make([]string, 0, m.Fields.Len()+2)
 	s = append(s, m.FullName)

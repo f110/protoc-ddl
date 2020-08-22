@@ -51,6 +51,11 @@ message Blog {
             columns: "user_id"
             columns: "category_id"
         };
+        indexes: {
+            columns: "user_id"
+            columns: "title"
+            unique: true
+        };
     };
 
     option (dev.f110.ddl.dao) = {
@@ -61,6 +66,10 @@ message Blog {
         queries: {
             name: "ByUserAndCategory"
             query: "SELECT * FROM blog WHERE user_id = ? AND category_id = ?"
+        };
+        queries: {
+            name: "ByUserAndTitle"
+            query: "select * from blog where user_id = ? and title = ?"
         };
     };
 }

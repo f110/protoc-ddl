@@ -1,10 +1,12 @@
 package generator
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"go/format"
 	"log"
+	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -110,7 +112,7 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpti
 
 			switch v := stmt.(type) {
 			case *sqlparser.Select:
-				g.selectQuery(src, m, q.Query, q.Name, v, entityPackageAlias)
+				g.selectQuery(src, m, q.Name, v, entityPackageAlias)
 			default:
 				log.Printf("%q is not supported: %s", v, q)
 			}
@@ -125,7 +127,12 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpti
 	buf.WriteString(fmt.Sprintf("// protoc-gen-dao: %s\n", GoDAOGeneratorVersion))
 	b, err := format.Source(src.Bytes())
 	if err != nil {
-		log.Print(src.String())
+		r := bufio.NewScanner(strings.NewReader(src.String()))
+		line := 1
+		for r.Scan() {
+			fmt.Fprintf(os.Stderr, "%d: %s\n", line, r.Text())
+			line++
+		}
 		log.Print(err)
 		return
 	}
@@ -272,54 +279,15 @@ func (g GoDAOGenerator) primaryKeySelect(src *bytes.Buffer, m *schema.Message, e
 	})
 	src.WriteString(fmt.Sprintf("if err := row.Scan(%s); err != nil {\n", strings.Join(cols, ",")))
 	src.WriteString("return nil, xerrors.Errorf(\": %w\", err)\n}\n\n")
-	if len(m.Relations) > 0 {
-		relFields := make([]*schema.Field, 0)
-		for f := range m.Relations {
-			if f.Virtual {
-				continue
-			}
-			relFields = append(relFields, f)
-		}
-		sort.Slice(relFields, func(i, j int) bool {
-			return relFields[i].Name < relFields[j].Name
-		})
 
-		for _, f := range relFields {
-			rels := m.Relations[f]
+	g.selectChildObject(src, m)
 
-			r := make([]string, 0, len(rels))
-			check := make([]string, 0, len(rels))
-			for _, v := range rels {
-				if f.Null {
-					r = append(r, "*v."+schema.ToCamel(v.Name))
-				} else {
-					r = append(r, "v."+schema.ToCamel(v.Name))
-				}
-				check = append(check, "v."+schema.ToCamel(v.Name)+" != nil")
-			}
-			src.WriteString("{\n")
-			if f.Null {
-				src.WriteString(fmt.Sprintf("if %s {\n", strings.Join(check, " && ")))
-			}
-			s := strings.Split(f.Type, ".")
-			src.WriteString(fmt.Sprintf("rel, err := d.%s.Select(ctx, %s)\n", schema.ToLowerCamel(s[len(s)-1]), strings.Join(r, ",")))
-			src.WriteString("if err != nil {\n")
-			src.WriteString("return nil, xerrors.Errorf(\": %w\", err)\n")
-			src.WriteString("}\n")
-			src.WriteString(fmt.Sprintf("v.%s = rel\n", schema.ToCamel(f.Name)))
-			if f.Null {
-				src.WriteString("}\n")
-			}
-			src.WriteString("}\n")
-		}
-		src.WriteRune('\n')
-	}
 	src.WriteString("v.ResetMark()\n")
 	src.WriteString("return v, nil\n")
 	src.WriteString("}\n\n")
 }
 
-func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, rawQuery, name string, stmt *sqlparser.Select, entityName string) {
+func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, name string, stmt *sqlparser.Select, entityName string) {
 	if len(stmt.From) != 1 {
 		log.Printf("Multiple tables is not supported")
 		return
@@ -364,19 +332,34 @@ func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, rawQue
 		comp = g.findArgs(m.Fields.List(), stmt.Where)
 	}
 
+	isReturningSingleRow := m.IsReturningSingleRow(comp...)
 	args := make([]string, len(comp))
 	for i := range comp {
 		args[i] = fmt.Sprintf("%s %s", schema.ToLowerCamel(comp[i].Name), GoDataTypeMap[comp[i].Type])
 	}
-	args = append(args, "opt ...ListOption")
+	if !isReturningSingleRow {
+		args = append(args, "opt ...ListOption")
+	}
+
+	if isReturningSingleRow {
+		g.selectSingleRowQuery(src, m, name, stmt, comp, args, entityName)
+	} else {
+		g.selectMultipleRowQuery(src, m, name, stmt, cols, comp, args, entityName)
+	}
+}
+
+func (g GoDAOGenerator) selectMultipleRowQuery(src *bytes.Buffer, m *schema.Message, name string, stmt *sqlparser.Select, selectCols []string, comp []*schema.Field, args []string, entityName string) {
 	// Query execution
 	src.WriteString(
 		fmt.Sprintf(
-			"func (d *%s) List%s(ctx context.Context, %s) ([]*%s.%s, error) {\n",
-			m.Descriptor.GetName(), name,
+			"func (d *%s) List%s(ctx context.Context, %s) ([]*%s.%s,error) {\n",
+			m.Descriptor.GetName(),
+			name,
 			strings.Join(args, ","),
-			entityName, m.Descriptor.GetName(),
-		))
+			entityName,
+			m.Descriptor.GetName(),
+		),
+	)
 	primaryKeys := make([]string, 0)
 	for _, v := range m.PrimaryKeys {
 		primaryKeys = append(primaryKeys, "`"+v.Name+"`")
@@ -402,9 +385,9 @@ func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, rawQue
 	src.WriteString(fmt.Sprintf("res := make([]*%s.%s, 0)\n", entityName, m.Descriptor.GetName()))
 	src.WriteString("for rows.Next() {\n")
 	src.WriteString(fmt.Sprintf("r := &%s.%s{}\n", entityName, m.Descriptor.GetName()))
-	scanCols := make([]string, len(cols))
-	for i := range cols {
-		scanCols[i] = "&r." + schema.ToCamel(cols[i])
+	scanCols := make([]string, len(selectCols))
+	for i, v := range selectCols {
+		scanCols[i] = "&r." + schema.ToCamel(v)
 	}
 	src.WriteString(fmt.Sprintf("if err := rows.Scan(%s); err != nil {\n", strings.Join(scanCols, ",")))
 	src.WriteString("return nil, xerrors.Errorf(\": %w\", err)\n")
@@ -414,47 +397,9 @@ func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, rawQue
 	src.WriteString("}\n")
 
 	if len(m.Relations) > 0 {
-		relFields := make([]*schema.Field, 0)
-		for f := range m.Relations {
-			if f.Virtual {
-				continue
-			}
-			relFields = append(relFields, f)
-		}
-		sort.Slice(relFields, func(i, j int) bool {
-			return relFields[i].Name < relFields[j].Name
-		})
-
 		src.WriteString("if len(res) > 0 {\n")
 		src.WriteString("for _, v := range res {\n")
-		for _, f := range relFields {
-			rels := m.Relations[f]
-
-			r := make([]string, 0, len(rels))
-			check := make([]string, 0, len(rels))
-			for _, v := range rels {
-				if f.Null {
-					r = append(r, "*v."+schema.ToCamel(v.Name))
-				} else {
-					r = append(r, "v."+schema.ToCamel(v.Name))
-				}
-				check = append(check, "v."+schema.ToCamel(v.Name)+" != nil")
-			}
-			src.WriteString("{\n")
-			if f.Null {
-				src.WriteString(fmt.Sprintf("if %s {\n", strings.Join(check, " && ")))
-			}
-			s := strings.Split(f.Type, ".")
-			src.WriteString(fmt.Sprintf("rel, err := d.%s.Select(ctx, %s)\n", schema.ToLowerCamel(s[len(s)-1]), strings.Join(r, ",")))
-			src.WriteString("if err != nil {\n")
-			src.WriteString("return nil, xerrors.Errorf(\": %w\", err)\n")
-			src.WriteString("}\n")
-			src.WriteString(fmt.Sprintf("v.%s = rel\n", schema.ToCamel(f.Name)))
-			if f.Null {
-				src.WriteString("}\n")
-			}
-			src.WriteString("}\n")
-		}
+		g.selectChildObject(src, m)
 		src.WriteString("}\n")
 		src.WriteString("}\n")
 	}
@@ -463,6 +408,90 @@ func (g GoDAOGenerator) selectQuery(src *bytes.Buffer, m *schema.Message, rawQue
 	src.WriteString("return res, nil\n")
 
 	src.WriteString("}\n\n")
+}
+
+func (g GoDAOGenerator) selectSingleRowQuery(src *bytes.Buffer, m *schema.Message, name string, stmt *sqlparser.Select, comp []*schema.Field, args []string, entityName string) {
+	// Query execution
+	src.WriteString(
+		fmt.Sprintf(
+			"func (d *%s) Select%s(ctx context.Context, %s) (*%s.%s,error) {\n",
+			m.Descriptor.GetName(),
+			name,
+			strings.Join(args, ","),
+			entityName,
+			m.Descriptor.GetName(),
+		),
+	)
+	primaryKeys := make([]string, 0)
+	for _, v := range m.PrimaryKeys {
+		primaryKeys = append(primaryKeys, "`"+v.Name+"`")
+	}
+	src.WriteString(fmt.Sprintf("row := d.conn.QueryRowContext(\nctx,\n%q,\n", printSelectQueryAST(stmt)))
+	for _, a := range comp {
+		src.WriteString(schema.ToLowerCamel(a.Name) + ",\n")
+	}
+	src.WriteString(")\n")
+
+	src.WriteString(fmt.Sprintf("v := &%s.%s{}\n", entityName, m.Descriptor.GetName()))
+	cols := make([]string, 0, m.Fields.Len())
+	m.Fields.Each(func(f *schema.Field) {
+		cols = append(cols, "&v."+schema.ToCamel(f.Name))
+	})
+	src.WriteString(fmt.Sprintf("if err := row.Scan(%s); err != nil {\n", strings.Join(cols, ",")))
+	src.WriteString("return nil, xerrors.Errorf(\": %w\", err)\n}\n\n")
+
+	g.selectChildObject(src, m)
+
+	src.WriteString("v.ResetMark()\n")
+	src.WriteString("return v, nil\n")
+	src.WriteString("}\n\n")
+}
+
+func (g GoDAOGenerator) selectChildObject(src *bytes.Buffer, m *schema.Message) {
+	if len(m.Relations) == 0 {
+		return
+	}
+
+	relFields := make([]*schema.Field, 0)
+	for f := range m.Relations {
+		if f.Virtual {
+			continue
+		}
+		relFields = append(relFields, f)
+	}
+	sort.Slice(relFields, func(i, j int) bool {
+		return relFields[i].Name < relFields[j].Name
+	})
+
+	for _, f := range relFields {
+		rels := m.Relations[f]
+
+		r := make([]string, 0, len(rels))
+		check := make([]string, 0, len(rels))
+		for _, v := range rels {
+			if f.Null {
+				r = append(r, "*v."+schema.ToCamel(v.Name))
+			} else {
+				r = append(r, "v."+schema.ToCamel(v.Name))
+			}
+			check = append(check, "v."+schema.ToCamel(v.Name)+" != nil")
+		}
+		src.WriteString("{\n")
+		if f.Null {
+			src.WriteString(fmt.Sprintf("if %s {\n", strings.Join(check, " && ")))
+		}
+		s := strings.Split(f.Type, ".")
+		src.WriteString(fmt.Sprintf("rel, err := d.%s.Select(ctx, %s)\n", schema.ToLowerCamel(s[len(s)-1]), strings.Join(r, ",")))
+		src.WriteString("if err != nil {\n")
+		src.WriteString("return nil, xerrors.Errorf(\": %w\", err)\n")
+		src.WriteString("}\n")
+		src.WriteString(fmt.Sprintf("v.%s = rel\n", schema.ToCamel(f.Name)))
+		if f.Null {
+			src.WriteString("}\n")
+		}
+		src.WriteString("}\n")
+	}
+	src.WriteRune('\n')
 }
 
 func (g GoDAOGenerator) findArgs(fields []*schema.Field, stmt *sqlparser.Where) []*schema.Field {

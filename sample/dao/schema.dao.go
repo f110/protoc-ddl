@@ -53,7 +53,7 @@ func (d *User) Select(ctx context.Context, id int32) (*sample.User, error) {
 	row := d.conn.QueryRowContext(ctx, "SELECT * FROM `users` WHERE `id` = ?", id)
 
 	v := &sample.User{}
-	if err := row.Scan(&v.Id, &v.Age, &v.Name, &v.CreatedAt); err != nil {
+	if err := row.Scan(&v.Id, &v.Age, &v.Name, &v.Title, &v.CreatedAt); err != nil {
 		return nil, xerrors.Errorf(": %w", err)
 	}
 
@@ -63,7 +63,7 @@ func (d *User) Select(ctx context.Context, id int32) (*sample.User, error) {
 
 func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, error) {
 	listOpts := newListOpt(opt...)
-	query := "select id, age, name, created_at from user"
+	query := "select id, age, name, title, created_at from user"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
@@ -82,7 +82,7 @@ func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, 
 	res := make([]*sample.User, 0)
 	for rows.Next() {
 		r := &sample.User{}
-		if err := rows.Scan(&r.Id, &r.Age, &r.Name, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&r.Id, &r.Age, &r.Name, &r.Title, &r.CreatedAt); err != nil {
 			return nil, xerrors.Errorf(": %w", err)
 		}
 		r.ResetMark()
@@ -94,7 +94,7 @@ func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, 
 
 func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample.User, error) {
 	listOpts := newListOpt(opt...)
-	query := "select id, age, name, created_at from user where age > 20"
+	query := "select id, age, name, title, created_at from user where age > 20"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
@@ -113,7 +113,7 @@ func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample
 	res := make([]*sample.User, 0)
 	for rows.Next() {
 		r := &sample.User{}
-		if err := rows.Scan(&r.Id, &r.Age, &r.Name, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&r.Id, &r.Age, &r.Name, &r.Title, &r.CreatedAt); err != nil {
 			return nil, xerrors.Errorf(": %w", err)
 		}
 		r.ResetMark()
@@ -126,7 +126,7 @@ func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample
 func (d *User) Create(ctx context.Context, v *sample.User) (*sample.User, error) {
 	res, err := d.conn.ExecContext(
 		ctx,
-		"INSERT INTO `users` (`age`, `name`, `created_at`) VALUES (?, ?, ?)", v.Age, v.Name, v.CreatedAt,
+		"INSERT INTO `users` (`age`, `name`, `title`, `created_at`) VALUES (?, ?, ?, ?)", v.Age, v.Name, v.Title, v.CreatedAt,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -280,6 +280,7 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 				}
 				v.User = rel
 			}
+
 		}
 	}
 
@@ -331,10 +332,42 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 				}
 				v.User = rel
 			}
+
 		}
 	}
 
 	return res, nil
+}
+
+func (d *Blog) SelectByUserAndTitle(ctx context.Context, userId int32, title string) (*sample.Blog, error) {
+	row := d.conn.QueryRowContext(
+		ctx,
+		"select id, user_id, title, body, category_id, attach, editor_id, created_at, updated_at from blog where user_id = ? and title = ?",
+		userId,
+		title,
+	)
+	v := &sample.Blog{}
+	if err := row.Scan(&v.Id, &v.UserId, &v.Title, &v.Body, &v.CategoryId, &v.Attach, &v.EditorId, &v.CreatedAt, &v.UpdatedAt); err != nil {
+		return nil, xerrors.Errorf(": %w", err)
+	}
+
+	{
+		rel, err := d.user.Select(ctx, v.EditorId)
+		if err != nil {
+			return nil, xerrors.Errorf(": %w", err)
+		}
+		v.Editor = rel
+	}
+	{
+		rel, err := d.user.Select(ctx, v.UserId)
+		if err != nil {
+			return nil, xerrors.Errorf(": %w", err)
+		}
+		v.User = rel
+	}
+
+	v.ResetMark()
+	return v, nil
 }
 
 func (d *Blog) Create(ctx context.Context, v *sample.Blog) (*sample.Blog, error) {
@@ -498,6 +531,7 @@ func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64, opt ...L
 				}
 				v.Like = rel
 			}
+
 		}
 	}
 
@@ -756,6 +790,7 @@ func (d *Reply) ListByBody(ctx context.Context, body string, opt ...ListOption) 
 					v.Comment = rel
 				}
 			}
+
 		}
 	}
 
@@ -1109,6 +1144,7 @@ func (d *Task) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, 
 				}
 				v.Image = rel
 			}
+
 		}
 	}
 
