@@ -9,7 +9,8 @@ message User {
     int32  id  = 1 [(dev.f110.ddl.column) = {sequence: true}];
     int32  age = 2 [(dev.f110.ddl.column) = {default: "20"}];
     string name = 3;
-    google.protobuf.Timestamp created_at = 4;
+    string title = 4 [(dev.f110.ddl.column) = {unique: true}];
+    google.protobuf.Timestamp created_at = 5;
 
     option (dev.f110.ddl.table) = {
         table_name: "users",

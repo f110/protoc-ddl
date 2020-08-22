@@ -436,6 +436,30 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 		m.Engine = ext.Engine
 		m.WithTimestamp = ext.WithTimestamp
 
+		fields.Each(func(f *Field) {
+			if f.Ext == nil {
+				return
+			}
+
+			if f.Ext.Unique {
+				exists := false
+				for _, index := range m.Indexes {
+					if len(index.Columns) != 1 {
+						continue
+					}
+					if index.Columns[0] == f.Name {
+						exists = true
+					}
+				}
+				if !exists {
+					m.Indexes = append(m.Indexes, &ddl.IndexOption{
+						Columns: []string{f.Name},
+						Unique:  true,
+					})
+				}
+			}
+		})
+
 		e, err = proto.GetExtension(m.Descriptor.GetOptions(), ddl.E_Dao)
 		if err == nil {
 			ext := e.(*ddl.DAOOptions)
