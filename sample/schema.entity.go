@@ -172,6 +172,9 @@ func (e *Blog) Copy() *Blog {
 		n.UpdatedAt = &v
 	}
 
+	n.Editor = e.Editor.Copy()
+	n.User = e.User.Copy()
+
 	return n
 }
 
@@ -217,6 +220,9 @@ func (e *CommentImage) Copy() *CommentImage {
 		LikeId:        e.LikeId,
 	}
 
+	n.Comment = e.Comment.Copy()
+	n.Like = e.Like.Copy()
+
 	return n
 }
 
@@ -259,6 +265,9 @@ func (e *Comment) Copy() *Comment {
 		BlogId: e.BlogId,
 		UserId: e.UserId,
 	}
+
+	n.Blog = e.Blog.Copy()
+	n.User = e.User.Copy()
 
 	return n
 }
@@ -331,6 +340,8 @@ func (e *Reply) Copy() *Reply {
 		n.CommentUserId = &v
 	}
 
+	n.Comment = e.Comment.Copy()
+
 	return n
 }
 
@@ -382,6 +393,9 @@ func (e *Like) Copy() *Like {
 		UserId: e.UserId,
 		BlogId: e.BlogId,
 	}
+
+	n.User = e.User.Copy()
+	n.Blog = e.Blog.Copy()
 
 	return n
 }
@@ -470,6 +484,8 @@ func (e *Task) Copy() *Task {
 		Id:      e.Id,
 		ImageId: e.ImageId,
 	}
+
+	n.Image = e.Image.Copy()
 
 	return n
 }

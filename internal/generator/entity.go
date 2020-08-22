@@ -1,10 +1,12 @@
 package generator
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"go/format"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -224,6 +226,17 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 			src.WriteString("}\n")
 		})
 		src.WriteRune('\n')
+		rel := make([]*schema.Field, 0)
+		for f := range m.Relations {
+			if f.Virtual {
+				continue
+			}
+			rel = append(rel, f)
+		}
+		for _, f := range rel {
+			src.WriteString(fmt.Sprintf("n.%s = e.%s.Copy()\n", schema.ToCamel(f.Name), schema.ToCamel(f.Name)))
+		}
+		src.WriteRune('\n')
 		src.WriteString("return n\n")
 		src.WriteString("}\n")
 	})
@@ -232,7 +245,12 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 	buf.WriteString(fmt.Sprintf("// protoc-gen-entity: %s\n", GoEntityGeneratorVersion))
 	b, err := format.Source(src.Bytes())
 	if err != nil {
-		log.Print(src.String())
+		r := bufio.NewScanner(strings.NewReader(src.String()))
+		line := 1
+		for r.Scan() {
+			fmt.Fprintf(os.Stderr, "%d: %s\n", line, r.Text())
+			line++
+		}
 		log.Print(err)
 		return
 	}
