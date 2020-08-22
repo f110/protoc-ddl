@@ -22,6 +22,7 @@ type User struct {
 	Id        int32
 	Age       int32
 	Name      string
+	Title     string
 	CreatedAt time.Time
 
 	mu   sync.Mutex
@@ -41,6 +42,7 @@ func (e *User) IsChanged() bool {
 
 	return e.Age != e.mark.Age ||
 		e.Name != e.mark.Name ||
+		e.Title != e.mark.Title ||
 		!e.CreatedAt.Equal(e.mark.CreatedAt)
 }
 
@@ -55,6 +57,9 @@ func (e *User) ChangedColumn() []ddl.Column {
 	if e.Name != e.mark.Name {
 		res = append(res, ddl.Column{Name: "name", Value: e.Name})
 	}
+	if e.Title != e.mark.Title {
+		res = append(res, ddl.Column{Name: "title", Value: e.Title})
+	}
 	if !e.CreatedAt.Equal(e.mark.CreatedAt) {
 		res = append(res, ddl.Column{Name: "created_at", Value: e.CreatedAt})
 	}
@@ -67,6 +72,7 @@ func (e *User) Copy() *User {
 		Id:        e.Id,
 		Age:       e.Age,
 		Name:      e.Name,
+		Title:     e.Title,
 		CreatedAt: e.CreatedAt,
 	}
 
@@ -172,8 +178,12 @@ func (e *Blog) Copy() *Blog {
 		n.UpdatedAt = &v
 	}
 
-	n.Editor = e.Editor.Copy()
-	n.User = e.User.Copy()
+	if e.Editor != nil {
+		n.Editor = e.Editor.Copy()
+	}
+	if e.User != nil {
+		n.User = e.User.Copy()
+	}
 
 	return n
 }
@@ -220,8 +230,12 @@ func (e *CommentImage) Copy() *CommentImage {
 		LikeId:        e.LikeId,
 	}
 
-	n.Comment = e.Comment.Copy()
-	n.Like = e.Like.Copy()
+	if e.Comment != nil {
+		n.Comment = e.Comment.Copy()
+	}
+	if e.Like != nil {
+		n.Like = e.Like.Copy()
+	}
 
 	return n
 }
@@ -266,8 +280,12 @@ func (e *Comment) Copy() *Comment {
 		UserId: e.UserId,
 	}
 
-	n.Blog = e.Blog.Copy()
-	n.User = e.User.Copy()
+	if e.Blog != nil {
+		n.Blog = e.Blog.Copy()
+	}
+	if e.User != nil {
+		n.User = e.User.Copy()
+	}
 
 	return n
 }
@@ -340,7 +358,9 @@ func (e *Reply) Copy() *Reply {
 		n.CommentUserId = &v
 	}
 
-	n.Comment = e.Comment.Copy()
+	if e.Comment != nil {
+		n.Comment = e.Comment.Copy()
+	}
 
 	return n
 }
@@ -394,8 +414,12 @@ func (e *Like) Copy() *Like {
 		BlogId: e.BlogId,
 	}
 
-	n.User = e.User.Copy()
-	n.Blog = e.Blog.Copy()
+	if e.Blog != nil {
+		n.Blog = e.Blog.Copy()
+	}
+	if e.User != nil {
+		n.User = e.User.Copy()
+	}
 
 	return n
 }
@@ -485,7 +509,9 @@ func (e *Task) Copy() *Task {
 		ImageId: e.ImageId,
 	}
 
-	n.Image = e.Image.Copy()
+	if e.Image != nil {
+		n.Image = e.Image.Copy()
+	}
 
 	return n
 }

@@ -238,7 +238,9 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 			return rel[i].Name < rel[j].Name
 		})
 		for _, f := range rel {
+			src.WriteString(fmt.Sprintf("if e.%s != nil {\n", schema.ToCamel(f.Name)))
 			src.WriteString(fmt.Sprintf("n.%s = e.%s.Copy()\n", schema.ToCamel(f.Name), schema.ToCamel(f.Name)))
+			src.WriteString("}\n")
 		}
 		src.WriteRune('\n')
 		src.WriteString("return n\n")
