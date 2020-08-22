@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
@@ -233,6 +234,9 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 			}
 			rel = append(rel, f)
 		}
+		sort.Slice(rel, func(i, j int) bool {
+			return rel[i].Name < rel[j].Name
+		})
 		for _, f := range rel {
 			src.WriteString(fmt.Sprintf("n.%s = e.%s.Copy()\n", schema.ToCamel(f.Name), schema.ToCamel(f.Name)))
 		}
