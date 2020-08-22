@@ -19,29 +19,6 @@ const (
 	TimestampType = ".google.protobuf.Timestamp"
 )
 
-type Column struct {
-	Name     string
-	DataType string
-	TypeName string
-	Size     int
-	Null     bool
-	Sequence bool
-	Default  string
-}
-
-type Table struct {
-	Name           string
-	Columns        []Column
-	PrimaryKey     []string
-	PrimaryKeyType string
-	Indexes        []*ddl.IndexOption
-	Engine         string
-	WithTimestamp  bool
-
-	packageName string
-	descriptor  *descriptor.DescriptorProto
-}
-
 type DDLOption struct {
 	Dialect    string
 	OutputFile string

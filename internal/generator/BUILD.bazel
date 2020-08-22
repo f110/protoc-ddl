@@ -5,7 +5,6 @@ go_library(
     srcs = [
         "dao.go",
         "entity.go",
-        "generator.go",
         "mysql.go",
     ],
     importpath = "go.f110.dev/protoc-ddl/internal/generator",
