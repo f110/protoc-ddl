@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "arithmetic.go",
+        "casting.go",
         "expressions.go",
     ],
     importmap = "go.f110.dev/protoc-ddl/vendor/vitess.io/vitess/go/vt/vtgate/evalengine",

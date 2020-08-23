@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "bind_variables.go",
         "event_token.go",
+        "named_result.go",
         "plan_value.go",
         "proto3.go",
         "query_response.go",

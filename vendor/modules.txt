@@ -17,6 +17,8 @@ github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
+# github.com/google/go-cmp v0.5.0
+## explicit
 # github.com/pkg/errors v0.8.1
 ## explicit
 github.com/pkg/errors
@@ -36,23 +38,26 @@ github.com/spf13/pflag
 # github.com/stretchr/testify v1.4.0
 ## explicit
 github.com/stretchr/testify/assert
-# github.com/youtube/vitess v2.1.1+incompatible
-## explicit
-# golang.org/x/net v0.0.0-20200707034311-ab3426394381
+# golang.org/x/net v0.0.0-20200822124328-c89045814202
 ## explicit
 golang.org/x/net/context
+# golang.org/x/sys v0.0.0-20200821140526-fda516888d29
+## explicit
+# golang.org/x/text v0.3.3
+## explicit
 # golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 ## explicit
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
+# google.golang.org/genproto v0.0.0-20190926190326-7ee9db18f195
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.31.0
-## explicit
+# google.golang.org/grpc v1.24.0
 google.golang.org/grpc/codes
-google.golang.org/grpc/internal/status
+google.golang.org/grpc/connectivity
+google.golang.org/grpc/grpclog
+google.golang.org/grpc/internal
 google.golang.org/grpc/status
-# google.golang.org/protobuf v1.25.0
+# google.golang.org/protobuf v1.23.0
 ## explicit
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
@@ -64,11 +69,12 @@ google.golang.org/protobuf/internal/encoding/messageset
 google.golang.org/protobuf/internal/encoding/tag
 google.golang.org/protobuf/internal/encoding/text
 google.golang.org/protobuf/internal/errors
+google.golang.org/protobuf/internal/fieldnum
 google.golang.org/protobuf/internal/fieldsort
 google.golang.org/protobuf/internal/filedesc
 google.golang.org/protobuf/internal/filetype
 google.golang.org/protobuf/internal/flags
-google.golang.org/protobuf/internal/genid
+google.golang.org/protobuf/internal/genname
 google.golang.org/protobuf/internal/impl
 google.golang.org/protobuf/internal/mapsort
 google.golang.org/protobuf/internal/pragma
@@ -87,7 +93,7 @@ google.golang.org/protobuf/types/known/timestamppb
 google.golang.org/protobuf/types/pluginpb
 # gopkg.in/yaml.v2 v2.2.8
 gopkg.in/yaml.v2
-# vitess.io/vitess v0.0.0-20200802191451-c4054aab035e
+# vitess.io/vitess v0.0.0-20200822151057-19437510f65b
 ## explicit
 vitess.io/vitess/go/bytes2
 vitess.io/vitess/go/hack
