@@ -39,6 +39,30 @@ func newListOpt(opts ...ListOption) *listOpt {
 	return opt
 }
 
+type ExecOption func(opt *execOpt)
+
+func WithTx(tx *sql.Tx) ExecOption {
+	return func(opt *execOpt) {
+		opt.tx = tx
+	}
+}
+
+type execOpt struct {
+	tx *sql.Tx
+}
+
+func newExecOpt(opts ...ExecOption) *execOpt {
+	opt := &execOpt{}
+	for _, v := range opts {
+		v(opt)
+	}
+	return opt
+}
+
+type execConn interface {
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+}
+
 type User struct {
 	conn *sql.DB
 }
@@ -47,6 +71,23 @@ func NewUser(conn *sql.DB) *User {
 	return &User{
 		conn: conn,
 	}
+}
+
+func (d *User) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	tx, err := d.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	if err := fn(tx); err != nil {
+		rErr := tx.Rollback()
+		return xerrors.Errorf("%v: %w", rErr, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	return nil
 }
 
 func (d *User) Select(ctx context.Context, id int32) (*sample.User, error) {
@@ -123,8 +164,16 @@ func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample
 	return res, nil
 }
 
-func (d *User) Create(ctx context.Context, v *sample.User) (*sample.User, error) {
-	res, err := d.conn.ExecContext(
+func (d *User) Create(ctx context.Context, v *sample.User, opt ...ExecOption) (*sample.User, error) {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(
 		ctx,
 		"INSERT INTO `users` (`age`, `name`, `title`, `created_at`) VALUES (?, ?, ?, ?)", v.Age, v.Name, v.Title, v.CreatedAt,
 	)
@@ -149,8 +198,16 @@ func (d *User) Create(ctx context.Context, v *sample.User) (*sample.User, error)
 	return v, nil
 }
 
-func (d *User) Delete(ctx context.Context, id int32) error {
-	res, err := d.conn.ExecContext(ctx, "DELETE FROM `users` WHERE `id` = ?", id)
+func (d *User) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(ctx, "DELETE FROM `users` WHERE `id` = ?", id)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
 	}
@@ -164,9 +221,17 @@ func (d *User) Delete(ctx context.Context, id int32) error {
 	return nil
 }
 
-func (d *User) Update(ctx context.Context, v *sample.User) error {
+func (d *User) Update(ctx context.Context, v *sample.User, opt ...ExecOption) error {
 	if !v.IsChanged() {
 		return nil
+	}
+
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
 	}
 
 	changedColumn := v.ChangedColumn()
@@ -178,7 +243,7 @@ func (d *User) Update(ctx context.Context, v *sample.User) error {
 	}
 
 	query := fmt.Sprintf("UPDATE `users` SET %s WHERE `id` = ?", strings.Join(cols, ", "))
-	res, err := d.conn.ExecContext(
+	res, err := conn.ExecContext(
 		ctx,
 		query,
 		append(values, v.Id)...,
@@ -207,6 +272,23 @@ func NewBlog(conn *sql.DB) *Blog {
 		conn: conn,
 		user: NewUser(conn),
 	}
+}
+
+func (d *Blog) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	tx, err := d.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	if err := fn(tx); err != nil {
+		rErr := tx.Rollback()
+		return xerrors.Errorf("%v: %w", rErr, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	return nil
 }
 
 func (d *Blog) Select(ctx context.Context, id int64) (*sample.Blog, error) {
@@ -370,8 +452,16 @@ func (d *Blog) SelectByUserAndTitle(ctx context.Context, userId int32, title str
 	return v, nil
 }
 
-func (d *Blog) Create(ctx context.Context, v *sample.Blog) (*sample.Blog, error) {
-	res, err := d.conn.ExecContext(
+func (d *Blog) Create(ctx context.Context, v *sample.Blog, opt ...ExecOption) (*sample.Blog, error) {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(
 		ctx,
 		"INSERT INTO `blog` (`user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?)", v.UserId, v.Title, v.Body, v.CategoryId, v.Attach, v.EditorId, time.Now(),
 	)
@@ -396,8 +486,16 @@ func (d *Blog) Create(ctx context.Context, v *sample.Blog) (*sample.Blog, error)
 	return v, nil
 }
 
-func (d *Blog) Delete(ctx context.Context, id int64) error {
-	res, err := d.conn.ExecContext(ctx, "DELETE FROM `blog` WHERE `id` = ?", id)
+func (d *Blog) Delete(ctx context.Context, id int64, opt ...ExecOption) error {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(ctx, "DELETE FROM `blog` WHERE `id` = ?", id)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
 	}
@@ -411,9 +509,17 @@ func (d *Blog) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (d *Blog) Update(ctx context.Context, v *sample.Blog) error {
+func (d *Blog) Update(ctx context.Context, v *sample.Blog, opt ...ExecOption) error {
 	if !v.IsChanged() {
 		return nil
+	}
+
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
 	}
 
 	changedColumn := v.ChangedColumn()
@@ -427,7 +533,7 @@ func (d *Blog) Update(ctx context.Context, v *sample.Blog) error {
 	values[len(values)-1] = time.Now()
 
 	query := fmt.Sprintf("UPDATE `blog` SET %s WHERE `id` = ?", strings.Join(cols, ", "))
-	res, err := d.conn.ExecContext(
+	res, err := conn.ExecContext(
 		ctx,
 		query,
 		append(values, v.Id)...,
@@ -458,6 +564,23 @@ func NewCommentImage(conn *sql.DB) *CommentImage {
 		comment: NewComment(conn),
 		like:    NewLike(conn),
 	}
+}
+
+func (d *CommentImage) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	tx, err := d.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	if err := fn(tx); err != nil {
+		rErr := tx.Rollback()
+		return xerrors.Errorf("%v: %w", rErr, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	return nil
 }
 
 func (d *CommentImage) Select(ctx context.Context, commentBlogId int64, commentUserId int32, likeId uint64) (*sample.CommentImage, error) {
@@ -538,8 +661,16 @@ func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64, opt ...L
 	return res, nil
 }
 
-func (d *CommentImage) Create(ctx context.Context, v *sample.CommentImage) (*sample.CommentImage, error) {
-	res, err := d.conn.ExecContext(
+func (d *CommentImage) Create(ctx context.Context, v *sample.CommentImage, opt ...ExecOption) (*sample.CommentImage, error) {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(
 		ctx,
 		"INSERT INTO `comment_image` (`comment_blog_id`, `comment_user_id`, `like_id`) VALUES (?, ?, ?)", v.CommentBlogId, v.CommentUserId, v.LikeId,
 	)
@@ -559,8 +690,16 @@ func (d *CommentImage) Create(ctx context.Context, v *sample.CommentImage) (*sam
 	return v, nil
 }
 
-func (d *CommentImage) Delete(ctx context.Context, commentBlogId int64, commentUserId int32, likeId uint64) error {
-	res, err := d.conn.ExecContext(ctx, "DELETE FROM `comment_image` WHERE `comment_blog_id` = ? AND `comment_user_id` = ? AND `like_id` = ?", commentBlogId, commentUserId, likeId)
+func (d *CommentImage) Delete(ctx context.Context, commentBlogId int64, commentUserId int32, likeId uint64, opt ...ExecOption) error {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(ctx, "DELETE FROM `comment_image` WHERE `comment_blog_id` = ? AND `comment_user_id` = ? AND `like_id` = ?", commentBlogId, commentUserId, likeId)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
 	}
@@ -574,9 +713,17 @@ func (d *CommentImage) Delete(ctx context.Context, commentBlogId int64, commentU
 	return nil
 }
 
-func (d *CommentImage) Update(ctx context.Context, v *sample.CommentImage) error {
+func (d *CommentImage) Update(ctx context.Context, v *sample.CommentImage, opt ...ExecOption) error {
 	if !v.IsChanged() {
 		return nil
+	}
+
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
 	}
 
 	changedColumn := v.ChangedColumn()
@@ -588,7 +735,7 @@ func (d *CommentImage) Update(ctx context.Context, v *sample.CommentImage) error
 	}
 
 	query := fmt.Sprintf("UPDATE `comment_image` SET %s WHERE `comment_blog_id` = ? AND `comment_user_id` = ? AND `like_id` = ?", strings.Join(cols, ", "))
-	res, err := d.conn.ExecContext(
+	res, err := conn.ExecContext(
 		ctx,
 		query,
 		append(values, v.CommentBlogId, v.CommentUserId, v.LikeId)...,
@@ -621,6 +768,23 @@ func NewComment(conn *sql.DB) *Comment {
 	}
 }
 
+func (d *Comment) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	tx, err := d.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	if err := fn(tx); err != nil {
+		rErr := tx.Rollback()
+		return xerrors.Errorf("%v: %w", rErr, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	return nil
+}
+
 func (d *Comment) Select(ctx context.Context, blogId int64, userId int32) (*sample.Comment, error) {
 	row := d.conn.QueryRowContext(ctx, "SELECT * FROM `comment` WHERE `blog_id` = ? AND `user_id` = ?", blogId, userId)
 
@@ -648,8 +812,16 @@ func (d *Comment) Select(ctx context.Context, blogId int64, userId int32) (*samp
 	return v, nil
 }
 
-func (d *Comment) Create(ctx context.Context, v *sample.Comment) (*sample.Comment, error) {
-	res, err := d.conn.ExecContext(
+func (d *Comment) Create(ctx context.Context, v *sample.Comment, opt ...ExecOption) (*sample.Comment, error) {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(
 		ctx,
 		"INSERT INTO `comment` (`blog_id`, `user_id`) VALUES (?, ?)", v.BlogId, v.UserId,
 	)
@@ -669,8 +841,16 @@ func (d *Comment) Create(ctx context.Context, v *sample.Comment) (*sample.Commen
 	return v, nil
 }
 
-func (d *Comment) Delete(ctx context.Context, blogId int64, userId int32) error {
-	res, err := d.conn.ExecContext(ctx, "DELETE FROM `comment` WHERE `blog_id` = ? AND `user_id` = ?", blogId, userId)
+func (d *Comment) Delete(ctx context.Context, blogId int64, userId int32, opt ...ExecOption) error {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(ctx, "DELETE FROM `comment` WHERE `blog_id` = ? AND `user_id` = ?", blogId, userId)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
 	}
@@ -684,9 +864,17 @@ func (d *Comment) Delete(ctx context.Context, blogId int64, userId int32) error 
 	return nil
 }
 
-func (d *Comment) Update(ctx context.Context, v *sample.Comment) error {
+func (d *Comment) Update(ctx context.Context, v *sample.Comment, opt ...ExecOption) error {
 	if !v.IsChanged() {
 		return nil
+	}
+
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
 	}
 
 	changedColumn := v.ChangedColumn()
@@ -698,7 +886,7 @@ func (d *Comment) Update(ctx context.Context, v *sample.Comment) error {
 	}
 
 	query := fmt.Sprintf("UPDATE `comment` SET %s WHERE `blog_id` = ? AND `user_id` = ?", strings.Join(cols, ", "))
-	res, err := d.conn.ExecContext(
+	res, err := conn.ExecContext(
 		ctx,
 		query,
 		append(values, v.BlogId, v.UserId)...,
@@ -727,6 +915,23 @@ func NewReply(conn *sql.DB) *Reply {
 		conn:    conn,
 		comment: NewComment(conn),
 	}
+}
+
+func (d *Reply) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	tx, err := d.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	if err := fn(tx); err != nil {
+		rErr := tx.Rollback()
+		return xerrors.Errorf("%v: %w", rErr, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	return nil
 }
 
 func (d *Reply) Select(ctx context.Context, id int32) (*sample.Reply, error) {
@@ -797,8 +1002,16 @@ func (d *Reply) ListByBody(ctx context.Context, body string, opt ...ListOption) 
 	return res, nil
 }
 
-func (d *Reply) Create(ctx context.Context, v *sample.Reply) (*sample.Reply, error) {
-	res, err := d.conn.ExecContext(
+func (d *Reply) Create(ctx context.Context, v *sample.Reply, opt ...ExecOption) (*sample.Reply, error) {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(
 		ctx,
 		"INSERT INTO `reply` (`comment_blog_id`, `comment_user_id`, `body`) VALUES (?, ?, ?)", v.CommentBlogId, v.CommentUserId, v.Body,
 	)
@@ -823,8 +1036,16 @@ func (d *Reply) Create(ctx context.Context, v *sample.Reply) (*sample.Reply, err
 	return v, nil
 }
 
-func (d *Reply) Delete(ctx context.Context, id int32) error {
-	res, err := d.conn.ExecContext(ctx, "DELETE FROM `reply` WHERE `id` = ?", id)
+func (d *Reply) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(ctx, "DELETE FROM `reply` WHERE `id` = ?", id)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
 	}
@@ -838,9 +1059,17 @@ func (d *Reply) Delete(ctx context.Context, id int32) error {
 	return nil
 }
 
-func (d *Reply) Update(ctx context.Context, v *sample.Reply) error {
+func (d *Reply) Update(ctx context.Context, v *sample.Reply, opt ...ExecOption) error {
 	if !v.IsChanged() {
 		return nil
+	}
+
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
 	}
 
 	changedColumn := v.ChangedColumn()
@@ -852,7 +1081,7 @@ func (d *Reply) Update(ctx context.Context, v *sample.Reply) error {
 	}
 
 	query := fmt.Sprintf("UPDATE `reply` SET %s WHERE `id` = ?", strings.Join(cols, ", "))
-	res, err := d.conn.ExecContext(
+	res, err := conn.ExecContext(
 		ctx,
 		query,
 		append(values, v.Id)...,
@@ -885,6 +1114,23 @@ func NewLike(conn *sql.DB) *Like {
 	}
 }
 
+func (d *Like) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	tx, err := d.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	if err := fn(tx); err != nil {
+		rErr := tx.Rollback()
+		return xerrors.Errorf("%v: %w", rErr, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	return nil
+}
+
 func (d *Like) Select(ctx context.Context, id uint64) (*sample.Like, error) {
 	row := d.conn.QueryRowContext(ctx, "SELECT * FROM `like` WHERE `id` = ?", id)
 
@@ -912,8 +1158,16 @@ func (d *Like) Select(ctx context.Context, id uint64) (*sample.Like, error) {
 	return v, nil
 }
 
-func (d *Like) Create(ctx context.Context, v *sample.Like) (*sample.Like, error) {
-	res, err := d.conn.ExecContext(
+func (d *Like) Create(ctx context.Context, v *sample.Like, opt ...ExecOption) (*sample.Like, error) {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(
 		ctx,
 		"INSERT INTO `like` (`user_id`, `blog_id`) VALUES (?, ?)", v.UserId, v.BlogId,
 	)
@@ -938,8 +1192,16 @@ func (d *Like) Create(ctx context.Context, v *sample.Like) (*sample.Like, error)
 	return v, nil
 }
 
-func (d *Like) Delete(ctx context.Context, id uint64) error {
-	res, err := d.conn.ExecContext(ctx, "DELETE FROM `like` WHERE `id` = ?", id)
+func (d *Like) Delete(ctx context.Context, id uint64, opt ...ExecOption) error {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(ctx, "DELETE FROM `like` WHERE `id` = ?", id)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
 	}
@@ -953,9 +1215,17 @@ func (d *Like) Delete(ctx context.Context, id uint64) error {
 	return nil
 }
 
-func (d *Like) Update(ctx context.Context, v *sample.Like) error {
+func (d *Like) Update(ctx context.Context, v *sample.Like, opt ...ExecOption) error {
 	if !v.IsChanged() {
 		return nil
+	}
+
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
 	}
 
 	changedColumn := v.ChangedColumn()
@@ -967,7 +1237,7 @@ func (d *Like) Update(ctx context.Context, v *sample.Like) error {
 	}
 
 	query := fmt.Sprintf("UPDATE `like` SET %s WHERE `id` = ?", strings.Join(cols, ", "))
-	res, err := d.conn.ExecContext(
+	res, err := conn.ExecContext(
 		ctx,
 		query,
 		append(values, v.Id)...,
@@ -995,6 +1265,23 @@ func NewPostImage(conn *sql.DB) *PostImage {
 	}
 }
 
+func (d *PostImage) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	tx, err := d.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	if err := fn(tx); err != nil {
+		rErr := tx.Rollback()
+		return xerrors.Errorf("%v: %w", rErr, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	return nil
+}
+
 func (d *PostImage) Select(ctx context.Context, id int32) (*sample.PostImage, error) {
 	row := d.conn.QueryRowContext(ctx, "SELECT * FROM `post_image` WHERE `id` = ?", id)
 
@@ -1007,8 +1294,16 @@ func (d *PostImage) Select(ctx context.Context, id int32) (*sample.PostImage, er
 	return v, nil
 }
 
-func (d *PostImage) Create(ctx context.Context, v *sample.PostImage) (*sample.PostImage, error) {
-	res, err := d.conn.ExecContext(
+func (d *PostImage) Create(ctx context.Context, v *sample.PostImage, opt ...ExecOption) (*sample.PostImage, error) {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(
 		ctx,
 		"INSERT INTO `post_image` (`id`, `url`) VALUES (?, ?)", v.Id, v.Url,
 	)
@@ -1028,8 +1323,16 @@ func (d *PostImage) Create(ctx context.Context, v *sample.PostImage) (*sample.Po
 	return v, nil
 }
 
-func (d *PostImage) Delete(ctx context.Context, id int32) error {
-	res, err := d.conn.ExecContext(ctx, "DELETE FROM `post_image` WHERE `id` = ?", id)
+func (d *PostImage) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(ctx, "DELETE FROM `post_image` WHERE `id` = ?", id)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
 	}
@@ -1043,9 +1346,17 @@ func (d *PostImage) Delete(ctx context.Context, id int32) error {
 	return nil
 }
 
-func (d *PostImage) Update(ctx context.Context, v *sample.PostImage) error {
+func (d *PostImage) Update(ctx context.Context, v *sample.PostImage, opt ...ExecOption) error {
 	if !v.IsChanged() {
 		return nil
+	}
+
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
 	}
 
 	changedColumn := v.ChangedColumn()
@@ -1057,7 +1368,7 @@ func (d *PostImage) Update(ctx context.Context, v *sample.PostImage) error {
 	}
 
 	query := fmt.Sprintf("UPDATE `post_image` SET %s WHERE `id` = ?", strings.Join(cols, ", "))
-	res, err := d.conn.ExecContext(
+	res, err := conn.ExecContext(
 		ctx,
 		query,
 		append(values, v.Id)...,
@@ -1086,6 +1397,23 @@ func NewTask(conn *sql.DB) *Task {
 		conn:      conn,
 		postImage: NewPostImage(conn),
 	}
+}
+
+func (d *Task) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	tx, err := d.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	if err := fn(tx); err != nil {
+		rErr := tx.Rollback()
+		return xerrors.Errorf("%v: %w", rErr, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return xerrors.Errorf(": %w", err)
+	}
+	return nil
 }
 
 func (d *Task) Select(ctx context.Context, id int32) (*sample.Task, error) {
@@ -1151,8 +1479,16 @@ func (d *Task) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, 
 	return res, nil
 }
 
-func (d *Task) Create(ctx context.Context, v *sample.Task) (*sample.Task, error) {
-	res, err := d.conn.ExecContext(
+func (d *Task) Create(ctx context.Context, v *sample.Task, opt ...ExecOption) (*sample.Task, error) {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(
 		ctx,
 		"INSERT INTO `task` (`image_id`) VALUES (?)", v.ImageId,
 	)
@@ -1177,8 +1513,16 @@ func (d *Task) Create(ctx context.Context, v *sample.Task) (*sample.Task, error)
 	return v, nil
 }
 
-func (d *Task) Delete(ctx context.Context, id int32) error {
-	res, err := d.conn.ExecContext(ctx, "DELETE FROM `task` WHERE `id` = ?", id)
+func (d *Task) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}
+
+	res, err := conn.ExecContext(ctx, "DELETE FROM `task` WHERE `id` = ?", id)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
 	}
@@ -1192,9 +1536,17 @@ func (d *Task) Delete(ctx context.Context, id int32) error {
 	return nil
 }
 
-func (d *Task) Update(ctx context.Context, v *sample.Task) error {
+func (d *Task) Update(ctx context.Context, v *sample.Task, opt ...ExecOption) error {
 	if !v.IsChanged() {
 		return nil
+	}
+
+	execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
 	}
 
 	changedColumn := v.ChangedColumn()
@@ -1206,7 +1558,7 @@ func (d *Task) Update(ctx context.Context, v *sample.Task) error {
 	}
 
 	query := fmt.Sprintf("UPDATE `task` SET %s WHERE `id` = ?", strings.Join(cols, ", "))
-	res, err := d.conn.ExecContext(
+	res, err := conn.ExecContext(
 		ctx,
 		query,
 		append(values, v.Id)...,

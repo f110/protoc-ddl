@@ -71,6 +71,31 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpti
 		}
 		return opt
 	}
+
+	type ExecOption func(opt *execOpt)
+
+	func WithTx(tx *sql.Tx) ExecOption {
+		return func(opt *execOpt) {
+			opt.tx = tx
+		}
+	}
+	
+	type execOpt struct {
+		tx *sql.Tx
+	}
+
+	func newExecOpt(opts ...ExecOption) *execOpt {
+		opt := &execOpt{}
+		for _, v := range opts {
+			v(opt)
+		}
+		return opt
+	}
+
+	type execConn interface {
+		ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	}
+
 `)
 
 	messages.Each(func(m *schema.Message) {
@@ -101,6 +126,24 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpti
 		}
 		src.WriteString("}\n")
 		src.WriteString("}\n\n")
+
+		src.WriteString(fmt.Sprintf("func (d *%s) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {\n", m.Descriptor.GetName()))
+		src.WriteString(`tx, err := d.conn.BeginTx(ctx, nil)
+			if err != nil {
+			return xerrors.Errorf(": %w", err)
+		}
+			if err := fn(tx); err != nil {
+			rErr := tx.Rollback()
+			return xerrors.Errorf("%v: %w", rErr, err)
+		}
+
+			err = tx.Commit()
+			if err != nil {
+			return xerrors.Errorf(": %w", err)
+		}
+			return nil
+		}`)
+		src.WriteString("\n\n")
 
 		g.primaryKeySelect(src, m, entityPackageAlias)
 
@@ -140,8 +183,16 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpti
 }
 
 func (g GoDAOGenerator) create(src *bytes.Buffer, m *schema.Message, entityName string) {
-	src.WriteString(fmt.Sprintf("func (d *%s) Create(ctx context.Context, v *%s.%s) (*%s.%s, error) {\n", m.Descriptor.GetName(), entityName, m.Descriptor.GetName(), entityName, m.Descriptor.GetName()))
-	src.WriteString("res, err := d.conn.ExecContext(\nctx,\n")
+	src.WriteString(fmt.Sprintf("func (d *%s) Create(ctx context.Context, v *%s.%s, opt ...ExecOption) (*%s.%s, error) {\n", m.Descriptor.GetName(), entityName, m.Descriptor.GetName(), entityName, m.Descriptor.GetName()))
+	src.WriteString(`execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}`)
+	src.WriteString("\n\n")
+	src.WriteString("res, err := conn.ExecContext(\nctx,\n")
 	cols := make([]string, 0, m.Fields.Len())
 	queryArgs := make([]string, 0, m.Fields.Len())
 	m.Fields.Each(func(f *schema.Field) {
@@ -197,8 +248,16 @@ func (g GoDAOGenerator) delete(src *bytes.Buffer, m *schema.Message) {
 		whereArgs = append(whereArgs, schema.ToLowerCamel(v.Name))
 	}
 
-	src.WriteString(fmt.Sprintf("func (d *%s) Delete(ctx context.Context,%s) error {\n", m.Descriptor.GetName(), strings.Join(args, ",")))
-	src.WriteString(fmt.Sprintf("res, err := d.conn.ExecContext(ctx, \"DELETE FROM `%s` WHERE %s\", %s)\n", m.TableName, strings.Join(where, " AND "), strings.Join(whereArgs, ",")))
+	src.WriteString(fmt.Sprintf("func (d *%s) Delete(ctx context.Context,%s,opt ...ExecOption) error {\n", m.Descriptor.GetName(), strings.Join(args, ",")))
+	src.WriteString(`execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}`)
+	src.WriteString("\n\n")
+	src.WriteString(fmt.Sprintf("res, err := conn.ExecContext(ctx, \"DELETE FROM `%s` WHERE %s\", %s)\n", m.TableName, strings.Join(where, " AND "), strings.Join(whereArgs, ",")))
 	src.WriteString("if err != nil {\n")
 	src.WriteString("return xerrors.Errorf(\": %w\", err)\n")
 	src.WriteString("}\n\n")
@@ -212,10 +271,19 @@ func (g GoDAOGenerator) delete(src *bytes.Buffer, m *schema.Message) {
 }
 
 func (g GoDAOGenerator) update(src *bytes.Buffer, m *schema.Message, entityName string) {
-	src.WriteString(fmt.Sprintf("func (d *%s) Update(ctx context.Context, v *%s.%s) error {\n", m.Descriptor.GetName(), entityName, m.Descriptor.GetName()))
+	src.WriteString(fmt.Sprintf("func (d *%s) Update(ctx context.Context, v *%s.%s,opt ...ExecOption) error {\n", m.Descriptor.GetName(), entityName, m.Descriptor.GetName()))
 	src.WriteString("if !v.IsChanged() {\n")
 	src.WriteString("return nil\n")
 	src.WriteString("}\n\n")
+
+	src.WriteString(`execOpts := newExecOpt(opt...)
+	var conn execConn
+	if execOpts.tx != nil {
+		conn = execOpts.tx
+	} else {
+		conn = d.conn
+	}`)
+	src.WriteString("\n\n")
 
 	src.WriteString("changedColumn := v.ChangedColumn()\n")
 	src.WriteString("cols := make([]string, len(changedColumn)+1)\n")
@@ -237,7 +305,7 @@ func (g GoDAOGenerator) update(src *bytes.Buffer, m *schema.Message, entityName 
 		whereArgs = append(whereArgs, "v."+schema.ToCamel(v.Name))
 	}
 	src.WriteString(fmt.Sprintf("query := fmt.Sprintf(\"UPDATE `%s` SET %%s WHERE %s\", strings.Join(cols, \", \"))\n", m.TableName, strings.Join(where, " AND ")))
-	src.WriteString("res, err := d.conn.ExecContext(\n")
+	src.WriteString("res, err := conn.ExecContext(\n")
 	src.WriteString("ctx,\n")
 	src.WriteString("query,\n")
 	src.WriteString(fmt.Sprintf("append(values, %s)...,\n", strings.Join(whereArgs, ",")))
