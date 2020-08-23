@@ -11,6 +11,7 @@ sample/dao/schema.dao.go: sample/schema.proto
 	bazel run //sample/dao:vendor_dao
 
 update-deps:
+	go mod vendor
 	bazel run //:vendor_proto_source
 	bazel run //:gazelle -- update
 
