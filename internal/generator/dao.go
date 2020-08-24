@@ -150,6 +150,7 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpti
 		for _, q := range m.SelectQueries {
 			stmt, err := sqlparser.Parse(q.Query)
 			if err != nil {
+				log.Printf("Failed parsing query %s: %v", q.Query, err)
 				continue
 			}
 
@@ -433,7 +434,7 @@ func (g GoDAOGenerator) selectMultipleRowQuery(src *bytes.Buffer, m *schema.Mess
 		primaryKeys = append(primaryKeys, "`"+v.Name+"`")
 	}
 	src.WriteString("listOpts := newListOpt(opt...)\n")
-	src.WriteString(fmt.Sprintf("query := %q\n", printSelectQueryAST(stmt)))
+	src.WriteString(fmt.Sprintf("query := %q\n", printSelectQueryAST(m, stmt)))
 	src.WriteString("if listOpts.limit > 0 {\n")
 	src.WriteString("order := \"ASC\"\n")
 	src.WriteString("if listOpts.desc {\n")
@@ -494,7 +495,7 @@ func (g GoDAOGenerator) selectSingleRowQuery(src *bytes.Buffer, m *schema.Messag
 	for _, v := range m.PrimaryKeys {
 		primaryKeys = append(primaryKeys, "`"+v.Name+"`")
 	}
-	src.WriteString(fmt.Sprintf("row := d.conn.QueryRowContext(\nctx,\n%q,\n", printSelectQueryAST(stmt)))
+	src.WriteString(fmt.Sprintf("row := d.conn.QueryRowContext(\nctx,\n%q,\n", printSelectQueryAST(m, stmt)))
 	for _, a := range comp {
 		src.WriteString(schema.ToLowerCamel(a.Name) + ",\n")
 	}
@@ -643,12 +644,18 @@ func (g GoDAOGenerator) findArgFieldFromOrExprIfExist(fields map[string]*schema.
 	return res
 }
 
-func printSelectQueryAST(stmt *sqlparser.Select) string {
+func printSelectQueryAST(m *schema.Message, stmt *sqlparser.Select) string {
 	buf := sqlparser.NewTrackedBuffer(func(buf *sqlparser.TrackedBuffer, node sqlparser.SQLNode) {
 		switch v := node.(type) {
 		case *sqlparser.SQLVal:
 			if v.Type == sqlparser.ValArg {
 				buf.WriteString("?")
+				return
+			}
+		case sqlparser.TableName:
+			if v.Name.String() == ":table_name:" {
+				v.Name = sqlparser.NewTableIdent(m.TableName)
+				v.Format(buf)
 				return
 			}
 		}

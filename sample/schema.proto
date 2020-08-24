@@ -20,11 +20,11 @@ message User {
     option (dev.f110.ddl.dao) = {
         queries: {
             name: "All"
-            query: "SELECT * FROM user"
+            query: "SELECT * FROM `:table_name:`"
         };
         queries: {
             name: "OverTwenty"
-            query: "SELECT * FROM `user` WHERE age > 20"
+            query: "SELECT * FROM `:table_name:` WHERE age > 20"
         };
     };
 }

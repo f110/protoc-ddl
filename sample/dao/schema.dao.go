@@ -104,7 +104,7 @@ func (d *User) Select(ctx context.Context, id int32) (*sample.User, error) {
 
 func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, error) {
 	listOpts := newListOpt(opt...)
-	query := "select id, age, name, title, created_at from user"
+	query := "select id, age, name, title, created_at from users"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
@@ -135,7 +135,7 @@ func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, 
 
 func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample.User, error) {
 	listOpts := newListOpt(opt...)
-	query := "select id, age, name, title, created_at from user where age > 20"
+	query := "select id, age, name, title, created_at from users where age > 20"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
