@@ -25,8 +25,9 @@ CREATE TABLE `blog` (
 	`editor_id` INTEGER NOT NULL,
 	`created_at` DATETIME NOT NULL,
 	`updated_at` DATETIME NULL,
-	UNIQUE `idx_user_id_and_id` (`user_id`,`id`),
-	INDEX `idx_user_id_category_id` (`user_id`,`category_id`),
+	UNIQUE `idx_user_id_and_id` (`user_id`, `id`),
+	INDEX `idx_user_id_category_id` (`user_id`, `category_id`),
+	UNIQUE `idx_user_id_title` (`user_id`, `title`),
 	PRIMARY KEY(`id`)
 ) Engine=InnoDB;
 
@@ -42,6 +43,7 @@ DROP TABLE IF EXISTS `comment`;
 CREATE TABLE `comment` (
 	`blog_id` BIGINT NOT NULL,
 	`user_id` INTEGER NOT NULL,
+	UNIQUE `idx_user_id` (`user_id`),
 	PRIMARY KEY(`blog_id`,`user_id`)
 ) Engine=InnoDB;
 

@@ -54,7 +54,7 @@ type Message struct {
 	TableName     string
 	Fields        *Fields
 	PrimaryKeys   []*Field
-	Indexes       []*ddl.IndexOption
+	Indexes       []*Index
 	Relations     Relations
 	Engine        string
 	WithTimestamp bool
@@ -86,12 +86,12 @@ func (m *Message) IsReturningSingleRow(fields ...*Field) bool {
 		if !index.Unique {
 			continue
 		}
-		if len(fields) < len(index.Columns) {
+		if len(fields) < index.Columns.Len() {
 			continue
 		}
 
-		for i, v := range index.Columns {
-			if fields[i].Name == v {
+		for i, v := range index.Columns.List() {
+			if fields[i].Name == v.Name {
 				if len(fields)-1 == i {
 					return true
 				}
@@ -167,7 +167,9 @@ func (m *Messages) denormalizePrimaryKey() {
 					}
 					msg.Fields.Replace(f.Name, newFields...)
 					msg.Relations.Replace(f, newFields...)
-					// msg.Relations[f] = newFields
+					for _, v := range msg.Indexes {
+						v.Columns.Replace(f.Name, newFields...)
+					}
 				}
 			}
 			msg.PrimaryKeys = newPrimaryKey
@@ -198,7 +200,9 @@ func (m *Messages) denormalizeFields() {
 					}
 					msg.Fields.Replace(f.Name, newFields...)
 					msg.Relations.Replace(f, newFields...)
-					// msg.Relations[f] = newFields
+					for _, v := range msg.Indexes {
+						v.Columns.Replace(f.Name, newFields...)
+					}
 				}
 			})
 		}
@@ -371,6 +375,12 @@ func (r Relations) Replace(old *Field, newFields ...*Field) {
 	}
 }
 
+type Index struct {
+	Name    string
+	Columns *Fields
+	Unique  bool
+}
+
 func ProcessEntity(req *plugin_go.CodeGeneratorRequest) (EntityOption, *descriptor.FileOptions, *Messages) {
 	files := make(map[string]*descriptor.FileDescriptorProto)
 	for _, f := range req.ProtoFile {
@@ -456,7 +466,18 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 		}
 		m.Fields = fields
 		m.PrimaryKeys = primaryKey
-		m.Indexes = ext.GetIndexes()
+		for _, v := range ext.GetIndexes() {
+			cols := make([]*Field, len(v.Columns))
+			for i, col := range v.Columns {
+				cols[i] = fields.Get(col)
+			}
+
+			m.Indexes = append(m.Indexes, &Index{
+				Name:    v.Name,
+				Columns: NewFields(cols),
+				Unique:  v.Unique,
+			})
+		}
 		m.Engine = ext.Engine
 		m.WithTimestamp = ext.WithTimestamp
 
@@ -468,16 +489,16 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 			if f.Ext.Unique {
 				exists := false
 				for _, index := range m.Indexes {
-					if len(index.Columns) != 1 {
+					if index.Columns.Len() != 1 {
 						continue
 					}
-					if index.Columns[0] == f.Name {
+					if index.Columns.List()[0].Name == f.Name {
 						exists = true
 					}
 				}
 				if !exists {
-					m.Indexes = append(m.Indexes, &ddl.IndexOption{
-						Columns: []string{f.Name},
+					m.Indexes = append(m.Indexes, &Index{
+						Columns: NewFields([]*Field{f}),
 						Unique:  true,
 					})
 				}

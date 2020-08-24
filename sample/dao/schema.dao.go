@@ -812,6 +812,36 @@ func (d *Comment) Select(ctx context.Context, blogId int64, userId int32) (*samp
 	return v, nil
 }
 
+func (d *Comment) SelectByUser(ctx context.Context, userId int32) (*sample.Comment, error) {
+	row := d.conn.QueryRowContext(
+		ctx,
+		"select blog_id, user_id from `comment` where user_id = ?",
+		userId,
+	)
+	v := &sample.Comment{}
+	if err := row.Scan(&v.BlogId, &v.UserId); err != nil {
+		return nil, xerrors.Errorf(": %w", err)
+	}
+
+	{
+		rel, err := d.blog.Select(ctx, v.BlogId)
+		if err != nil {
+			return nil, xerrors.Errorf(": %w", err)
+		}
+		v.Blog = rel
+	}
+	{
+		rel, err := d.user.Select(ctx, v.UserId)
+		if err != nil {
+			return nil, xerrors.Errorf(": %w", err)
+		}
+		v.User = rel
+	}
+
+	v.ResetMark()
+	return v, nil
+}
+
 func (d *Comment) Create(ctx context.Context, v *sample.Comment, opt ...ExecOption) (*sample.Comment, error) {
 	execOpts := newExecOpt(opt...)
 	var conn execConn

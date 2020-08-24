@@ -43,16 +43,16 @@ message Blog {
         with_timestamp: true
         indexes: {
             name: "idx_user_id_and_id"
-            columns: "user_id"
+            columns: "user"
             columns: "id"
             unique: true
         };
         indexes: {
-            columns: "user_id"
+            columns: "user"
             columns: "category_id"
         };
         indexes: {
-            columns: "user_id"
+            columns: "user"
             columns: "title"
             unique: true
         };
@@ -87,17 +87,24 @@ message CommentImage {
         queries: {
             name: "ByLikeId"
             query: "SELECT * FROM comment_image WHERE like_id = ?"
-        }
+        };
     };
 }
 
 message Comment {
     Blog blog = 1;
-    User user = 2;
+    User user = 2 [(dev.f110.ddl.column) = {unique: true}];
 
     option (dev.f110.ddl.table) = {
         primary_key: "blog"
         primary_key: "user"
+    };
+
+    option (dev.f110.ddl.dao) = {
+        queries: {
+            name: "ByUser"
+            query: "select * from comment where user_id = ?"
+        };
     };
 }
 
