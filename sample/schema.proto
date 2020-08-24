@@ -37,6 +37,7 @@ message Blog {
     int32  category_id = 5 [(dev.f110.ddl.column) = {null: true}];
     bytes  attach      = 6 [(dev.f110.ddl.column) = {type: "long"}];
     User   editor      = 7;
+    bytes  sign        = 8 [(dev.f110.ddl.column) = {size: 20}];
 
     option (dev.f110.ddl.table) = {
         primary_key: "id"

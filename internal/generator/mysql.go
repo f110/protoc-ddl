@@ -137,17 +137,21 @@ func (MySQLGenerator) columnType(col *schema.Field) string {
 				columnType = t + "(" + strconv.Itoa(col.Size) + ")"
 			}
 		case "TYPE_BYTES":
-			switch col.OptionalType {
-			case "tiny":
-				columnType = "TINYBLOB"
-			case "blob":
-				columnType = "BLOB"
-			case "medium":
-				columnType = "MEDIUMBLOB"
-			case "long":
-				columnType = "LONGBLOB"
-			default:
-				columnType = t
+			if col.Size > 0 && col.Size < 255 {
+				columnType = fmt.Sprintf("VARBINARY(%d)", col.Size)
+			} else {
+				switch col.OptionalType {
+				case "tiny":
+					columnType = "TINYBLOB"
+				case "blob":
+					columnType = "BLOB"
+				case "medium":
+					columnType = "MEDIUMBLOB"
+				case "long":
+					columnType = "LONGBLOB"
+				default:
+					columnType = t
+				}
 			}
 		default:
 			columnType = t
