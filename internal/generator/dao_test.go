@@ -158,7 +158,7 @@ func TestPrintSelectQueryAST(t *testing.T) {
 			t.Fatal("Query is not select. This is a bug of test")
 		}
 
-		got := printSelectQueryAST(stmt)
+		got := printSelectQueryAST(nil, stmt)
 		assert.Equal(t, c.Rendered, got)
 	}
 }
