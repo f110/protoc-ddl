@@ -14,5 +14,7 @@ job = rule(
         "github_status": attr.bool(),
         "cpu_limit": attr.string(doc = "Limit of cpu"),
         "memory_limit": attr.string(doc = "Limit of memory"),
+        "exclusive": attr.bool(doc = "Do not allow parallelized build in this job"),
+        "config_name": attr.string(doc = "The name of config"),
     },
 )
