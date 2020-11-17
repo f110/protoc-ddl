@@ -87,6 +87,7 @@ type Blog struct {
 	CategoryId *int32
 	Attach     []byte
 	EditorId   int32
+	Sign       []byte
 	CreatedAt  time.Time
 	UpdatedAt  *time.Time
 
@@ -114,6 +115,7 @@ func (e *Blog) IsChanged() bool {
 		((e.CategoryId != nil && (e.mark.CategoryId == nil || *e.CategoryId != *e.mark.CategoryId)) || e.CategoryId == nil && e.mark.CategoryId != nil) ||
 		!bytes.Equal(e.Attach, e.mark.Attach) ||
 		e.EditorId != e.mark.EditorId ||
+		!bytes.Equal(e.Sign, e.mark.Sign) ||
 		!e.CreatedAt.Equal(e.mark.CreatedAt) ||
 		((e.UpdatedAt != nil && (e.mark.UpdatedAt == nil || !e.UpdatedAt.Equal(*e.mark.UpdatedAt))) || (e.UpdatedAt == nil && e.mark.UpdatedAt != nil))
 }
@@ -145,6 +147,9 @@ func (e *Blog) ChangedColumn() []ddl.Column {
 	if e.EditorId != e.mark.EditorId {
 		res = append(res, ddl.Column{Name: "editor_id", Value: e.EditorId})
 	}
+	if !bytes.Equal(e.Sign, e.mark.Sign) {
+		res = append(res, ddl.Column{Name: "sign", Value: e.Sign})
+	}
 	if !e.CreatedAt.Equal(e.mark.CreatedAt) {
 		res = append(res, ddl.Column{Name: "created_at", Value: e.CreatedAt})
 	}
@@ -167,6 +172,7 @@ func (e *Blog) Copy() *Blog {
 		Body:      e.Body,
 		Attach:    e.Attach,
 		EditorId:  e.EditorId,
+		Sign:      e.Sign,
 		CreatedAt: e.CreatedAt,
 	}
 	if e.CategoryId != nil {

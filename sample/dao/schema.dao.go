@@ -164,7 +164,7 @@ func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample
 	return res, nil
 }
 
-func (d *User) Create(ctx context.Context, v *sample.User, opt ...ExecOption) (*sample.User, error) {
+func (d *User) Create(ctx context.Context, user *sample.User, opt ...ExecOption) (*sample.User, error) {
 	execOpts := newExecOpt(opt...)
 	var conn execConn
 	if execOpts.tx != nil {
@@ -175,7 +175,8 @@ func (d *User) Create(ctx context.Context, v *sample.User, opt ...ExecOption) (*
 
 	res, err := conn.ExecContext(
 		ctx,
-		"INSERT INTO `users` (`age`, `name`, `title`, `created_at`) VALUES (?, ?, ?, ?)", v.Age, v.Name, v.Title, v.CreatedAt,
+		"INSERT INTO `users` (`age`, `name`, `title`, `created_at`) VALUES (?, ?, ?, ?)",
+		user.Age, user.Name, user.Title, user.CreatedAt,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -187,15 +188,15 @@ func (d *User) Create(ctx context.Context, v *sample.User, opt ...ExecOption) (*
 		return nil, sql.ErrNoRows
 	}
 
-	v = v.Copy()
+	user = user.Copy()
 	insertedId, err := res.LastInsertId()
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
 	}
-	v.Id = int32(insertedId)
+	user.Id = int32(insertedId)
 
-	v.ResetMark()
-	return v, nil
+	user.ResetMark()
+	return user, nil
 }
 
 func (d *User) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
@@ -221,8 +222,8 @@ func (d *User) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
 	return nil
 }
 
-func (d *User) Update(ctx context.Context, v *sample.User, opt ...ExecOption) error {
-	if !v.IsChanged() {
+func (d *User) Update(ctx context.Context, user *sample.User, opt ...ExecOption) error {
+	if !user.IsChanged() {
 		return nil
 	}
 
@@ -234,7 +235,7 @@ func (d *User) Update(ctx context.Context, v *sample.User, opt ...ExecOption) er
 		conn = d.conn
 	}
 
-	changedColumn := v.ChangedColumn()
+	changedColumn := user.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
 	values := make([]interface{}, len(changedColumn)+1)
 	for i := range changedColumn {
@@ -246,7 +247,7 @@ func (d *User) Update(ctx context.Context, v *sample.User, opt ...ExecOption) er
 	res, err := conn.ExecContext(
 		ctx,
 		query,
-		append(values, v.Id)...,
+		append(values, user.Id)...,
 	)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
@@ -257,7 +258,7 @@ func (d *User) Update(ctx context.Context, v *sample.User, opt ...ExecOption) er
 		return sql.ErrNoRows
 	}
 
-	v.ResetMark()
+	user.ResetMark()
 	return nil
 }
 
@@ -295,7 +296,7 @@ func (d *Blog) Select(ctx context.Context, id int64) (*sample.Blog, error) {
 	row := d.conn.QueryRowContext(ctx, "SELECT * FROM `blog` WHERE `id` = ?", id)
 
 	v := &sample.Blog{}
-	if err := row.Scan(&v.Id, &v.UserId, &v.Title, &v.Body, &v.CategoryId, &v.Attach, &v.EditorId, &v.CreatedAt, &v.UpdatedAt); err != nil {
+	if err := row.Scan(&v.Id, &v.UserId, &v.Title, &v.Body, &v.CategoryId, &v.Attach, &v.EditorId, &v.Sign, &v.CreatedAt, &v.UpdatedAt); err != nil {
 		return nil, xerrors.Errorf(": %w", err)
 	}
 
@@ -320,7 +321,7 @@ func (d *Blog) Select(ctx context.Context, id int64) (*sample.Blog, error) {
 
 func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption) ([]*sample.Blog, error) {
 	listOpts := newListOpt(opt...)
-	query := "select id, user_id, title, body, category_id, attach, editor_id, created_at, updated_at from blog where title = ?"
+	query := "select id, user_id, title, body, category_id, attach, editor_id, sign, created_at, updated_at from blog where title = ?"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
@@ -340,7 +341,7 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 	res := make([]*sample.Blog, 0)
 	for rows.Next() {
 		r := &sample.Blog{}
-		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.Sign, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, xerrors.Errorf(": %w", err)
 		}
 		r.ResetMark()
@@ -371,7 +372,7 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 
 func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, categoryId int32, opt ...ListOption) ([]*sample.Blog, error) {
 	listOpts := newListOpt(opt...)
-	query := "select id, user_id, title, body, category_id, attach, editor_id, created_at, updated_at from blog where user_id = ? and category_id = ?"
+	query := "select id, user_id, title, body, category_id, attach, editor_id, sign, created_at, updated_at from blog where user_id = ? and category_id = ?"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
@@ -392,7 +393,7 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 	res := make([]*sample.Blog, 0)
 	for rows.Next() {
 		r := &sample.Blog{}
-		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.Sign, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, xerrors.Errorf(": %w", err)
 		}
 		r.ResetMark()
@@ -424,12 +425,12 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 func (d *Blog) SelectByUserAndTitle(ctx context.Context, userId int32, title string) (*sample.Blog, error) {
 	row := d.conn.QueryRowContext(
 		ctx,
-		"select id, user_id, title, body, category_id, attach, editor_id, created_at, updated_at from blog where user_id = ? and title = ?",
+		"select id, user_id, title, body, category_id, attach, editor_id, sign, created_at, updated_at from blog where user_id = ? and title = ?",
 		userId,
 		title,
 	)
 	v := &sample.Blog{}
-	if err := row.Scan(&v.Id, &v.UserId, &v.Title, &v.Body, &v.CategoryId, &v.Attach, &v.EditorId, &v.CreatedAt, &v.UpdatedAt); err != nil {
+	if err := row.Scan(&v.Id, &v.UserId, &v.Title, &v.Body, &v.CategoryId, &v.Attach, &v.EditorId, &v.Sign, &v.CreatedAt, &v.UpdatedAt); err != nil {
 		return nil, xerrors.Errorf(": %w", err)
 	}
 
@@ -452,7 +453,7 @@ func (d *Blog) SelectByUserAndTitle(ctx context.Context, userId int32, title str
 	return v, nil
 }
 
-func (d *Blog) Create(ctx context.Context, v *sample.Blog, opt ...ExecOption) (*sample.Blog, error) {
+func (d *Blog) Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption) (*sample.Blog, error) {
 	execOpts := newExecOpt(opt...)
 	var conn execConn
 	if execOpts.tx != nil {
@@ -463,7 +464,8 @@ func (d *Blog) Create(ctx context.Context, v *sample.Blog, opt ...ExecOption) (*
 
 	res, err := conn.ExecContext(
 		ctx,
-		"INSERT INTO `blog` (`user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?)", v.UserId, v.Title, v.Body, v.CategoryId, v.Attach, v.EditorId, time.Now(),
+		"INSERT INTO `blog` (`user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		blog.UserId, blog.Title, blog.Body, blog.CategoryId, blog.Attach, blog.EditorId, blog.Sign, time.Now(),
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -475,15 +477,15 @@ func (d *Blog) Create(ctx context.Context, v *sample.Blog, opt ...ExecOption) (*
 		return nil, sql.ErrNoRows
 	}
 
-	v = v.Copy()
+	blog = blog.Copy()
 	insertedId, err := res.LastInsertId()
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
 	}
-	v.Id = int64(insertedId)
+	blog.Id = int64(insertedId)
 
-	v.ResetMark()
-	return v, nil
+	blog.ResetMark()
+	return blog, nil
 }
 
 func (d *Blog) Delete(ctx context.Context, id int64, opt ...ExecOption) error {
@@ -509,8 +511,8 @@ func (d *Blog) Delete(ctx context.Context, id int64, opt ...ExecOption) error {
 	return nil
 }
 
-func (d *Blog) Update(ctx context.Context, v *sample.Blog, opt ...ExecOption) error {
-	if !v.IsChanged() {
+func (d *Blog) Update(ctx context.Context, blog *sample.Blog, opt ...ExecOption) error {
+	if !blog.IsChanged() {
 		return nil
 	}
 
@@ -522,7 +524,7 @@ func (d *Blog) Update(ctx context.Context, v *sample.Blog, opt ...ExecOption) er
 		conn = d.conn
 	}
 
-	changedColumn := v.ChangedColumn()
+	changedColumn := blog.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
 	values := make([]interface{}, len(changedColumn)+1)
 	for i := range changedColumn {
@@ -536,7 +538,7 @@ func (d *Blog) Update(ctx context.Context, v *sample.Blog, opt ...ExecOption) er
 	res, err := conn.ExecContext(
 		ctx,
 		query,
-		append(values, v.Id)...,
+		append(values, blog.Id)...,
 	)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
@@ -547,7 +549,7 @@ func (d *Blog) Update(ctx context.Context, v *sample.Blog, opt ...ExecOption) er
 		return sql.ErrNoRows
 	}
 
-	v.ResetMark()
+	blog.ResetMark()
 	return nil
 }
 
@@ -661,7 +663,7 @@ func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64, opt ...L
 	return res, nil
 }
 
-func (d *CommentImage) Create(ctx context.Context, v *sample.CommentImage, opt ...ExecOption) (*sample.CommentImage, error) {
+func (d *CommentImage) Create(ctx context.Context, commentImage *sample.CommentImage, opt ...ExecOption) (*sample.CommentImage, error) {
 	execOpts := newExecOpt(opt...)
 	var conn execConn
 	if execOpts.tx != nil {
@@ -672,7 +674,8 @@ func (d *CommentImage) Create(ctx context.Context, v *sample.CommentImage, opt .
 
 	res, err := conn.ExecContext(
 		ctx,
-		"INSERT INTO `comment_image` (`comment_blog_id`, `comment_user_id`, `like_id`) VALUES (?, ?, ?)", v.CommentBlogId, v.CommentUserId, v.LikeId,
+		"INSERT INTO `comment_image` (`comment_blog_id`, `comment_user_id`, `like_id`) VALUES (?, ?, ?)",
+		commentImage.CommentBlogId, commentImage.CommentUserId, commentImage.LikeId,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -684,10 +687,10 @@ func (d *CommentImage) Create(ctx context.Context, v *sample.CommentImage, opt .
 		return nil, sql.ErrNoRows
 	}
 
-	v = v.Copy()
+	commentImage = commentImage.Copy()
 
-	v.ResetMark()
-	return v, nil
+	commentImage.ResetMark()
+	return commentImage, nil
 }
 
 func (d *CommentImage) Delete(ctx context.Context, commentBlogId int64, commentUserId int32, likeId uint64, opt ...ExecOption) error {
@@ -713,8 +716,8 @@ func (d *CommentImage) Delete(ctx context.Context, commentBlogId int64, commentU
 	return nil
 }
 
-func (d *CommentImage) Update(ctx context.Context, v *sample.CommentImage, opt ...ExecOption) error {
-	if !v.IsChanged() {
+func (d *CommentImage) Update(ctx context.Context, commentImage *sample.CommentImage, opt ...ExecOption) error {
+	if !commentImage.IsChanged() {
 		return nil
 	}
 
@@ -726,7 +729,7 @@ func (d *CommentImage) Update(ctx context.Context, v *sample.CommentImage, opt .
 		conn = d.conn
 	}
 
-	changedColumn := v.ChangedColumn()
+	changedColumn := commentImage.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
 	values := make([]interface{}, len(changedColumn)+1)
 	for i := range changedColumn {
@@ -738,7 +741,7 @@ func (d *CommentImage) Update(ctx context.Context, v *sample.CommentImage, opt .
 	res, err := conn.ExecContext(
 		ctx,
 		query,
-		append(values, v.CommentBlogId, v.CommentUserId, v.LikeId)...,
+		append(values, commentImage.CommentBlogId, commentImage.CommentUserId, commentImage.LikeId)...,
 	)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
@@ -749,7 +752,7 @@ func (d *CommentImage) Update(ctx context.Context, v *sample.CommentImage, opt .
 		return sql.ErrNoRows
 	}
 
-	v.ResetMark()
+	commentImage.ResetMark()
 	return nil
 }
 
@@ -842,7 +845,7 @@ func (d *Comment) SelectByUser(ctx context.Context, userId int32) (*sample.Comme
 	return v, nil
 }
 
-func (d *Comment) Create(ctx context.Context, v *sample.Comment, opt ...ExecOption) (*sample.Comment, error) {
+func (d *Comment) Create(ctx context.Context, comment *sample.Comment, opt ...ExecOption) (*sample.Comment, error) {
 	execOpts := newExecOpt(opt...)
 	var conn execConn
 	if execOpts.tx != nil {
@@ -853,7 +856,8 @@ func (d *Comment) Create(ctx context.Context, v *sample.Comment, opt ...ExecOpti
 
 	res, err := conn.ExecContext(
 		ctx,
-		"INSERT INTO `comment` (`blog_id`, `user_id`) VALUES (?, ?)", v.BlogId, v.UserId,
+		"INSERT INTO `comment` (`blog_id`, `user_id`) VALUES (?, ?)",
+		comment.BlogId, comment.UserId,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -865,10 +869,10 @@ func (d *Comment) Create(ctx context.Context, v *sample.Comment, opt ...ExecOpti
 		return nil, sql.ErrNoRows
 	}
 
-	v = v.Copy()
+	comment = comment.Copy()
 
-	v.ResetMark()
-	return v, nil
+	comment.ResetMark()
+	return comment, nil
 }
 
 func (d *Comment) Delete(ctx context.Context, blogId int64, userId int32, opt ...ExecOption) error {
@@ -894,8 +898,8 @@ func (d *Comment) Delete(ctx context.Context, blogId int64, userId int32, opt ..
 	return nil
 }
 
-func (d *Comment) Update(ctx context.Context, v *sample.Comment, opt ...ExecOption) error {
-	if !v.IsChanged() {
+func (d *Comment) Update(ctx context.Context, comment *sample.Comment, opt ...ExecOption) error {
+	if !comment.IsChanged() {
 		return nil
 	}
 
@@ -907,7 +911,7 @@ func (d *Comment) Update(ctx context.Context, v *sample.Comment, opt ...ExecOpti
 		conn = d.conn
 	}
 
-	changedColumn := v.ChangedColumn()
+	changedColumn := comment.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
 	values := make([]interface{}, len(changedColumn)+1)
 	for i := range changedColumn {
@@ -919,7 +923,7 @@ func (d *Comment) Update(ctx context.Context, v *sample.Comment, opt ...ExecOpti
 	res, err := conn.ExecContext(
 		ctx,
 		query,
-		append(values, v.BlogId, v.UserId)...,
+		append(values, comment.BlogId, comment.UserId)...,
 	)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
@@ -930,7 +934,7 @@ func (d *Comment) Update(ctx context.Context, v *sample.Comment, opt ...ExecOpti
 		return sql.ErrNoRows
 	}
 
-	v.ResetMark()
+	comment.ResetMark()
 	return nil
 }
 
@@ -1032,7 +1036,7 @@ func (d *Reply) ListByBody(ctx context.Context, body string, opt ...ListOption) 
 	return res, nil
 }
 
-func (d *Reply) Create(ctx context.Context, v *sample.Reply, opt ...ExecOption) (*sample.Reply, error) {
+func (d *Reply) Create(ctx context.Context, reply *sample.Reply, opt ...ExecOption) (*sample.Reply, error) {
 	execOpts := newExecOpt(opt...)
 	var conn execConn
 	if execOpts.tx != nil {
@@ -1043,7 +1047,8 @@ func (d *Reply) Create(ctx context.Context, v *sample.Reply, opt ...ExecOption) 
 
 	res, err := conn.ExecContext(
 		ctx,
-		"INSERT INTO `reply` (`comment_blog_id`, `comment_user_id`, `body`) VALUES (?, ?, ?)", v.CommentBlogId, v.CommentUserId, v.Body,
+		"INSERT INTO `reply` (`comment_blog_id`, `comment_user_id`, `body`) VALUES (?, ?, ?)",
+		reply.CommentBlogId, reply.CommentUserId, reply.Body,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -1055,15 +1060,15 @@ func (d *Reply) Create(ctx context.Context, v *sample.Reply, opt ...ExecOption) 
 		return nil, sql.ErrNoRows
 	}
 
-	v = v.Copy()
+	reply = reply.Copy()
 	insertedId, err := res.LastInsertId()
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
 	}
-	v.Id = int32(insertedId)
+	reply.Id = int32(insertedId)
 
-	v.ResetMark()
-	return v, nil
+	reply.ResetMark()
+	return reply, nil
 }
 
 func (d *Reply) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
@@ -1089,8 +1094,8 @@ func (d *Reply) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
 	return nil
 }
 
-func (d *Reply) Update(ctx context.Context, v *sample.Reply, opt ...ExecOption) error {
-	if !v.IsChanged() {
+func (d *Reply) Update(ctx context.Context, reply *sample.Reply, opt ...ExecOption) error {
+	if !reply.IsChanged() {
 		return nil
 	}
 
@@ -1102,7 +1107,7 @@ func (d *Reply) Update(ctx context.Context, v *sample.Reply, opt ...ExecOption) 
 		conn = d.conn
 	}
 
-	changedColumn := v.ChangedColumn()
+	changedColumn := reply.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
 	values := make([]interface{}, len(changedColumn)+1)
 	for i := range changedColumn {
@@ -1114,7 +1119,7 @@ func (d *Reply) Update(ctx context.Context, v *sample.Reply, opt ...ExecOption) 
 	res, err := conn.ExecContext(
 		ctx,
 		query,
-		append(values, v.Id)...,
+		append(values, reply.Id)...,
 	)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
@@ -1125,7 +1130,7 @@ func (d *Reply) Update(ctx context.Context, v *sample.Reply, opt ...ExecOption) 
 		return sql.ErrNoRows
 	}
 
-	v.ResetMark()
+	reply.ResetMark()
 	return nil
 }
 
@@ -1188,7 +1193,7 @@ func (d *Like) Select(ctx context.Context, id uint64) (*sample.Like, error) {
 	return v, nil
 }
 
-func (d *Like) Create(ctx context.Context, v *sample.Like, opt ...ExecOption) (*sample.Like, error) {
+func (d *Like) Create(ctx context.Context, like *sample.Like, opt ...ExecOption) (*sample.Like, error) {
 	execOpts := newExecOpt(opt...)
 	var conn execConn
 	if execOpts.tx != nil {
@@ -1199,7 +1204,8 @@ func (d *Like) Create(ctx context.Context, v *sample.Like, opt ...ExecOption) (*
 
 	res, err := conn.ExecContext(
 		ctx,
-		"INSERT INTO `like` (`user_id`, `blog_id`) VALUES (?, ?)", v.UserId, v.BlogId,
+		"INSERT INTO `like` (`user_id`, `blog_id`) VALUES (?, ?)",
+		like.UserId, like.BlogId,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -1211,15 +1217,15 @@ func (d *Like) Create(ctx context.Context, v *sample.Like, opt ...ExecOption) (*
 		return nil, sql.ErrNoRows
 	}
 
-	v = v.Copy()
+	like = like.Copy()
 	insertedId, err := res.LastInsertId()
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
 	}
-	v.Id = uint64(insertedId)
+	like.Id = uint64(insertedId)
 
-	v.ResetMark()
-	return v, nil
+	like.ResetMark()
+	return like, nil
 }
 
 func (d *Like) Delete(ctx context.Context, id uint64, opt ...ExecOption) error {
@@ -1245,8 +1251,8 @@ func (d *Like) Delete(ctx context.Context, id uint64, opt ...ExecOption) error {
 	return nil
 }
 
-func (d *Like) Update(ctx context.Context, v *sample.Like, opt ...ExecOption) error {
-	if !v.IsChanged() {
+func (d *Like) Update(ctx context.Context, like *sample.Like, opt ...ExecOption) error {
+	if !like.IsChanged() {
 		return nil
 	}
 
@@ -1258,7 +1264,7 @@ func (d *Like) Update(ctx context.Context, v *sample.Like, opt ...ExecOption) er
 		conn = d.conn
 	}
 
-	changedColumn := v.ChangedColumn()
+	changedColumn := like.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
 	values := make([]interface{}, len(changedColumn)+1)
 	for i := range changedColumn {
@@ -1270,7 +1276,7 @@ func (d *Like) Update(ctx context.Context, v *sample.Like, opt ...ExecOption) er
 	res, err := conn.ExecContext(
 		ctx,
 		query,
-		append(values, v.Id)...,
+		append(values, like.Id)...,
 	)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
@@ -1281,7 +1287,7 @@ func (d *Like) Update(ctx context.Context, v *sample.Like, opt ...ExecOption) er
 		return sql.ErrNoRows
 	}
 
-	v.ResetMark()
+	like.ResetMark()
 	return nil
 }
 
@@ -1324,7 +1330,7 @@ func (d *PostImage) Select(ctx context.Context, id int32) (*sample.PostImage, er
 	return v, nil
 }
 
-func (d *PostImage) Create(ctx context.Context, v *sample.PostImage, opt ...ExecOption) (*sample.PostImage, error) {
+func (d *PostImage) Create(ctx context.Context, postImage *sample.PostImage, opt ...ExecOption) (*sample.PostImage, error) {
 	execOpts := newExecOpt(opt...)
 	var conn execConn
 	if execOpts.tx != nil {
@@ -1335,7 +1341,8 @@ func (d *PostImage) Create(ctx context.Context, v *sample.PostImage, opt ...Exec
 
 	res, err := conn.ExecContext(
 		ctx,
-		"INSERT INTO `post_image` (`id`, `url`) VALUES (?, ?)", v.Id, v.Url,
+		"INSERT INTO `post_image` (`id`, `url`) VALUES (?, ?)",
+		postImage.Id, postImage.Url,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -1347,10 +1354,10 @@ func (d *PostImage) Create(ctx context.Context, v *sample.PostImage, opt ...Exec
 		return nil, sql.ErrNoRows
 	}
 
-	v = v.Copy()
+	postImage = postImage.Copy()
 
-	v.ResetMark()
-	return v, nil
+	postImage.ResetMark()
+	return postImage, nil
 }
 
 func (d *PostImage) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
@@ -1376,8 +1383,8 @@ func (d *PostImage) Delete(ctx context.Context, id int32, opt ...ExecOption) err
 	return nil
 }
 
-func (d *PostImage) Update(ctx context.Context, v *sample.PostImage, opt ...ExecOption) error {
-	if !v.IsChanged() {
+func (d *PostImage) Update(ctx context.Context, postImage *sample.PostImage, opt ...ExecOption) error {
+	if !postImage.IsChanged() {
 		return nil
 	}
 
@@ -1389,7 +1396,7 @@ func (d *PostImage) Update(ctx context.Context, v *sample.PostImage, opt ...Exec
 		conn = d.conn
 	}
 
-	changedColumn := v.ChangedColumn()
+	changedColumn := postImage.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
 	values := make([]interface{}, len(changedColumn)+1)
 	for i := range changedColumn {
@@ -1401,7 +1408,7 @@ func (d *PostImage) Update(ctx context.Context, v *sample.PostImage, opt ...Exec
 	res, err := conn.ExecContext(
 		ctx,
 		query,
-		append(values, v.Id)...,
+		append(values, postImage.Id)...,
 	)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
@@ -1412,7 +1419,7 @@ func (d *PostImage) Update(ctx context.Context, v *sample.PostImage, opt ...Exec
 		return sql.ErrNoRows
 	}
 
-	v.ResetMark()
+	postImage.ResetMark()
 	return nil
 }
 
@@ -1509,7 +1516,7 @@ func (d *Task) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, 
 	return res, nil
 }
 
-func (d *Task) Create(ctx context.Context, v *sample.Task, opt ...ExecOption) (*sample.Task, error) {
+func (d *Task) Create(ctx context.Context, task *sample.Task, opt ...ExecOption) (*sample.Task, error) {
 	execOpts := newExecOpt(opt...)
 	var conn execConn
 	if execOpts.tx != nil {
@@ -1520,7 +1527,8 @@ func (d *Task) Create(ctx context.Context, v *sample.Task, opt ...ExecOption) (*
 
 	res, err := conn.ExecContext(
 		ctx,
-		"INSERT INTO `task` (`image_id`) VALUES (?)", v.ImageId,
+		"INSERT INTO `task` (`image_id`) VALUES (?)",
+		task.ImageId,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
@@ -1532,15 +1540,15 @@ func (d *Task) Create(ctx context.Context, v *sample.Task, opt ...ExecOption) (*
 		return nil, sql.ErrNoRows
 	}
 
-	v = v.Copy()
+	task = task.Copy()
 	insertedId, err := res.LastInsertId()
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)
 	}
-	v.Id = int32(insertedId)
+	task.Id = int32(insertedId)
 
-	v.ResetMark()
-	return v, nil
+	task.ResetMark()
+	return task, nil
 }
 
 func (d *Task) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
@@ -1566,8 +1574,8 @@ func (d *Task) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
 	return nil
 }
 
-func (d *Task) Update(ctx context.Context, v *sample.Task, opt ...ExecOption) error {
-	if !v.IsChanged() {
+func (d *Task) Update(ctx context.Context, task *sample.Task, opt ...ExecOption) error {
+	if !task.IsChanged() {
 		return nil
 	}
 
@@ -1579,7 +1587,7 @@ func (d *Task) Update(ctx context.Context, v *sample.Task, opt ...ExecOption) er
 		conn = d.conn
 	}
 
-	changedColumn := v.ChangedColumn()
+	changedColumn := task.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
 	values := make([]interface{}, len(changedColumn)+1)
 	for i := range changedColumn {
@@ -1591,7 +1599,7 @@ func (d *Task) Update(ctx context.Context, v *sample.Task, opt ...ExecOption) er
 	res, err := conn.ExecContext(
 		ctx,
 		query,
-		append(values, v.Id)...,
+		append(values, task.Id)...,
 	)
 	if err != nil {
 		return xerrors.Errorf(": %w", err)
@@ -1602,6 +1610,6 @@ func (d *Task) Update(ctx context.Context, v *sample.Task, opt ...ExecOption) er
 		return sql.ErrNoRows
 	}
 
-	v.ResetMark()
+	task.ResetMark()
 	return nil
 }

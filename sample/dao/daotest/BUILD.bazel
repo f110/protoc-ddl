@@ -1,0 +1,24 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("//rules:def.bzl", "schema_dao_mock", "vendor_ddl")
+
+schema_dao_mock(
+    name = "mock",
+    lang = "go",
+    proto = "//sample:sample_proto",
+)
+
+vendor_ddl(
+    name = "vendor_mock",
+    src = ":mock",
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = ["schema.mock.go"],
+    importpath = "go.f110.dev/protoc-ddl/sample/dao/daotest",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//mock:go_default_library",
+        "//sample:go_default_library",
+    ],
+)

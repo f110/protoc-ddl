@@ -3,8 +3,10 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "buffer.go",
         "dao.go",
         "entity.go",
+        "mock.go",
         "mysql.go",
     ],
     importpath = "go.f110.dev/protoc-ddl/internal/generator",
