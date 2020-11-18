@@ -605,6 +605,7 @@ func (n fieldList) String() string {
 type GoDAOStruct struct {
 	m                 *schema.Message
 	entityPackageName string
+	daoPath           string
 }
 
 func (s *GoDAOStruct) PrimaryKeySelect(
@@ -667,7 +668,7 @@ func (s *GoDAOStruct) Create(body func(m *schema.Message, f *goFunc) string) *go
 	funcArgs := fieldList{
 		{Name: "ctx", Type: "context.Context"},
 		{Name: schema.ToLowerCamel(s.m.Descriptor.GetName()), Type: s.entityPackageName + "." + s.m.Descriptor.GetName(), Pointer: true},
-		{Name: "opt", Type: "ExecOption", Variable: true},
+		{Name: "opt", Type: s.daoPath + ".ExecOption", Variable: true},
 	}
 
 	f := &goFunc{
@@ -695,7 +696,7 @@ func (s *GoDAOStruct) Delete(body func(m *schema.Message, f *goFunc, where, wher
 		where = append(where, fmt.Sprintf("`%s` = ?", v.Name))
 		whereArgs = append(whereArgs, schema.ToLowerCamel(v.Name))
 	}
-	funcArgs = append(funcArgs, &field{Name: "opt", Type: "ExecOption", Variable: true})
+	funcArgs = append(funcArgs, &field{Name: "opt", Type: s.daoPath + ".ExecOption", Variable: true})
 
 	f := &goFunc{
 		Name:     "Delete",
@@ -714,7 +715,7 @@ func (s *GoDAOStruct) Update(body func(m *schema.Message, f *goFunc) string) *go
 	funcArgs := fieldList{
 		{Name: "ctx", Type: "context.Context"},
 		{Name: schema.ToLowerCamel(s.m.Descriptor.GetName()), Type: s.entityPackageName + "." + s.m.Descriptor.GetName(), Pointer: true},
-		{Name: "opt", Type: "ExecOption", Variable: true},
+		{Name: "opt", Type: s.daoPath + ".ExecOption", Variable: true},
 	}
 
 	f := &goFunc{
@@ -806,7 +807,7 @@ func (s *GoDAOStruct) selectQuery(
 		return f
 	} else {
 		funcArgs = append([]*field{{Name: "ctx", Type: "context.Context"}}, funcArgs...)
-		funcArgs = append(funcArgs, &field{Name: "opt", Variable: true, Type: "ListOption"})
+		funcArgs = append(funcArgs, &field{Name: "opt", Variable: true, Type: s.daoPath + ".ListOption"})
 
 		f := &goFunc{
 			Name:     "List" + name,

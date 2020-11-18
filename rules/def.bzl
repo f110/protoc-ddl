@@ -297,6 +297,7 @@ def _schema_dao_mock_impl(ctx):
 
     args = ctx.actions.args()
     args.add("--dao-mock_opt", ("lang=%s" % ctx.attr.lang))
+    args.add("--dao-mock_opt", ("daopath=%s" % ctx.attr.daopath))
     args.add("--dao-mock_out", ("%s:." % out.path))
 
     _execute_protoc(
@@ -332,6 +333,7 @@ schema_dao_mock = go_rule(
         attrs = {
             "proto": attr.label(providers = [ProtoInfo]),
             "lang": attr.string(mandatory = True),
+            "daopath": attr.string(),
             "protoc": attr.label(
                 executable = True,
                 cfg = "host",

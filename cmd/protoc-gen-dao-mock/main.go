@@ -23,7 +23,7 @@ func main() {
 
 	switch opt.Lang {
 	case "go":
-		generator.GoDAOMockGenerator{}.Generate(buf, fileOpt, messages)
+		generator.GoDAOMockGenerator{}.Generate(buf, fileOpt, messages, opt.DAOPath)
 	}
 
 	res.File = append(res.File, &plugin_go.CodeGeneratorResponse_File{

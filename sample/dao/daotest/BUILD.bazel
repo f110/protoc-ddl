@@ -5,6 +5,7 @@ schema_dao_mock(
     name = "mock",
     lang = "go",
     proto = "//sample:sample_proto",
+    daopath = "go.f110.dev/protoc-ddl/sample/dao"
 )
 
 vendor_ddl(

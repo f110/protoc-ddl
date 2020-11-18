@@ -17,7 +17,7 @@ import (
 
 type GoDAOMockGenerator struct{}
 
-func (g GoDAOMockGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOptions, messages *schema.Messages) {
+func (g GoDAOMockGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOptions, messages *schema.Messages, daoPath string) {
 	src := newBuffer()
 
 	entityPackageName := fileOpt.GetGoPackage()
@@ -29,7 +29,7 @@ func (g GoDAOMockGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.File
 
 	src.Write("package daotest")
 	src.Write("import (")
-	for _, v := range []string{"context", "database/sql"} {
+	for _, v := range []string{"context"} {
 		src.Write("\"" + v + "\"")
 	}
 	src.LineBreak()
@@ -37,53 +37,13 @@ func (g GoDAOMockGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.File
 		src.Write("\"" + v + "\"")
 	}
 	src.LineBreak()
-	src.Writef("\"%s\"", entityPackageName)
+	src.Writef("%q", entityPackageName)
+	src.Writef("%q", daoPath)
 	src.Write(")")
-
-	src.Write(`type ListOption func(opt *listOpt)
-
-	func Limit(limit int) func(opt *listOpt) {
-		return func(opt *listOpt) {
-			opt.limit = limit
-		}
-	}
-
-    func Desc(opt *listOpt) {
-        opt.desc = true
-    }
-
-	type listOpt struct {
-		limit int
-        desc  bool
-	}
-
-	type ExecOption func(opt *execOpt)
-
-	func WithTx(tx *sql.Tx) ExecOption {
-		return func(opt *execOpt) {
-			opt.tx = tx
-		}
-	}
-	
-	type execOpt struct {
-		tx *sql.Tx
-	}
-
-	func newExecOpt(opts ...ExecOption) *execOpt {
-		opt := &execOpt{}
-		for _, v := range opts {
-			v(opt)
-		}
-		return opt
-	}
-
-	type execConn interface {
-		ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
-	}`)
 	src.LineBreak()
 
 	messages.Each(func(m *schema.Message) {
-		s := &GoDAOStruct{m: m, entityPackageName: entityPackageAlias}
+		s := &GoDAOStruct{m: m, entityPackageName: entityPackageAlias, daoPath: filepath.Base(daoPath)}
 		selectFuncs := s.Select(g.selectRowQuery)
 
 		src.Writef("type %s struct{", m.Descriptor.GetName())
