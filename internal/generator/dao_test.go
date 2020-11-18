@@ -59,7 +59,7 @@ func TestGoDAOGenerator_Generate(t *testing.T) {
 	t.Log(res.String())
 }
 
-func TestGoDAOGenerator_findArgs(t *testing.T) {
+func TestGoDAOStruct_findArgs(t *testing.T) {
 	tableFields := []*schema.Field{
 		{
 			Name:     "id",
@@ -107,6 +107,7 @@ func TestGoDAOGenerator_findArgs(t *testing.T) {
 		},
 	}
 
+	s := &GoDAOStruct{}
 	for _, v := range tests {
 		stmt, err := sqlparser.Parse("SELECT * FROM tmp WHERE " + v.Where)
 		if err != nil {
@@ -114,7 +115,7 @@ func TestGoDAOGenerator_findArgs(t *testing.T) {
 		}
 		sel := stmt.(*sqlparser.Select)
 
-		fields := GoDAOGenerator{}.findArgs(tableFields, sel.Where)
+		fields := s.findArgs(tableFields, sel.Where)
 		if v.Fields == nil && fields != nil {
 			t.Fatalf("%s: expect no field", v.Name)
 		}
