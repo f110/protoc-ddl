@@ -4,6 +4,7 @@ package daotest
 
 import (
 	"context"
+	"log"
 
 	"go.f110.dev/protoc-ddl/mock"
 
@@ -80,6 +81,8 @@ func (d *Blog) RegisterSelect(id int64, value *sample.Blog) {
 
 func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...dao.ListOption) ([]*sample.Blog, error) {
 	v, err := d.Call("ListByTitle", map[string]interface{}{"title": title})
+	log.Print(title)
+	log.Print(v)
 	return v.([]*sample.Blog), err
 }
 

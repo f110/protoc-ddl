@@ -1,7 +1,8 @@
-package dao
+package test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,11 +46,15 @@ func TestUser(t *testing.T) {
 	assert.Equal(t, int32(1), id)
 
 	b := daotest.NewBlog()
-	b.RegisterListByTitle("new", []*sample.Blog{{Id: 1, Title: "new"}, {Id: 2, Title: "new"}})
+	b.RegisterListByTitle("new", []*sample.Blog{{Id: 1, Title: "new"}, {Id: 2, Title: "new"}}, nil)
+	b.RegisterListByTitle("err", nil, sql.ErrNoRows)
 
 	l, err := b.ListByTitle(context.TODO(), "new")
 	require.NoError(t, err)
 	assert.Len(t, l, 2)
 	assert.Equal(t, int64(1), l[0].Id)
 	assert.Equal(t, int64(2), l[1].Id)
+	l, err = b.ListByTitle(context.TODO(), "err")
+	require.Error(t, err)
+	assert.Nil(t, l)
 }

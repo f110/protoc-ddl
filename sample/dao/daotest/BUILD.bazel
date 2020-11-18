@@ -3,9 +3,9 @@ load("//rules:def.bzl", "schema_dao_mock", "vendor_ddl")
 
 schema_dao_mock(
     name = "mock",
+    daopath = "go.f110.dev/protoc-ddl/sample/dao",
     lang = "go",
     proto = "//sample:sample_proto",
-    daopath = "go.f110.dev/protoc-ddl/sample/dao"
 )
 
 vendor_ddl(
@@ -21,5 +21,6 @@ go_library(
     deps = [
         "//mock:go_default_library",
         "//sample:go_default_library",
+        "//sample/dao:go_default_library",
     ],
 )
