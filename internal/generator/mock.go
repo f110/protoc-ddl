@@ -154,15 +154,16 @@ func (GoDAOMockGenerator) mockSelectQuery(entityName string, m *schema.Message, 
 	} else {
 		args = append(args, &field{Name: "value", Type: entityName + "." + m.Descriptor.GetName(), Pointer: true})
 	}
+	args = append(args, &field{Name: "err", Type: "error"})
 
 	src := newBuffer()
 	src.Buffer.WriteString(fmt.Sprintf("d.Register(\"%s\", map[string]interface{}{", selectFunc.Name))
 	a := make([]string, 0)
-	for _, v := range args[:len(args)-1] {
+	for _, v := range args[:len(args)-2] {
 		a = append(a, fmt.Sprintf("\"%s\":%s", v.Name, v.Name))
 	}
 	src.Buffer.WriteString(strings.Join(a, ","))
-	src.Buffer.WriteString("}, value, nil)")
+	src.Buffer.WriteString("}, value, err)")
 
 	return &goFunc{
 		Name:     "Register" + selectFunc.Name,

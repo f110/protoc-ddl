@@ -33,8 +33,8 @@ func (d *User) ListAll(ctx context.Context, opt ...dao.ListOption) ([]*sample.Us
 	return v.([]*sample.User), err
 }
 
-func (d *User) RegisterListAll(value []*sample.User) {
-	d.Register("ListAll", map[string]interface{}{}, value, nil)
+func (d *User) RegisterListAll(value []*sample.User, err error) {
+	d.Register("ListAll", map[string]interface{}{}, value, err)
 }
 
 func (d *User) ListOverTwenty(ctx context.Context, opt ...dao.ListOption) ([]*sample.User, error) {
@@ -42,8 +42,8 @@ func (d *User) ListOverTwenty(ctx context.Context, opt ...dao.ListOption) ([]*sa
 	return v.([]*sample.User), err
 }
 
-func (d *User) RegisterListOverTwenty(value []*sample.User) {
-	d.Register("ListOverTwenty", map[string]interface{}{}, value, nil)
+func (d *User) RegisterListOverTwenty(value []*sample.User, err error) {
+	d.Register("ListOverTwenty", map[string]interface{}{}, value, err)
 }
 
 func (d *User) Create(ctx context.Context, user *sample.User, opt ...dao.ExecOption) (*sample.User, error) {
@@ -83,8 +83,8 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...dao.ListOpt
 	return v.([]*sample.Blog), err
 }
 
-func (d *Blog) RegisterListByTitle(title string, value []*sample.Blog) {
-	d.Register("ListByTitle", map[string]interface{}{"title": title}, value, nil)
+func (d *Blog) RegisterListByTitle(title string, value []*sample.Blog, err error) {
+	d.Register("ListByTitle", map[string]interface{}{"title": title}, value, err)
 }
 
 func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, categoryId int32, opt ...dao.ListOption) ([]*sample.Blog, error) {
@@ -92,8 +92,8 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 	return v.([]*sample.Blog), err
 }
 
-func (d *Blog) RegisterListByUserAndCategory(userId int32, categoryId int32, value []*sample.Blog) {
-	d.Register("ListByUserAndCategory", map[string]interface{}{"userId": userId, "categoryId": categoryId}, value, nil)
+func (d *Blog) RegisterListByUserAndCategory(userId int32, categoryId int32, value []*sample.Blog, err error) {
+	d.Register("ListByUserAndCategory", map[string]interface{}{"userId": userId, "categoryId": categoryId}, value, err)
 }
 
 func (d *Blog) SelectByUserAndTitle(ctx context.Context, userId int32, title string) (*sample.Blog, error) {
@@ -101,8 +101,8 @@ func (d *Blog) SelectByUserAndTitle(ctx context.Context, userId int32, title str
 	return v.(*sample.Blog), err
 }
 
-func (d *Blog) RegisterSelectByUserAndTitle(userId int32, value *sample.Blog) {
-	d.Register("SelectByUserAndTitle", map[string]interface{}{"userId": userId}, value, nil)
+func (d *Blog) RegisterSelectByUserAndTitle(userId int32, value *sample.Blog, err error) {
+	d.Register("SelectByUserAndTitle", map[string]interface{}{"userId": userId}, value, err)
 }
 
 func (d *Blog) Create(ctx context.Context, blog *sample.Blog, opt ...dao.ExecOption) (*sample.Blog, error) {
@@ -142,8 +142,8 @@ func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64, opt ...d
 	return v.([]*sample.CommentImage), err
 }
 
-func (d *CommentImage) RegisterListByLikeId(likeId uint64, value []*sample.CommentImage) {
-	d.Register("ListByLikeId", map[string]interface{}{"likeId": likeId}, value, nil)
+func (d *CommentImage) RegisterListByLikeId(likeId uint64, value []*sample.CommentImage, err error) {
+	d.Register("ListByLikeId", map[string]interface{}{"likeId": likeId}, value, err)
 }
 
 func (d *CommentImage) Create(ctx context.Context, commentImage *sample.CommentImage, opt ...dao.ExecOption) (*sample.CommentImage, error) {
@@ -183,8 +183,8 @@ func (d *Comment) SelectByUser(ctx context.Context, userId int32) (*sample.Comme
 	return v.(*sample.Comment), err
 }
 
-func (d *Comment) RegisterSelectByUser(value *sample.Comment) {
-	d.Register("SelectByUser", map[string]interface{}{}, value, nil)
+func (d *Comment) RegisterSelectByUser(value *sample.Comment, err error) {
+	d.Register("SelectByUser", map[string]interface{}{}, value, err)
 }
 
 func (d *Comment) Create(ctx context.Context, comment *sample.Comment, opt ...dao.ExecOption) (*sample.Comment, error) {
@@ -224,8 +224,8 @@ func (d *Reply) ListByBody(ctx context.Context, body string, opt ...dao.ListOpti
 	return v.([]*sample.Reply), err
 }
 
-func (d *Reply) RegisterListByBody(body string, value []*sample.Reply) {
-	d.Register("ListByBody", map[string]interface{}{"body": body}, value, nil)
+func (d *Reply) RegisterListByBody(body string, value []*sample.Reply, err error) {
+	d.Register("ListByBody", map[string]interface{}{"body": body}, value, err)
 }
 
 func (d *Reply) Create(ctx context.Context, reply *sample.Reply, opt ...dao.ExecOption) (*sample.Reply, error) {
@@ -329,8 +329,8 @@ func (d *Task) ListAll(ctx context.Context, opt ...dao.ListOption) ([]*sample.Ta
 	return v.([]*sample.Task), err
 }
 
-func (d *Task) RegisterListAll(value []*sample.Task) {
-	d.Register("ListAll", map[string]interface{}{}, value, nil)
+func (d *Task) RegisterListAll(value []*sample.Task, err error) {
+	d.Register("ListAll", map[string]interface{}{}, value, err)
 }
 
 func (d *Task) Create(ctx context.Context, task *sample.Task, opt ...dao.ExecOption) (*sample.Task, error) {
