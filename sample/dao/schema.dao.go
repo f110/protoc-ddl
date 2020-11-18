@@ -67,6 +67,17 @@ type User struct {
 	conn *sql.DB
 }
 
+type UserInterface interface {
+	Select(ctx context.Context, id int32) (*sample.User, error)
+	ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, error)
+	ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample.User, error)
+	Create(ctx context.Context, user *sample.User, opt ...ExecOption) (*sample.User, error)
+	Update(ctx context.Context, user *sample.User, opt ...ExecOption) error
+	Delete(ctx context.Context, id int32, opt ...ExecOption) error
+}
+
+var _ UserInterface = &User{}
+
 func NewUser(conn *sql.DB) *User {
 	return &User{
 		conn: conn,
@@ -267,6 +278,18 @@ type Blog struct {
 
 	user *User
 }
+
+type BlogInterface interface {
+	Select(ctx context.Context, id int64) (*sample.Blog, error)
+	ListByTitle(ctx context.Context, title string, opt ...ListOption) ([]*sample.Blog, error)
+	ListByUserAndCategory(ctx context.Context, userId int32, categoryId int32, opt ...ListOption) ([]*sample.Blog, error)
+	SelectByUserAndTitle(ctx context.Context, userId int32, title string) (*sample.Blog, error)
+	Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption) (*sample.Blog, error)
+	Update(ctx context.Context, blog *sample.Blog, opt ...ExecOption) error
+	Delete(ctx context.Context, id int64, opt ...ExecOption) error
+}
+
+var _ BlogInterface = &Blog{}
 
 func NewBlog(conn *sql.DB) *Blog {
 	return &Blog{
@@ -560,6 +583,16 @@ type CommentImage struct {
 	like    *Like
 }
 
+type CommentImageInterface interface {
+	Select(ctx context.Context, commentBlogId int64, commentUserId int32, likeId uint64) (*sample.CommentImage, error)
+	ListByLikeId(ctx context.Context, likeId uint64, opt ...ListOption) ([]*sample.CommentImage, error)
+	Create(ctx context.Context, commentImage *sample.CommentImage, opt ...ExecOption) (*sample.CommentImage, error)
+	Update(ctx context.Context, commentImage *sample.CommentImage, opt ...ExecOption) error
+	Delete(ctx context.Context, commentBlogId int64, commentUserId int32, likeId uint64, opt ...ExecOption) error
+}
+
+var _ CommentImageInterface = &CommentImage{}
+
 func NewCommentImage(conn *sql.DB) *CommentImage {
 	return &CommentImage{
 		conn:    conn,
@@ -763,6 +796,16 @@ type Comment struct {
 	user *User
 }
 
+type CommentInterface interface {
+	Select(ctx context.Context, blogId int64, userId int32) (*sample.Comment, error)
+	SelectByUser(ctx context.Context, userId int32) (*sample.Comment, error)
+	Create(ctx context.Context, comment *sample.Comment, opt ...ExecOption) (*sample.Comment, error)
+	Update(ctx context.Context, comment *sample.Comment, opt ...ExecOption) error
+	Delete(ctx context.Context, blogId int64, userId int32, opt ...ExecOption) error
+}
+
+var _ CommentInterface = &Comment{}
+
 func NewComment(conn *sql.DB) *Comment {
 	return &Comment{
 		conn: conn,
@@ -943,6 +986,16 @@ type Reply struct {
 
 	comment *Comment
 }
+
+type ReplyInterface interface {
+	Select(ctx context.Context, id int32) (*sample.Reply, error)
+	ListByBody(ctx context.Context, body string, opt ...ListOption) ([]*sample.Reply, error)
+	Create(ctx context.Context, reply *sample.Reply, opt ...ExecOption) (*sample.Reply, error)
+	Update(ctx context.Context, reply *sample.Reply, opt ...ExecOption) error
+	Delete(ctx context.Context, id int32, opt ...ExecOption) error
+}
+
+var _ ReplyInterface = &Reply{}
 
 func NewReply(conn *sql.DB) *Reply {
 	return &Reply{
@@ -1141,6 +1194,15 @@ type Like struct {
 	user *User
 }
 
+type LikeInterface interface {
+	Select(ctx context.Context, id uint64) (*sample.Like, error)
+	Create(ctx context.Context, like *sample.Like, opt ...ExecOption) (*sample.Like, error)
+	Update(ctx context.Context, like *sample.Like, opt ...ExecOption) error
+	Delete(ctx context.Context, id uint64, opt ...ExecOption) error
+}
+
+var _ LikeInterface = &Like{}
+
 func NewLike(conn *sql.DB) *Like {
 	return &Like{
 		conn: conn,
@@ -1295,6 +1357,15 @@ type PostImage struct {
 	conn *sql.DB
 }
 
+type PostImageInterface interface {
+	Select(ctx context.Context, id int32) (*sample.PostImage, error)
+	Create(ctx context.Context, postImage *sample.PostImage, opt ...ExecOption) (*sample.PostImage, error)
+	Update(ctx context.Context, postImage *sample.PostImage, opt ...ExecOption) error
+	Delete(ctx context.Context, id int32, opt ...ExecOption) error
+}
+
+var _ PostImageInterface = &PostImage{}
+
 func NewPostImage(conn *sql.DB) *PostImage {
 	return &PostImage{
 		conn: conn,
@@ -1428,6 +1499,16 @@ type Task struct {
 
 	postImage *PostImage
 }
+
+type TaskInterface interface {
+	Select(ctx context.Context, id int32) (*sample.Task, error)
+	ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, error)
+	Create(ctx context.Context, task *sample.Task, opt ...ExecOption) (*sample.Task, error)
+	Update(ctx context.Context, task *sample.Task, opt ...ExecOption) error
+	Delete(ctx context.Context, id int32, opt ...ExecOption) error
+}
+
+var _ TaskInterface = &Task{}
 
 func NewTask(conn *sql.DB) *Task {
 	return &Task{
