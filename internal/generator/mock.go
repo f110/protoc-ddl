@@ -29,7 +29,7 @@ func (g GoDAOMockGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.File
 
 	src.Write("package daotest")
 	src.Write("import (")
-	for _, v := range []string{"context"} {
+	for _, v := range []string{"context", "database/sql"} {
 		src.Write("\"" + v + "\"")
 	}
 	src.LineBreak()
