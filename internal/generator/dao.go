@@ -122,6 +122,7 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpti
 		src.Write("}")
 		src.LineBreak()
 		src.Writef("type %sInterface interface {", m.Descriptor.GetName())
+		src.WriteInterface(s.Tx(nil))
 		src.WriteInterface(s.PrimaryKeySelect(nil))
 		src.WriteInterface(s.Select(nil)...)
 		src.WriteInterface(s.Create(nil), s.Update(nil), s.Delete(nil))
@@ -137,23 +138,8 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpti
 		src.WriteString("}\n")
 		src.WriteString("}\n\n")
 
-		src.WriteString(fmt.Sprintf("func (d *%s) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {\n", m.Descriptor.GetName()))
-		src.WriteString(`tx, err := d.conn.BeginTx(ctx, nil)
-			if err != nil {
-			return xerrors.Errorf(": %w", err)
-		}
-			if err := fn(tx); err != nil {
-			rErr := tx.Rollback()
-			return xerrors.Errorf("%v: %w", rErr, err)
-		}
-
-			err = tx.Commit()
-			if err != nil {
-			return xerrors.Errorf(": %w", err)
-		}
-			return nil
-		}`)
-		src.WriteString("\n\n")
+		src.WriteFunc(s.Tx(g.tx))
+		src.LineBreak()
 
 		src.WriteFunc(s.PrimaryKeySelect(g.primaryKeySelect))
 		src.WriteFunc(s.Select(g.selectRowQuery)...)
@@ -174,6 +160,28 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpti
 		return
 	}
 	buf.Write(b)
+}
+
+func (g GoDAOGenerator) tx(m *schema.Message, f *goFunc) string {
+	src := newBuffer()
+
+	src.Write("tx, err := d.conn.BeginTx(ctx, nil)")
+	src.Write("if err != nil {")
+	src.Write("return xerrors.Errorf(\": %w\", err)")
+	src.Write("}")
+	src.Write("if err := fn(tx); err != nil {")
+	src.Write("rErr := tx.Rollback()")
+	src.Write("return xerrors.Errorf(\"%v: %w\", rErr, err)")
+	src.Write("}")
+	src.LineBreak()
+
+	src.Write("err = tx.Commit()")
+	src.Write("if err != nil {")
+	src.Write("return xerrors.Errorf(\": %w\", err)")
+	src.Write("}")
+	src.Write("return nil")
+
+	return src.String()
 }
 
 func (g GoDAOGenerator) create(m *schema.Message, f *goFunc) string {
@@ -518,7 +526,11 @@ func (f *goFunc) String() string {
 	if f.Receiver != nil {
 		src.Buffer.WriteString(" (" + f.Receiver.String() + ")")
 	}
-	src.Buffer.WriteString(" " + f.Name)
+	if f.Name != "" {
+		src.Buffer.WriteString(" " + f.Name)
+	} else {
+		src.Buffer.WriteString(" ")
+	}
 	switch len(f.Args) {
 	case 0:
 		src.Buffer.WriteString("()")
@@ -529,9 +541,13 @@ func (f *goFunc) String() string {
 	default:
 		src.Buffer.WriteString(f.Args.String())
 	}
-	src.Buffer.WriteString(fmt.Sprintf(" %s {\n", f.Returns.String()))
-	src.Buffer.WriteString(f.Body)
-	src.Write("}")
+	src.Buffer.WriteRune(' ')
+	src.Buffer.WriteString(f.Returns.String())
+	if f.Body != "" {
+		src.Write(" {")
+		src.Write(f.Body)
+		src.Write("}")
+	}
 
 	return src.String()
 }
@@ -735,6 +751,29 @@ func (s *GoDAOStruct) Update(body func(m *schema.Message, f *goFunc) string) *go
 		Receiver: &field{Name: "d", Type: s.m.Descriptor.GetName(), Pointer: true},
 		Args:     funcArgs,
 		Returns:  fieldList{{Type: "error"}},
+	}
+	if body != nil {
+		f.Body = body(s.m, f)
+	}
+
+	return f
+}
+
+func (s *GoDAOStruct) Tx(body func(m *schema.Message, f *goFunc) string) *goFunc {
+	f := &goFunc{
+		Name:     "Tx",
+		Receiver: &field{Name: "d", Type: s.m.Descriptor.GetName(), Pointer: true},
+		Args: fieldList{
+			{Name: "ctx", Type: "context.Context"},
+			{
+				Name: "fn",
+				Type: fmt.Sprint(&goFunc{
+					Args:    fieldList{{Name: "tx", Type: "sql.Tx", Pointer: true}},
+					Returns: fieldList{{Type: "error"}},
+				}),
+			},
+		},
+		Returns: fieldList{{Type: "error"}},
 	}
 	if body != nil {
 		f.Body = body(s.m, f)

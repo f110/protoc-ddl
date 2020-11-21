@@ -55,7 +55,7 @@ func (g GoDAOMockGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.File
 		src.Write("}")
 		src.LineBreak()
 
-		src.WriteFunc(s.PrimaryKeySelect(g.primaryKeySelect), g.mockPrimaryKeySelect(entityPackageAlias, m))
+		src.WriteFunc(s.Tx(g.tx), s.PrimaryKeySelect(g.primaryKeySelect), g.mockPrimaryKeySelect(entityPackageAlias, m))
 
 		for _, v := range selectFuncs {
 			src.WriteString(v.String())
@@ -83,6 +83,13 @@ func (g GoDAOMockGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.File
 		return
 	}
 	buf.Write(b)
+}
+
+func (GoDAOMockGenerator) tx(m *schema.Message, f *goFunc) string {
+	src := newBuffer()
+	src.Write("return nil")
+
+	return src.String()
 }
 
 func (GoDAOMockGenerator) primaryKeySelect(entityName string, m *schema.Message, args, where, whereArgs []string) string {

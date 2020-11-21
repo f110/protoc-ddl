@@ -2,6 +2,7 @@ package generator
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -162,4 +163,22 @@ func TestPrintSelectQueryAST(t *testing.T) {
 		got := printSelectQueryAST(nil, stmt)
 		assert.Equal(t, c.Rendered, got)
 	}
+}
+
+func TestGoFunc(t *testing.T) {
+	f := &goFunc{
+		Name: "Tx",
+		Args: fieldList{
+			{
+				Name: "fn",
+				Type: fmt.Sprint(&goFunc{
+					Args:    fieldList{{Name: "tx", Type: "sql.Tx", Pointer: true}},
+					Returns: fieldList{{Type: "error"}},
+				}),
+			},
+		},
+		Returns: fieldList{{Type: "error"}},
+		Body:    "return nil",
+	}
+	t.Log(f.String())
 }
