@@ -1,7 +1,7 @@
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//lib:shell.bzl", "shell")
-load("@io_bazel_rules_go//go:def.bzl", "go_rule", "go_context", "GoSource")
+load("@io_bazel_rules_go//go:def.bzl", "go_context", "GoSource")
 
 def _execute_protoc(ctx, protoc, lang_name, plugin, proto, args, out, well_known_protos):
     proto = proto[ProtoInfo]
@@ -90,7 +90,7 @@ def _sql_schema_impl(ctx):
         ),
     ] + extra
 
-sql_schema = go_rule(
+sql_schema = rule(
     implementation = _sql_schema_impl,
     output_to_genfiles = True,
     attrs = {
@@ -122,7 +122,11 @@ sql_schema = go_rule(
             cfg = "host",
             default = "//rules/tools/schema_hash",
         ),
+        "_go_context_data": attr.label(
+            default = "@io_bazel_rules_go//:go_context_data",
+        ),
     },
+    toolchains = ["@io_bazel_rules_go//go:toolchain"],
 )
 
 def _vendor_ddl_impl(ctx):
@@ -210,7 +214,7 @@ def _schema_entity_impl(ctx):
         ),
     ] + extra
 
-schema_entity = go_rule(
+schema_entity = rule(
     implementation = _schema_entity_impl,
     output_to_genfiles = True,
     attrs = {
@@ -230,7 +234,11 @@ schema_entity = go_rule(
             default = "@com_google_protobuf//:well_known_protos",
             allow_files = True,
         ),
+        "_go_context_data": attr.label(
+            default = "@io_bazel_rules_go//:go_context_data",
+        ),
     },
+    toolchains = ["@io_bazel_rules_go//go:toolchain"],
 )
 
 def _schema_dao_impl(ctx):
@@ -268,27 +276,31 @@ def _schema_dao_impl(ctx):
         ),
     ] + extra
 
-schema_dao = go_rule(
+schema_dao = rule(
     implementation = _schema_dao_impl,
-        output_to_genfiles = True,
-        attrs = {
-            "proto": attr.label(providers = [ProtoInfo]),
-            "lang": attr.string(mandatory = True),
-            "protoc": attr.label(
-                executable = True,
-                cfg = "host",
-                default = "@com_google_protobuf//:protoc",
-            ),
-            "compiler": attr.label(
-                executable = True,
-                cfg = "host",
-                default = "//cmd/protoc-gen-dao",
-            ),
-            "_well_known_protos": attr.label(
-                default = "@com_google_protobuf//:well_known_protos",
-                allow_files = True,
-            ),
-        },
+    output_to_genfiles = True,
+    attrs = {
+        "proto": attr.label(providers = [ProtoInfo]),
+        "lang": attr.string(mandatory = True),
+        "protoc": attr.label(
+            executable = True,
+            cfg = "host",
+            default = "@com_google_protobuf//:protoc",
+        ),
+        "compiler": attr.label(
+            executable = True,
+            cfg = "host",
+            default = "//cmd/protoc-gen-dao",
+        ),
+        "_well_known_protos": attr.label(
+            default = "@com_google_protobuf//:well_known_protos",
+            allow_files = True,
+        ),
+        "_go_context_data": attr.label(
+            default = "@io_bazel_rules_go//:go_context_data",
+        ),
+    },
+    toolchains = ["@io_bazel_rules_go//go:toolchain"],
 )
 
 def _schema_dao_mock_impl(ctx):
@@ -327,26 +339,30 @@ def _schema_dao_mock_impl(ctx):
         ),
     ] + extra
 
-schema_dao_mock = go_rule(
+schema_dao_mock = rule(
     implementation = _schema_dao_mock_impl,
-        output_to_genfiles = True,
-        attrs = {
-            "proto": attr.label(providers = [ProtoInfo]),
-            "lang": attr.string(mandatory = True),
-            "daopath": attr.string(),
-            "protoc": attr.label(
-                executable = True,
-                cfg = "host",
-                default = "@com_google_protobuf//:protoc",
-            ),
-            "compiler": attr.label(
-                executable = True,
-                cfg = "host",
-                default = "//cmd/protoc-gen-dao-mock",
-            ),
-            "_well_known_protos": attr.label(
-                default = "@com_google_protobuf//:well_known_protos",
-                allow_files = True,
-            ),
-        },
+    output_to_genfiles = True,
+    attrs = {
+        "proto": attr.label(providers = [ProtoInfo]),
+        "lang": attr.string(mandatory = True),
+        "daopath": attr.string(),
+        "protoc": attr.label(
+            executable = True,
+            cfg = "host",
+            default = "@com_google_protobuf//:protoc",
+        ),
+        "compiler": attr.label(
+            executable = True,
+            cfg = "host",
+            default = "//cmd/protoc-gen-dao-mock",
+        ),
+        "_well_known_protos": attr.label(
+            default = "@com_google_protobuf//:well_known_protos",
+            allow_files = True,
+        ),
+        "_go_context_data": attr.label(
+            default = "@io_bazel_rules_go//:go_context_data",
+        ),
+    },
+    toolchains = ["@io_bazel_rules_go//go:toolchain"],
 )
