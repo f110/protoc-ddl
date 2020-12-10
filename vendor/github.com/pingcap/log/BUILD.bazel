@@ -1,0 +1,21 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "config.go",
+        "global.go",
+        "log.go",
+        "zap_text_core.go",
+        "zap_text_encoder.go",
+    ],
+    importmap = "go.f110.dev/protoc-ddl/vendor/github.com/pingcap/log",
+    importpath = "github.com/pingcap/log",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/go.uber.org/zap:go_default_library",
+        "//vendor/go.uber.org/zap/buffer:go_default_library",
+        "//vendor/go.uber.org/zap/zapcore:go_default_library",
+        "//vendor/gopkg.in/natefinch/lumberjack.v2:go_default_library",
+    ],
+)

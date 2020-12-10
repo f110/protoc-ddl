@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
-	"vitess.io/vitess/go/vt/sqlparser"
+	"github.com/pingcap/parser/ast"
 
 	"go.f110.dev/protoc-ddl/internal/schema"
 )
@@ -137,7 +137,7 @@ func (GoDAOMockGenerator) mockMember(f *goFunc) string {
 	return v.String()
 }
 
-func (GoDAOMockGenerator) selectRowQuery(m *schema.Message, name string, stmt *sqlparser.Select, comp []*schema.Field, cols, args []string, entityName string, single bool) string {
+func (GoDAOMockGenerator) selectRowQuery(m *schema.Message, name string, stmt *ast.SelectStmt, comp []*schema.Field, cols, args []string, entityName string, single bool) string {
 	src := newBuffer()
 	a := make([]string, 0)
 	for _, v := range args[:len(args)-1] {

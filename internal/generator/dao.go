@@ -8,12 +8,15 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strings"
 
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
-	"vitess.io/vitess/go/vt/sqlparser"
+	"github.com/pingcap/parser"
+	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/model"
+	"github.com/pingcap/parser/opcode"
+	"github.com/pingcap/parser/test_driver"
 
 	"go.f110.dev/protoc-ddl/internal/schema"
 )
@@ -352,7 +355,7 @@ func (g GoDAOGenerator) primaryKeySelect(entityName string, m *schema.Message, _
 	return src.String()
 }
 
-func (g GoDAOGenerator) selectRowQuery(m *schema.Message, name string, stmt *sqlparser.Select, comp []*schema.Field, cols, args []string, entityName string, single bool) string {
+func (g GoDAOGenerator) selectRowQuery(m *schema.Message, name string, stmt *ast.SelectStmt, comp []*schema.Field, cols, args []string, entityName string, single bool) string {
 	if single {
 		return g.selectSingleRowQuery(m, name, stmt, comp, args, entityName)
 	} else {
@@ -360,14 +363,17 @@ func (g GoDAOGenerator) selectRowQuery(m *schema.Message, name string, stmt *sql
 	}
 }
 
-func (g GoDAOGenerator) selectMultipleRowQuery(m *schema.Message, name string, stmt *sqlparser.Select, selectCols []string, comp []*schema.Field, args []string, entityName string) string {
+func (g GoDAOGenerator) selectMultipleRowQuery(m *schema.Message, name string, stmt *ast.SelectStmt, selectCols []string, comp []*schema.Field, args []string, entityName string) string {
 	src := newBuffer()
 	primaryKeys := make([]string, 0)
 	for _, v := range m.PrimaryKeys {
 		primaryKeys = append(primaryKeys, "`"+v.Name+"`")
 	}
 	src.WriteString("listOpts := newListOpt(opt...)\n")
-	src.WriteString(fmt.Sprintf("query := %q\n", printSelectQueryAST(m, stmt)))
+	f := NewQueryFormatter(m, stmt)
+	buf := new(bytes.Buffer)
+	f.Format(buf)
+	src.WriteString(fmt.Sprintf("query := %q\n", buf.String()))
 	src.WriteString("if listOpts.limit > 0 {\n")
 	src.WriteString("order := \"ASC\"\n")
 	src.WriteString("if listOpts.desc {\n")
@@ -412,14 +418,17 @@ func (g GoDAOGenerator) selectMultipleRowQuery(m *schema.Message, name string, s
 	return src.String()
 }
 
-func (g GoDAOGenerator) selectSingleRowQuery(m *schema.Message, name string, stmt *sqlparser.Select, comp []*schema.Field, args []string, entityName string) string {
+func (g GoDAOGenerator) selectSingleRowQuery(m *schema.Message, name string, stmt *ast.SelectStmt, comp []*schema.Field, args []string, entityName string) string {
 	src := newBuffer()
 
 	primaryKeys := make([]string, 0)
 	for _, v := range m.PrimaryKeys {
 		primaryKeys = append(primaryKeys, "`"+v.Name+"`")
 	}
-	src.WriteString(fmt.Sprintf("row := d.conn.QueryRowContext(\nctx,\n%q,\n", printSelectQueryAST(m, stmt)))
+	f := NewQueryFormatter(m, stmt)
+	buf := new(bytes.Buffer)
+	f.Format(buf)
+	src.WriteString(fmt.Sprintf("row := d.conn.QueryRowContext(\nctx,\n%q,\n", buf.String()))
 	for _, a := range comp {
 		src.WriteString(schema.ToLowerCamel(a.Name) + ",\n")
 	}
@@ -487,29 +496,6 @@ func (g GoDAOGenerator) selectChildObject(src *Buffer, m *schema.Message) {
 		src.WriteString("}\n")
 	}
 	src.WriteRune('\n')
-}
-
-func printSelectQueryAST(m *schema.Message, stmt *sqlparser.Select) string {
-	buf := sqlparser.NewTrackedBuffer(func(buf *sqlparser.TrackedBuffer, node sqlparser.SQLNode) {
-		switch v := node.(type) {
-		case *sqlparser.SQLVal:
-			if v.Type == sqlparser.ValArg {
-				buf.WriteString("?")
-				return
-			}
-		case sqlparser.TableName:
-			if v.Name.String() == ":table_name:" {
-				v.Name = sqlparser.NewTableIdent(m.TableName)
-				v.Format(buf)
-				return
-			}
-		}
-
-		node.Format(buf)
-	})
-	stmt.Format(buf)
-
-	return buf.String()
 }
 
 type goFunc struct {
@@ -655,19 +641,21 @@ func (s *GoDAOStruct) PrimaryKeySelect(
 }
 
 func (s *GoDAOStruct) Select(
-	body func(m *schema.Message, name string, stmt *sqlparser.Select, comp []*schema.Field, cols, args []string, entityName string, single bool) string,
+	body func(m *schema.Message, name string, stmt *ast.SelectStmt, comp []*schema.Field, cols, args []string, entityName string, single bool) string,
 ) []*goFunc {
 	funcs := make([]*goFunc, 0)
 
+	p := parser.New()
 	for _, q := range s.m.SelectQueries {
-		stmt, err := sqlparser.Parse(q.Query)
+		stmts, _, err := p.Parse(q.Query, "", "")
 		if err != nil {
 			log.Printf("Failed parse query %s: %v", q.Query, err)
 			continue
 		}
 
+		stmt := stmts[0]
 		switch v := stmt.(type) {
-		case *sqlparser.Select:
+		case *ast.SelectStmt:
 			f := s.selectQuery(v, q.Name, body)
 			if f != nil {
 				funcs = append(funcs, f)
@@ -783,52 +771,48 @@ func (s *GoDAOStruct) Tx(body func(m *schema.Message, f *goFunc) string) *goFunc
 }
 
 func (s *GoDAOStruct) selectQuery(
-	stmt *sqlparser.Select,
+	stmt *ast.SelectStmt,
 	name string,
-	body func(m *schema.Message, name string, stmt *sqlparser.Select, comp []*schema.Field, cols, args []string, entityName string, single bool) string,
+	body func(m *schema.Message, name string, stmt *ast.SelectStmt, comp []*schema.Field, cols, args []string, entityName string, single bool) string,
 ) *goFunc {
-	if len(stmt.From) != 1 {
+	if stmt.From.TableRefs.Right != nil {
 		log.Printf("Multiple tables is not supported")
 		return nil
 	}
 
 	allColumn := false
 	var cols []string
-	for _, c := range stmt.SelectExprs {
-		if _, ok := c.(*sqlparser.StarExpr); ok {
+	for _, c := range stmt.Fields.Fields {
+		if c.WildCard != nil {
 			allColumn = true
 			cols = nil
 			break
 		}
 
-		co, ok := c.(*sqlparser.AliasedExpr)
+		col, ok := c.Expr.(*ast.ColumnNameExpr)
 		if !ok {
-			log.Printf("%v is %v", c, reflect.TypeOf(c))
-			continue
-		}
-		col, ok := co.Expr.(*sqlparser.ColName)
-		if !ok {
-			log.Printf("%v is not ColName", c)
+			log.Printf("%v is %T", c, c)
 			continue
 		}
 		cols = append(cols, col.Name.String())
 	}
 	if allColumn {
 		cols = make([]string, 0)
-		stmt.SelectExprs = make([]sqlparser.SelectExpr, 0)
+		fields := make([]*ast.SelectField, 0)
 		for _, v := range s.m.Fields.List() {
 			cols = append(cols, v.Name)
-			stmt.SelectExprs = append(stmt.SelectExprs, &sqlparser.AliasedExpr{
-				Expr: &sqlparser.ColName{
-					Name: sqlparser.NewColIdent(v.Name),
+			fields = append(fields, &ast.SelectField{
+				Expr: &ast.ColumnNameExpr{
+					Name: &ast.ColumnName{Name: model.NewCIStr(v.Name)},
 				},
 			})
 		}
+		stmt.Fields.Fields = fields
 	}
 
 	var comp []*schema.Field
 	if stmt.Where != nil {
-		comp = s.findArgs(s.m.Fields.List(), stmt.Where)
+		comp = s.findArgs(s.m.Fields.List(), stmt.Where.(*ast.BinaryOperationExpr))
 	}
 
 	isReturningSingleRow := s.m.IsReturningSingleRow(comp...)
@@ -880,13 +864,13 @@ func (s *GoDAOStruct) selectQuery(
 	}
 }
 
-func (s *GoDAOStruct) findArgs(fields []*schema.Field, stmt *sqlparser.Where) []*schema.Field {
+func (s *GoDAOStruct) findArgs(fields []*schema.Field, stmt *ast.BinaryOperationExpr) []*schema.Field {
 	fieldMap := make(map[string]*schema.Field)
 	for _, v := range fields {
 		fieldMap[v.Name] = v
 	}
 
-	res := s.findArgFieldFromExprIfExist(fieldMap, stmt.Expr)
+	res := s.findArgFieldFromExprIfExist(fieldMap, stmt)
 	if len(res) == 0 {
 		return nil
 	}
@@ -894,38 +878,44 @@ func (s *GoDAOStruct) findArgs(fields []*schema.Field, stmt *sqlparser.Where) []
 	return res
 }
 
-func (s *GoDAOStruct) findArgFieldFromExprIfExist(fields map[string]*schema.Field, stmt sqlparser.Expr) []*schema.Field {
+func (s *GoDAOStruct) findArgFieldFromExprIfExist(fields map[string]*schema.Field, e ast.ExprNode) []*schema.Field {
 	res := make([]*schema.Field, 0)
-	switch v := stmt.(type) {
-	case *sqlparser.ComparisonExpr:
-		f := s.findArgFieldFromComparisonExprIfExist(fields, v)
+	stmt, ok := e.(*ast.BinaryOperationExpr)
+	if !ok {
+		return res
+	}
+
+	switch stmt.Op {
+	case opcode.EQ, opcode.GT:
+		f := s.findArgFieldFromComparisonExprIfExist(fields, stmt)
 		if len(f) > 0 {
 			res = append(res, f...)
 		}
-	case *sqlparser.AndExpr:
-		f := s.findArgFieldFromAndExprIfExist(fields, v)
+	case opcode.LogicAnd:
+		f := s.findArgFieldFromAndExprIfExist(fields, stmt)
 		if len(f) > 0 {
 			res = append(res, f...)
 		}
-	case *sqlparser.OrExpr:
-		f := s.findArgFieldFromOrExprIfExist(fields, v)
+	case opcode.LogicOr:
+		f := s.findArgFieldFromOrExprIfExist(fields, stmt)
 		if len(f) > 0 {
 			res = append(res, f...)
 		}
 	default:
-		log.Printf("%T", v)
+		log.Printf("%T", stmt)
 	}
 
 	return res
 }
 
-func (*GoDAOStruct) findArgFieldFromComparisonExprIfExist(fields map[string]*schema.Field, stmt *sqlparser.ComparisonExpr) []*schema.Field {
+func (*GoDAOStruct) findArgFieldFromComparisonExprIfExist(fields map[string]*schema.Field, stmt ast.ExprNode) []*schema.Field {
 	res := make([]*schema.Field, 0)
-	if left, ok := stmt.Left.(*sqlparser.ColName); ok {
-		switch r := stmt.Right.(type) {
-		case *sqlparser.SQLVal:
-			if r.Type == sqlparser.ValArg {
-				if f, ok := fields[left.Name.String()]; ok {
+	switch v := stmt.(type) {
+	case *ast.BinaryOperationExpr:
+		if left, ok := v.L.(*ast.ColumnNameExpr); ok {
+			switch v.R.(type) {
+			case *test_driver.ParamMarkerExpr:
+				if f, ok := fields[left.Name.Name.String()]; ok {
 					res = append(res, f)
 				}
 			}
@@ -935,10 +925,10 @@ func (*GoDAOStruct) findArgFieldFromComparisonExprIfExist(fields map[string]*sch
 	return res
 }
 
-func (s *GoDAOStruct) findArgFieldFromAndExprIfExist(fields map[string]*schema.Field, stmt *sqlparser.AndExpr) []*schema.Field {
+func (s *GoDAOStruct) findArgFieldFromAndExprIfExist(fields map[string]*schema.Field, stmt *ast.BinaryOperationExpr) []*schema.Field {
 	res := make([]*schema.Field, 0)
 
-	for _, st := range []sqlparser.Expr{stmt.Left, stmt.Right} {
+	for _, st := range []ast.ExprNode{stmt.L, stmt.R} {
 		f := s.findArgFieldFromExprIfExist(fields, st)
 		if len(f) > 0 {
 			res = append(res, f...)
@@ -948,10 +938,10 @@ func (s *GoDAOStruct) findArgFieldFromAndExprIfExist(fields map[string]*schema.F
 	return res
 }
 
-func (s *GoDAOStruct) findArgFieldFromOrExprIfExist(fields map[string]*schema.Field, stmt *sqlparser.OrExpr) []*schema.Field {
+func (s *GoDAOStruct) findArgFieldFromOrExprIfExist(fields map[string]*schema.Field, stmt *ast.BinaryOperationExpr) []*schema.Field {
 	res := make([]*schema.Field, 0)
 
-	for _, st := range []sqlparser.Expr{stmt.Left, stmt.Right} {
+	for _, st := range []ast.ExprNode{stmt.L, stmt.R} {
 		f := s.findArgFieldFromExprIfExist(fields, st)
 		if len(f) > 0 {
 			res = append(res, f...)

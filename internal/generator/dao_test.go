@@ -7,8 +7,10 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
-	"github.com/stretchr/testify/assert"
-	"vitess.io/vitess/go/vt/sqlparser"
+	"github.com/pingcap/parser"
+	"github.com/pingcap/parser/ast"
+	_ "github.com/pingcap/parser/test_driver"
+	"github.com/stretchr/testify/require"
 
 	"go.f110.dev/protoc-ddl/internal/schema"
 )
@@ -109,59 +111,27 @@ func TestGoDAOStruct_findArgs(t *testing.T) {
 	}
 
 	s := &GoDAOStruct{}
+	p := parser.New()
 	for _, v := range tests {
-		stmt, err := sqlparser.Parse("SELECT * FROM tmp WHERE " + v.Where)
-		if err != nil {
-			t.Fatal(err)
-		}
-		sel := stmt.(*sqlparser.Select)
+		tt := v
+		t.Run(tt.Where, func(t *testing.T) {
+			stmt, w, err := p.Parse("SELECT * FROM tmp WHERE "+tt.Where, "", "")
+			require.NoError(t, err)
+			require.Len(t, w, 0)
+			sel := stmt[0].(*ast.SelectStmt)
 
-		fields := s.findArgs(tableFields, sel.Where)
-		if v.Fields == nil && fields != nil {
-			t.Fatalf("%s: expect no field", v.Name)
-		}
-		if len(v.Fields) != len(fields) {
-			t.Fatalf("Expect the number of fields is %d", len(v.Fields))
-		}
-		for i, f := range v.Fields {
-			if fields[i] != f {
-				t.Errorf("Expect %s got %s", f.Name, fields[i].Name)
+			fields := s.findArgs(tableFields, sel.Where.(*ast.BinaryOperationExpr))
+			if tt.Fields == nil {
+				require.Nil(t, fields, "Expect no field")
 			}
-		}
-	}
-}
+			require.Len(t, fields, len(tt.Fields), "Expect the number of fields is %d", len(tt.Fields))
 
-func TestPrintSelectQueryAST(t *testing.T) {
-	cases := []struct {
-		Query    string
-		Rendered string
-	}{
-		{
-			Query:    "SELECT * FROM `user`",
-			Rendered: "select * from user",
-		},
-		{
-			Query:    "select * FROM `user` WHERE id = ?",
-			Rendered: "select * from user where id = ?",
-		},
-		{
-			Query:    "SELECT `id`, `name` FROM `user` WHERE `id` = ?",
-			Rendered: "select id, name from user where id = ?",
-		},
-	}
-
-	for _, c := range cases {
-		s, err := sqlparser.Parse(c.Query)
-		if err != nil {
-			t.Fatalf("%s: %v", c.Query, err)
-		}
-		stmt, ok := s.(*sqlparser.Select)
-		if !ok {
-			t.Fatal("Query is not select. This is a bug of test")
-		}
-
-		got := printSelectQueryAST(nil, stmt)
-		assert.Equal(t, c.Rendered, got)
+			for i, f := range tt.Fields {
+				if fields[i] != f {
+					t.Errorf("Expect %s got %s", f.Name, fields[i].Name)
+				}
+			}
+		})
 	}
 }
 

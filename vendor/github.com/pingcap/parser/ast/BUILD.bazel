@@ -1,0 +1,31 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "advisor.go",
+        "ast.go",
+        "base.go",
+        "ddl.go",
+        "dml.go",
+        "expressions.go",
+        "flag.go",
+        "functions.go",
+        "misc.go",
+        "stats.go",
+        "util.go",
+    ],
+    importmap = "go.f110.dev/protoc-ddl/vendor/github.com/pingcap/parser/ast",
+    importpath = "github.com/pingcap/parser/ast",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/pingcap/errors:go_default_library",
+        "//vendor/github.com/pingcap/parser/auth:go_default_library",
+        "//vendor/github.com/pingcap/parser/format:go_default_library",
+        "//vendor/github.com/pingcap/parser/model:go_default_library",
+        "//vendor/github.com/pingcap/parser/mysql:go_default_library",
+        "//vendor/github.com/pingcap/parser/opcode:go_default_library",
+        "//vendor/github.com/pingcap/parser/terror:go_default_library",
+        "//vendor/github.com/pingcap/parser/types:go_default_library",
+    ],
+)

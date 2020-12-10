@@ -8,25 +8,37 @@ go_library(
         "entity.go",
         "mock.go",
         "mysql.go",
+        "util.go",
     ],
     importpath = "go.f110.dev/protoc-ddl/internal/generator",
     visibility = ["//:__subpackages__"],
     deps = [
         "//internal/schema:go_default_library",
         "//vendor/github.com/golang/protobuf/protoc-gen-go/descriptor:go_default_library",
-        "//vendor/vitess.io/vitess/go/vt/sqlparser:go_default_library",
+        "//vendor/github.com/pingcap/parser:go_default_library",
+        "//vendor/github.com/pingcap/parser/ast:go_default_library",
+        "//vendor/github.com/pingcap/parser/model:go_default_library",
+        "//vendor/github.com/pingcap/parser/opcode:go_default_library",
+        "//vendor/github.com/pingcap/parser/test_driver:go_default_library",
+        "//vendor/github.com/pingcap/parser/types:go_default_library",
     ],
 )
 
 go_test(
     name = "go_default_test",
-    srcs = ["dao_test.go"],
+    srcs = [
+        "dao_test.go",
+        "util_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
         "//internal/schema:go_default_library",
         "//vendor/github.com/golang/protobuf/proto:go_default_library",
         "//vendor/github.com/golang/protobuf/protoc-gen-go/descriptor:go_default_library",
+        "//vendor/github.com/pingcap/parser:go_default_library",
+        "//vendor/github.com/pingcap/parser/ast:go_default_library",
+        "//vendor/github.com/pingcap/parser/test_driver:go_default_library",
         "//vendor/github.com/stretchr/testify/assert:go_default_library",
-        "//vendor/vitess.io/vitess/go/vt/sqlparser:go_default_library",
+        "//vendor/github.com/stretchr/testify/require:go_default_library",
     ],
 )
