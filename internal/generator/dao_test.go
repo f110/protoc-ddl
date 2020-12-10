@@ -108,6 +108,11 @@ func TestGoDAOStruct_findArgs(t *testing.T) {
 			Where:  "name = ? OR age = ?",
 			Fields: []*schema.Field{fieldMap["name"], fieldMap["age"]},
 		},
+		{
+			Name:   "is operator",
+			Where:  "`start_at` IS NULL",
+			Fields: nil,
+		},
 	}
 
 	s := &GoDAOStruct{}
@@ -120,7 +125,7 @@ func TestGoDAOStruct_findArgs(t *testing.T) {
 			require.Len(t, w, 0)
 			sel := stmt[0].(*ast.SelectStmt)
 
-			fields := s.findArgs(tableFields, sel.Where.(*ast.BinaryOperationExpr))
+			fields := s.findArgs(tableFields, sel.Where)
 			if tt.Fields == nil {
 				require.Nil(t, fields, "Expect no field")
 			}
