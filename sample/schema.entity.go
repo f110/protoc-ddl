@@ -19,10 +19,12 @@ type Column struct {
 }
 
 type User struct {
-	Id        int32
-	Age       int32
-	Name      string
-	Title     string
+	Id    int32
+	Age   int32
+	Name  string
+	Title string
+	// Deprecated
+	LastName  string
 	CreatedAt time.Time
 
 	mu   sync.Mutex
@@ -43,6 +45,7 @@ func (e *User) IsChanged() bool {
 	return e.Age != e.mark.Age ||
 		e.Name != e.mark.Name ||
 		e.Title != e.mark.Title ||
+		e.LastName != e.mark.LastName ||
 		!e.CreatedAt.Equal(e.mark.CreatedAt)
 }
 
@@ -60,6 +63,9 @@ func (e *User) ChangedColumn() []ddl.Column {
 	if e.Title != e.mark.Title {
 		res = append(res, ddl.Column{Name: "title", Value: e.Title})
 	}
+	if e.LastName != e.mark.LastName {
+		res = append(res, ddl.Column{Name: "last_name", Value: e.LastName})
+	}
 	if !e.CreatedAt.Equal(e.mark.CreatedAt) {
 		res = append(res, ddl.Column{Name: "created_at", Value: e.CreatedAt})
 	}
@@ -73,6 +79,7 @@ func (e *User) Copy() *User {
 		Age:       e.Age,
 		Name:      e.Name,
 		Title:     e.Title,
+		LastName:  e.LastName,
 		CreatedAt: e.CreatedAt,
 	}
 

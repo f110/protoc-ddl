@@ -272,6 +272,8 @@ type Field struct {
 	Sequence     bool
 	Default      string
 
+	Deprecated bool
+
 	Virtual bool
 }
 
@@ -439,6 +441,9 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 					Name:       v.GetName(),
 					Type:       v.GetType().String(),
 				}
+			}
+			if v.Options != nil {
+				f.Deprecated = v.Options.GetDeprecated()
 			}
 			foundFields = append(foundFields, f)
 

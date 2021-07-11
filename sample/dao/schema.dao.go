@@ -107,7 +107,7 @@ func (d *User) Select(ctx context.Context, id int32) (*sample.User, error) {
 	row := d.conn.QueryRowContext(ctx, "SELECT * FROM `users` WHERE `id` = ?", id)
 
 	v := &sample.User{}
-	if err := row.Scan(&v.Id, &v.Age, &v.Name, &v.Title, &v.CreatedAt); err != nil {
+	if err := row.Scan(&v.Id, &v.Age, &v.Name, &v.Title, &v.LastName, &v.CreatedAt); err != nil {
 		return nil, xerrors.Errorf(": %w", err)
 	}
 
@@ -118,7 +118,7 @@ func (d *User) Select(ctx context.Context, id int32) (*sample.User, error) {
 
 func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, error) {
 	listOpts := newListOpt(opt...)
-	query := "SELECT `id`, `age`, `name`, `title`, `created_at` FROM `users`"
+	query := "SELECT `id`, `age`, `name`, `title`, `last_name`, `created_at` FROM `users`"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
@@ -137,7 +137,7 @@ func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, 
 	res := make([]*sample.User, 0)
 	for rows.Next() {
 		r := &sample.User{}
-		if err := rows.Scan(&r.Id, &r.Age, &r.Name, &r.Title, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&r.Id, &r.Age, &r.Name, &r.Title, &r.LastName, &r.CreatedAt); err != nil {
 			return nil, xerrors.Errorf(": %w", err)
 		}
 		r.ResetMark()
@@ -150,7 +150,7 @@ func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, 
 
 func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample.User, error) {
 	listOpts := newListOpt(opt...)
-	query := "SELECT `id`, `age`, `name`, `title`, `created_at` FROM `users` WHERE `age` > 20"
+	query := "SELECT `id`, `age`, `name`, `title`, `last_name`, `created_at` FROM `users` WHERE `age` > 20"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
@@ -169,7 +169,7 @@ func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample
 	res := make([]*sample.User, 0)
 	for rows.Next() {
 		r := &sample.User{}
-		if err := rows.Scan(&r.Id, &r.Age, &r.Name, &r.Title, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&r.Id, &r.Age, &r.Name, &r.Title, &r.LastName, &r.CreatedAt); err != nil {
 			return nil, xerrors.Errorf(": %w", err)
 		}
 		r.ResetMark()
@@ -191,8 +191,8 @@ func (d *User) Create(ctx context.Context, user *sample.User, opt ...ExecOption)
 
 	res, err := conn.ExecContext(
 		ctx,
-		"INSERT INTO `users` (`age`, `name`, `title`, `created_at`) VALUES (?, ?, ?, ?)",
-		user.Age, user.Name, user.Title, user.CreatedAt,
+		"INSERT INTO `users` (`age`, `name`, `title`, `last_name`, `created_at`) VALUES (?, ?, ?, ?, ?)",
+		user.Age, user.Name, user.Title, user.LastName, user.CreatedAt,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf(": %w", err)

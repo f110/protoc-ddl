@@ -10,7 +10,8 @@ message User {
     int32  age = 2 [(dev.f110.ddl.column) = {default: "20"}];
     string name = 3;
     string title = 4 [(dev.f110.ddl.column) = {unique: true}];
-    google.protobuf.Timestamp created_at = 5;
+    string last_name = 5 [deprecated = true];
+    google.protobuf.Timestamp created_at = 6;
 
     option (dev.f110.ddl.table) = {
         table_name: "users",

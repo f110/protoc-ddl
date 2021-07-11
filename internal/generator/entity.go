@@ -80,6 +80,9 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 			if f.Null {
 				null = "*"
 			}
+			if f.Deprecated {
+				src.WriteString("// Deprecated\n")
+			}
 			src.WriteString(fmt.Sprintf("%s %s%s\n", schema.ToCamel(f.Name), null, GoDataTypeMap[f.Type]))
 		})
 		src.WriteRune('\n')

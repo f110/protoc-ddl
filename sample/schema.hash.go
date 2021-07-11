@@ -1,3 +1,3 @@
 package sample
 
-const SchemaHash = "ad853f7f89e005b5e93658d4a6c0874edd2206a50fc419a46665fc00a7cde259"
+const SchemaHash = "87222bf3dbff94ae19359cc481ab8b24ba206b8495e8def18af330c5948d429f"
