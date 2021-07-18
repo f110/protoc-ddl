@@ -59,16 +59,27 @@ type Message struct {
 	Relations     Relations
 	Engine        string
 	WithTimestamp bool
+	Deprecated    bool
+	Comment       string
 
 	SelectQueries []*Query
+
+	fileDescriptor *descriptor.FileDescriptorProto
 }
 
 func NewMessage(d *descriptor.DescriptorProto, f *descriptor.FileDescriptorProto) *Message {
+	opt := d.GetOptions()
+	deprecated := false
+	if opt != nil {
+		deprecated = opt.GetDeprecated()
+	}
 	return &Message{
-		Descriptor: d,
-		Package:    "." + f.GetPackage(),
-		FullName:   "." + f.GetPackage() + "." + d.GetName(),
-		Relations:  make(map[*Field][]*Field),
+		Descriptor:     d,
+		Package:        "." + f.GetPackage(),
+		FullName:       "." + f.GetPackage() + "." + d.GetName(),
+		Relations:      make(map[*Field][]*Field),
+		Deprecated:     deprecated,
+		fileDescriptor: f,
 	}
 }
 
@@ -128,6 +139,16 @@ func NewMessages(messages []*Message) *Messages {
 		table[v.FullName] = v
 	}
 	return &Messages{messages: messages, table: table}
+}
+
+func (m *Messages) FindByDescriptor(d *descriptor.DescriptorProto) *Message {
+	for _, v := range m.messages {
+		if v.Descriptor == d {
+			return v
+		}
+	}
+
+	return nil
 }
 
 func (m *Messages) Each(fn func(m *Message)) {
@@ -273,6 +294,7 @@ type Field struct {
 	Default      string
 
 	Deprecated bool
+	Comment    string
 
 	Virtual bool
 }
@@ -534,8 +556,43 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 		})
 	})
 
+	parseComment(req.ProtoFile, msgs)
+
 	msgs.Denormalize()
 	return msgs
+}
+
+func parseComment(in []*descriptor.FileDescriptorProto, msgs *Messages) {
+	for _, f := range in {
+		for _, v := range f.GetSourceCodeInfo().GetLocation() {
+			if v.GetLeadingComments() == "" && v.GetTrailingComments() == "" && len(v.GetLeadingDetachedComments()) == 0 {
+				continue
+			}
+			p := v.GetPath()
+			if len(p) < 2 {
+				continue
+			}
+			if p[0] != 4 { // 4 is message_type
+				continue
+			}
+			descProto := f.MessageType[p[1]]
+			m := msgs.FindByDescriptor(descProto)
+			if m == nil {
+				continue
+			}
+
+			if len(p) < 3 {
+				m.Comment = strings.TrimPrefix(strings.TrimSuffix(v.GetLeadingComments(), "\n"), " ")
+				continue
+			}
+			if p[2] != 2 { // 2 is field
+				continue
+			}
+			fieldDesc := descProto.Field[p[3]]
+			f := m.Fields.Get(fieldDesc.GetName())
+			f.Comment = strings.TrimPrefix(strings.TrimSuffix(v.GetLeadingComments(), "\n"), " ")
+		}
+	}
 }
 
 type Query struct {

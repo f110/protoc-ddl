@@ -74,14 +74,33 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 	src.WriteRune('\n')
 
 	messages.Each(func(m *schema.Message) {
+		comment := m.Comment
+		if m.Deprecated {
+			if comment == "" {
+				comment = "Deprecated."
+			} else {
+				comment = "Deprecated: " + comment
+			}
+		}
+		if comment != "" {
+			src.WriteString(fmt.Sprintf("// %s\n", comment))
+		}
 		src.WriteString(fmt.Sprintf("type %s struct {\n", m.Descriptor.GetName()))
 		m.Fields.Each(func(f *schema.Field) {
 			null := ""
 			if f.Null {
 				null = "*"
 			}
+			fieldComment := f.Comment
 			if f.Deprecated {
-				src.WriteString("// Deprecated\n")
+				if fieldComment == "" {
+					fieldComment = "Deprecated."
+				} else {
+					fieldComment = "Deprecated: " + fieldComment
+				}
+			}
+			if fieldComment != "" {
+				src.WriteString(fmt.Sprintf("// %s\n", fieldComment))
 			}
 			src.WriteString(fmt.Sprintf("%s %s%s\n", schema.ToCamel(f.Name), null, GoDataTypeMap[f.Type]))
 		})

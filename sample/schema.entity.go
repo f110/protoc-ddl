@@ -18,12 +18,15 @@ type Column struct {
 	Value interface{}
 }
 
+// Deprecated: User represents a people who writer of the blog.
 type User struct {
-	Id    int32
-	Age   int32
+	Id int32
+	// age is a number
+	Age int32
+	// name is a real name of writer
 	Name  string
 	Title string
-	// Deprecated
+	// Deprecated.
 	LastName  string
 	CreatedAt time.Time
 

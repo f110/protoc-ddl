@@ -5,9 +5,14 @@ option go_package = "go.f110.dev/protoc-ddl/sample";
 import "ddl.proto";
 import "google/protobuf/timestamp.proto";
 
+/* User represents a people who writer of the blog. */
 message User {
+    option deprecated = true;
+
     int32  id  = 1 [(dev.f110.ddl.column) = {sequence: true}];
+    // age is a number
     int32  age = 2 [(dev.f110.ddl.column) = {default: "20"}];
+    // name is a real name of writer
     string name = 3;
     string title = 4 [(dev.f110.ddl.column) = {unique: true}];
     string last_name = 5 [deprecated = true];
