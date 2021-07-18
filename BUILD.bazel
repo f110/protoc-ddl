@@ -54,5 +54,7 @@ job(
     all_revision = True,
     command = "test",
     github_status = True,
-    targets = "//...",
+    targets = [
+        "//..."
+    ],
 )
