@@ -24,7 +24,8 @@ type User struct {
 	// age is a number
 	Age int32
 	// name is a real name of writer
-	Name  string
+	Name string
+	// this field should be unique
 	Title string
 	// Deprecated.
 	LastName  string

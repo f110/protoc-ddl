@@ -568,6 +568,11 @@ func parseComment(in []*descriptor.FileDescriptorProto, msgs *Messages) {
 			if v.GetLeadingComments() == "" && v.GetTrailingComments() == "" && len(v.GetLeadingDetachedComments()) == 0 {
 				continue
 			}
+			comment := v.GetLeadingComments()
+			if comment == "" {
+				comment = v.GetTrailingComments()
+			}
+			comment = strings.TrimPrefix(strings.TrimSuffix(comment, "\n"), " ")
 			p := v.GetPath()
 			if len(p) < 2 {
 				continue
@@ -582,7 +587,7 @@ func parseComment(in []*descriptor.FileDescriptorProto, msgs *Messages) {
 			}
 
 			if len(p) < 3 {
-				m.Comment = strings.TrimPrefix(strings.TrimSuffix(v.GetLeadingComments(), "\n"), " ")
+				m.Comment = comment
 				continue
 			}
 			if p[2] != 2 { // 2 is field
@@ -590,7 +595,7 @@ func parseComment(in []*descriptor.FileDescriptorProto, msgs *Messages) {
 			}
 			fieldDesc := descProto.Field[p[3]]
 			f := m.Fields.Get(fieldDesc.GetName())
-			f.Comment = strings.TrimPrefix(strings.TrimSuffix(v.GetLeadingComments(), "\n"), " ")
+			f.Comment = comment
 		}
 	}
 }

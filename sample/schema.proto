@@ -14,7 +14,7 @@ message User {
     int32  age = 2 [(dev.f110.ddl.column) = {default: "20"}];
     // name is a real name of writer
     string name = 3;
-    string title = 4 [(dev.f110.ddl.column) = {unique: true}];
+    string title = 4 [(dev.f110.ddl.column) = {unique: true}]; // this field should be unique
     string last_name = 5 [deprecated = true];
     google.protobuf.Timestamp created_at = 6;
 
