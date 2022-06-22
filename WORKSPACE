@@ -17,6 +17,7 @@ http_archive(
         "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.25.0/bazel-gazelle-v0.25.0.tar.gz",
     ],
 )
+
 http_archive(
     name = "com_google_protobuf",
     sha256 = "a295dd3b9551d3e2749a9969583dea110c6cdcc39d02088f7c7bb1100077e081",
@@ -26,6 +27,21 @@ http_archive(
         "https://github.com/protocolbuffers/protobuf/archive/refs/tags/v3.21.1.tar.gz",
     ],
 )
+
+# This is workaround for dependency problem.
+# Ref: https://github.com/bazelbuild/bazel-gazelle/issues/1217
+
+load("@bazel_gazelle//:deps.bzl", "go_repository")
+
+go_repository(
+    name = "org_golang_x_mod",
+    build_external = "external",
+    importpath = "golang.org/x/mod",
+    sum = "h1:kQgndtyPBW/JIYERgdxfwMYh3AVStj88WQTlNDi2a+o=",
+    version = "v0.6.0-dev.0.20220106191415-9b9b3d81d5e3",
+)
+
+# End of workaround
 
 load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
 
