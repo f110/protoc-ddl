@@ -114,7 +114,7 @@ sql_schema = rule(
             default = "//cmd/protoc-gen-ddl",
         ),
         "_well_known_protos": attr.label(
-            default = "@com_google_protobuf//:well_known_protos",
+            default = "@com_google_protobuf//:well_known_type_protos",
             allow_files = True,
         ),
         "_schema_hash": attr.label(
@@ -231,7 +231,7 @@ schema_entity = rule(
             default = "//cmd/protoc-gen-entity",
         ),
         "_well_known_protos": attr.label(
-            default = "@com_google_protobuf//:well_known_protos",
+            default = "@com_google_protobuf//:well_known_type_protos",
             allow_files = True,
         ),
         "_go_context_data": attr.label(
@@ -293,7 +293,7 @@ schema_dao = rule(
             default = "//cmd/protoc-gen-dao",
         ),
         "_well_known_protos": attr.label(
-            default = "@com_google_protobuf//:well_known_protos",
+            default = "@com_google_protobuf//:well_known_type_protos",
             allow_files = True,
         ),
         "_go_context_data": attr.label(
@@ -357,7 +357,7 @@ schema_dao_mock = rule(
             default = "//cmd/protoc-gen-dao-mock",
         ),
         "_well_known_protos": attr.label(
-            default = "@com_google_protobuf//:well_known_protos",
+            default = "@com_google_protobuf//:well_known_type_protos",
             allow_files = True,
         ),
         "_go_context_data": attr.label(
