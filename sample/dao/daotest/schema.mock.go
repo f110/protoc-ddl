@@ -412,6 +412,16 @@ func (d *Task) RegisterListAll(value []*sample.Task, err error) {
 	d.Register("ListAll", map[string]interface{}{}, value, err)
 }
 
+func (d *Task) ListPending(ctx context.Context, opt ...dao.ListOption) ([]*sample.Task, error) {
+	v, err := d.Call("ListPending", map[string]interface{}{})
+	return v.([]*sample.Task), err
+
+}
+
+func (d *Task) RegisterListPending(value []*sample.Task, err error) {
+	d.Register("ListPending", map[string]interface{}{}, value, err)
+}
+
 func (d *Task) Create(ctx context.Context, task *sample.Task, opt ...dao.ExecOption) (*sample.Task, error) {
 	_, _ = d.Call("Create", map[string]interface{}{"task": task})
 	return task, nil

@@ -487,6 +487,7 @@ func (e *PostImage) Copy() *PostImage {
 type Task struct {
 	Id      int32
 	ImageId int32
+	StartAt *time.Time
 
 	Image *PostImage
 
@@ -505,7 +506,8 @@ func (e *Task) IsChanged() bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	return e.ImageId != e.mark.ImageId
+	return e.ImageId != e.mark.ImageId ||
+		((e.StartAt != nil && (e.mark.StartAt == nil || !e.StartAt.Equal(*e.mark.StartAt))) || (e.StartAt == nil && e.mark.StartAt != nil))
 }
 
 func (e *Task) ChangedColumn() []ddl.Column {
@@ -516,6 +518,13 @@ func (e *Task) ChangedColumn() []ddl.Column {
 	if e.ImageId != e.mark.ImageId {
 		res = append(res, ddl.Column{Name: "image_id", Value: e.ImageId})
 	}
+	if (e.StartAt != nil && (e.mark.StartAt == nil || !e.StartAt.Equal(*e.mark.StartAt))) || (e.StartAt == nil && e.mark.StartAt != nil) {
+		if e.StartAt != nil {
+			res = append(res, ddl.Column{Name: "start_at", Value: *e.StartAt})
+		} else {
+			res = append(res, ddl.Column{Name: "start_at", Value: nil})
+		}
+	}
 
 	return res
 }
@@ -524,6 +533,10 @@ func (e *Task) Copy() *Task {
 	n := &Task{
 		Id:      e.Id,
 		ImageId: e.ImageId,
+	}
+	if e.StartAt != nil {
+		v := *e.StartAt
+		n.StartAt = &v
 	}
 
 	if e.Image != nil {

@@ -2,6 +2,7 @@ package generator
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/pingcap/parser"
@@ -44,14 +45,18 @@ func TestAstFormatter(t *testing.T) {
 			Query:    "SELECT * FROM `:table_name:`",
 			Rendered: "SELECT * FROM `user`",
 		},
+		{
+			Query:    "SELECT * FROM `user` WHERE `created_at` IS NULL",
+			Rendered: "SELECT * FROM `user` WHERE `created_at` IS NULL",
+		},
 	}
 
 	const debug = false
 
 	p := parser.New()
-	for _, c := range cases {
+	for i, c := range cases {
 		tt := c
-		t.Run("", func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			s, w, err := p.Parse(tt.Query, "", "")
 			require.NoError(t, err)
 			require.Len(t, w, 0)

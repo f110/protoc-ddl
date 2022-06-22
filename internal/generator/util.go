@@ -124,6 +124,13 @@ func (a *queryFormatVisitor) Enter(in ast.Node) (node ast.Node, skipChildren boo
 		a.writer.Write([]byte(v.FnName.String()))
 		a.writer.Write([]byte("("))
 		a.writer.Write([]byte(")"))
+	case *ast.IsNullExpr:
+		a.formatIsNullExpr(v)
+		return in, true
+	default:
+		if a.debug {
+			log.Printf("Not supported: %T", v)
+		}
 	}
 
 	return in, false
@@ -167,4 +174,17 @@ func (a *queryFormatVisitor) formatBinaryOperationExpr(in *ast.BinaryOperationEx
 	default:
 		log.Printf("%T", in.R)
 	}
+}
+
+func (a *queryFormatVisitor) formatIsNullExpr(in *ast.IsNullExpr) {
+	switch v := in.Expr.(type) {
+	case *ast.ColumnNameExpr:
+		v.Accept(a)
+	}
+
+	a.writer.Write([]byte(" IS"))
+	if in.Not {
+		a.writer.Write([]byte(" NOT"))
+	}
+	a.writer.Write([]byte(" NULL"))
 }

@@ -77,6 +77,7 @@ DROP TABLE IF EXISTS `task`;
 CREATE TABLE `task` (
 	`id` INTEGER NOT NULL AUTO_INCREMENT,
 	`image_id` INTEGER NOT NULL,
+	`start_at` DATETIME NULL,
 	PRIMARY KEY(`id`)
 ) Engine=InnoDB;
 

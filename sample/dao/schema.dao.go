@@ -1566,6 +1566,7 @@ type TaskInterface interface {
 	Tx(ctx context.Context, fn func(tx *sql.Tx) error) error
 	Select(ctx context.Context, id int32) (*sample.Task, error)
 	ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, error)
+	ListPending(ctx context.Context, opt ...ListOption) ([]*sample.Task, error)
 	Create(ctx context.Context, task *sample.Task, opt ...ExecOption) (*sample.Task, error)
 	Update(ctx context.Context, task *sample.Task, opt ...ExecOption) error
 	Delete(ctx context.Context, id int32, opt ...ExecOption) error
@@ -1604,7 +1605,7 @@ func (d *Task) Select(ctx context.Context, id int32) (*sample.Task, error) {
 	row := d.conn.QueryRowContext(ctx, "SELECT * FROM `task` WHERE `id` = ?", id)
 
 	v := &sample.Task{}
-	if err := row.Scan(&v.Id, &v.ImageId); err != nil {
+	if err := row.Scan(&v.Id, &v.ImageId, &v.StartAt); err != nil {
 		return nil, err
 	}
 
@@ -1623,7 +1624,7 @@ func (d *Task) Select(ctx context.Context, id int32) (*sample.Task, error) {
 
 func (d *Task) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, error) {
 	listOpts := newListOpt(opt...)
-	query := "SELECT `id`, `image_id` FROM `task`"
+	query := "SELECT `id`, `image_id`, `start_at` FROM `task`"
 	if listOpts.limit > 0 {
 		order := "ASC"
 		if listOpts.desc {
@@ -1642,7 +1643,51 @@ func (d *Task) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, 
 	res := make([]*sample.Task, 0)
 	for rows.Next() {
 		r := &sample.Task{}
-		if err := rows.Scan(&r.Id, &r.ImageId); err != nil {
+		if err := rows.Scan(&r.Id, &r.ImageId, &r.StartAt); err != nil {
+			return nil, err
+		}
+		r.ResetMark()
+		res = append(res, r)
+	}
+	if len(res) > 0 {
+		for _, v := range res {
+			{
+				rel, err := d.postImage.Select(ctx, v.ImageId)
+				if err != nil {
+					return nil, err
+				}
+				v.Image = rel
+			}
+
+		}
+	}
+
+	return res, nil
+
+}
+
+func (d *Task) ListPending(ctx context.Context, opt ...ListOption) ([]*sample.Task, error) {
+	listOpts := newListOpt(opt...)
+	query := "SELECT `id`, `image_id`, `start_at` FROM `task` WHERE `start_at` IS NULL"
+	if listOpts.limit > 0 {
+		order := "ASC"
+		if listOpts.desc {
+			order = "DESC"
+		}
+		query = query + fmt.Sprintf(" ORDER BY `id` %s LIMIT %d", order, listOpts.limit)
+	}
+	rows, err := d.conn.QueryContext(
+		ctx,
+		query,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]*sample.Task, 0)
+	for rows.Next() {
+		r := &sample.Task{}
+		if err := rows.Scan(&r.Id, &r.ImageId, &r.StartAt); err != nil {
 			return nil, err
 		}
 		r.ResetMark()
@@ -1676,8 +1721,8 @@ func (d *Task) Create(ctx context.Context, task *sample.Task, opt ...ExecOption)
 
 	res, err := conn.ExecContext(
 		ctx,
-		"INSERT INTO `task` (`image_id`) VALUES (?)",
-		task.ImageId,
+		"INSERT INTO `task` (`image_id`, `start_at`) VALUES (?, ?)",
+		task.ImageId, task.StartAt,
 	)
 	if err != nil {
 		return nil, err

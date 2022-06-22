@@ -1,168 +1,173 @@
 syntax = "proto3";
 package sample;
-option go_package = "go.f110.dev/protoc-ddl/sample";
+option  go_package = "go.f110.dev/protoc-ddl/sample";
 
 import "ddl.proto";
 import "google/protobuf/timestamp.proto";
 
 /* User represents a people who writer of the blog. */
 message User {
-    option deprecated = true;
+  option deprecated = true;
 
-    int32  id  = 1 [(dev.f110.ddl.column) = {sequence: true}];
-    // age is a number
-    int32  age = 2 [(dev.f110.ddl.column) = {default: "20"}];
-    // name is a real name of writer
-    string name = 3;
-    string title = 4 [(dev.f110.ddl.column) = {unique: true}]; // this field should be unique
-    string last_name = 5 [deprecated = true];
-    google.protobuf.Timestamp created_at = 6;
+  int32 id = 1 [(dev.f110.ddl.column) = { sequence: true }];
+  // age is a number
+  int32 age = 2 [(dev.f110.ddl.column) = { default: "20" }];
+  // name is a real name of writer
+  string                    name       = 3;
+  string                    title      = 4 [(dev.f110.ddl.column) = { unique: true }];  // this field should be unique
+  string                    last_name  = 5 [deprecated = true];
+  google.protobuf.Timestamp created_at = 6;
 
-    option (dev.f110.ddl.table) = {
-        table_name: "users",
-        primary_key: "id",
-    };
+  option (dev.f110.ddl.table) = {
+    table_name: "users"
+    primary_key: "id"
+  };
 
-    option (dev.f110.ddl.dao) = {
-        queries: {
-            name: "All"
-            query: "SELECT * FROM `:table_name:`"
-        };
-        queries: {
-            name: "OverTwenty"
-            query: "SELECT * FROM `:table_name:` WHERE age > 20"
-        };
-    };
+  option (dev.f110.ddl.dao) = {
+    queries: {
+      name: "All"
+      query: "SELECT * FROM `:table_name:`"
+    }
+    queries: {
+      name: "OverTwenty"
+      query: "SELECT * FROM `:table_name:` WHERE age > 20"
+    }
+  };
 }
 
 message Blog {
-    int64  id          = 1 [(dev.f110.ddl.column) = {sequence: true}];
-    User   user        = 2;
-    string title       = 3 [(dev.f110.ddl.column) = {size: 100}];
-    string body        = 4 [(dev.f110.ddl.column) = {type: "text"}];
-    int32  category_id = 5 [(dev.f110.ddl.column) = {null: true}];
-    bytes  attach      = 6 [(dev.f110.ddl.column) = {type: "long"}];
-    User   editor      = 7;
-    bytes  sign        = 8 [(dev.f110.ddl.column) = {size: 20}];
+  int64  id          = 1 [(dev.f110.ddl.column) = { sequence: true }];
+  User   user        = 2;
+  string title       = 3 [(dev.f110.ddl.column) = { size: 100 }];
+  string body        = 4 [(dev.f110.ddl.column) = { type: "text" }];
+  int32  category_id = 5 [(dev.f110.ddl.column) = { null: true }];
+  bytes  attach      = 6 [(dev.f110.ddl.column) = { type: "long" }];
+  User   editor      = 7;
+  bytes  sign        = 8 [(dev.f110.ddl.column) = { size: 20 }];
 
-    option (dev.f110.ddl.table) = {
-        primary_key: "id"
-        with_timestamp: true
-        indexes: {
-            name: "idx_user_id_and_id"
-            columns: "user"
-            columns: "id"
-            unique: true
-        };
-        indexes: {
-            columns: "user"
-            columns: "category_id"
-        };
-        indexes: {
-            columns: "user"
-            columns: "title"
-            unique: true
-        };
-    };
+  option (dev.f110.ddl.table) = {
+    primary_key: "id"
+    with_timestamp: true
+    indexes: {
+      name: "idx_user_id_and_id"
+      columns: "user"
+      columns: "id"
+      unique: true
+    }
+    indexes: {
+      columns: "user"
+      columns: "category_id"
+    }
+    indexes: {
+      columns: "user"
+      columns: "title"
+      unique: true
+    }
+  };
 
-    option (dev.f110.ddl.dao) = {
-        queries: {
-            name: "ByTitle"
-            query: "SELECT * FROM blog WHERE title = ?"
-        };
-        queries: {
-            name: "ByUserAndCategory"
-            query: "SELECT * FROM blog WHERE user_id = ? AND category_id = ?"
-        };
-        queries: {
-            name: "ByUserAndTitle"
-            query: "select * from blog where user_id = ? and title = ?"
-        };
-    };
+  option (dev.f110.ddl.dao) = {
+    queries: {
+      name: "ByTitle"
+      query: "SELECT * FROM blog WHERE title = ?"
+    }
+    queries: {
+      name: "ByUserAndCategory"
+      query: "SELECT * FROM blog WHERE user_id = ? AND category_id = ?"
+    }
+    queries: {
+      name: "ByUserAndTitle"
+      query: "select * from blog where user_id = ? and title = ?"
+    }
+  };
 }
 
 message CommentImage {
-    Comment comment = 1;
-    Like    like    = 2;
+  Comment comment = 1;
+  Like    like    = 2;
 
-    option (dev.f110.ddl.table) = {
-        primary_key: "comment"
-        primary_key: "like"
-    };
+  option (dev.f110.ddl.table) = {
+    primary_key: "comment"
+    primary_key: "like"
+  };
 
-    option (dev.f110.ddl.dao) = {
-        queries: {
-            name: "ByLikeId"
-            query: "SELECT * FROM comment_image WHERE like_id = ?"
-        };
-    };
+  option (dev.f110.ddl.dao) = {
+    queries: {
+      name: "ByLikeId"
+      query: "SELECT * FROM comment_image WHERE like_id = ?"
+    }
+  };
 }
 
 message Comment {
-    Blog blog = 1;
-    User user = 2 [(dev.f110.ddl.column) = {unique: true}];
+  Blog blog = 1;
+  User user = 2 [(dev.f110.ddl.column) = { unique: true }];
 
-    option (dev.f110.ddl.table) = {
-        primary_key: "blog"
-        primary_key: "user"
-    };
+  option (dev.f110.ddl.table) = {
+    primary_key: "blog"
+    primary_key: "user"
+  };
 
-    option (dev.f110.ddl.dao) = {
-        queries: {
-            name: "ByUser"
-            query: "select * from comment where user_id = ?"
-        };
-    };
+  option (dev.f110.ddl.dao) = {
+    queries: {
+      name: "ByUser"
+      query: "select * from comment where user_id = ?"
+    }
+  };
 }
 
 message Reply {
-    int32   id      = 1 [(dev.f110.ddl.column) = {sequence: true}];
-    Comment comment = 2 [(dev.f110.ddl.column) = {null: true}];
-    string  body    = 3;
+  int32   id      = 1 [(dev.f110.ddl.column) = { sequence: true }];
+  Comment comment = 2 [(dev.f110.ddl.column) = { null: true }];
+  string  body    = 3;
 
-    option (dev.f110.ddl.table) = {
-        primary_key: "id"
-    };
+  option (dev.f110.ddl.table) = {
+    primary_key: "id"
+  };
 
-    option (dev.f110.ddl.dao) = {
-        queries: {
-            name: "ByBody"
-            query: "SELECT * FROM reply WHERE body = ?"
-        };
-    };
+  option (dev.f110.ddl.dao) = {
+    queries: {
+      name: "ByBody"
+      query: "SELECT * FROM reply WHERE body = ?"
+    }
+  };
 }
 
 message Like {
-    uint64 id = 1 [(dev.f110.ddl.column) = {sequence: true}];
-    User user = 2;
-    Blog blog = 3;
+  uint64 id   = 1 [(dev.f110.ddl.column) = { sequence: true }];
+  User   user = 2;
+  Blog   blog = 3;
 
-    option (dev.f110.ddl.table) = {
-        primary_key: "id"
-    };
+  option (dev.f110.ddl.table) = {
+    primary_key: "id"
+  };
 }
 
 message PostImage {
-    int32  id = 1;
-    string url = 2;
+  int32  id  = 1;
+  string url = 2;
 
-    option (dev.f110.ddl.table) = {
-        primary_key: "id"
-    };
+  option (dev.f110.ddl.table) = {
+    primary_key: "id"
+  };
 }
 
 message Task {
-    int32 id = 1 [(dev.f110.ddl.column) = {sequence: true}];
-    PostImage image = 2;
+  int32                      id       = 1 [(dev.f110.ddl.column) = { sequence: true }];
+  PostImage                  image    = 2;
+  .google.protobuf.Timestamp start_at = 13 [(dev.f110.ddl.column) = { null: true }];
 
-    option (dev.f110.ddl.table) = {
-        primary_key: "id"
-    };
+  option (dev.f110.ddl.table) = {
+    primary_key: "id"
+  };
 
-    option (dev.f110.ddl.dao) = {
-        queries: {
-            name: "All"
-            query: "SELECT * FROM task"
-        };
-    };
+  option (dev.f110.ddl.dao) = {
+    queries: {
+      name: "All"
+      query: "SELECT * FROM task"
+    }
+    queries: {
+      name: "Pending"
+      query: "SELECT * FROM task WHERE `start_at` IS NULL"
+    }
+  };
 }
