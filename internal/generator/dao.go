@@ -41,10 +41,6 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpti
 		src.WriteString("\"" + v + "\"\n")
 	}
 	src.WriteRune('\n')
-	for _, v := range []string{"golang.org/x/xerrors"} {
-		src.WriteString("\"" + v + "\"\n")
-	}
-	src.WriteRune('\n')
 	src.WriteString(fmt.Sprintf("\"%s\"\n", entityPackageName))
 	src.WriteString(")\n")
 
@@ -170,17 +166,19 @@ func (g GoDAOGenerator) tx(m *schema.Message, f *goFunc) string {
 
 	src.Write("tx, err := d.conn.BeginTx(ctx, nil)")
 	src.Write("if err != nil {")
-	src.Write("return xerrors.Errorf(\": %w\", err)")
+	src.Write("return err")
 	src.Write("}")
 	src.Write("if err := fn(tx); err != nil {")
-	src.Write("rErr := tx.Rollback()")
-	src.Write("return xerrors.Errorf(\"%v: %w\", rErr, err)")
+	src.Write("if rErr := tx.Rollback(); rErr != nil {")
+	src.Write("return rErr")
+	src.Write("}")
+	src.Write("return err")
 	src.Write("}")
 	src.LineBreak()
 
 	src.Write("err = tx.Commit()")
 	src.Write("if err != nil {")
-	src.Write("return xerrors.Errorf(\": %w\", err)")
+	src.Write("return err")
 	src.Write("}")
 	src.Write("return nil")
 
@@ -224,10 +222,10 @@ func (g GoDAOGenerator) create(m *schema.Message, f *goFunc) string {
 	src.Writef("\"INSERT INTO `%s` (%s) VALUES (%s)\",", m.TableName, strings.Join(cols, ", "), strings.Join(args, ", "))
 	src.Write(strings.Join(queryArgs, ",") + ",")
 	src.Write(")")
-	src.Write("if err != nil {\nreturn nil, xerrors.Errorf(\": %w\", err)\n}")
+	src.Write("if err != nil {\nreturn nil, err\n}")
 	src.LineBreak()
 	src.Write("if n, err := res.RowsAffected(); err != nil {")
-	src.Write("return nil, xerrors.Errorf(\": %w\", err)")
+	src.Write("return nil, err")
 	src.Write("} else if n == 0 {")
 	src.Write("return nil, sql.ErrNoRows")
 	src.Write("}")
@@ -236,7 +234,7 @@ func (g GoDAOGenerator) create(m *schema.Message, f *goFunc) string {
 	if m.PrimaryKeys[0].Sequence {
 		src.Write("insertedId, err := res.LastInsertId()")
 		src.Write("if err != nil {")
-		src.Write("return nil, xerrors.Errorf(\": %w\", err)")
+		src.Write("return nil, err")
 		src.Write("}")
 		src.Writef("%s.Id = %s(insertedId)", valueArg.Name, GoDataTypeMap[m.PrimaryKeys[0].Type])
 	}
@@ -261,10 +259,10 @@ func (g GoDAOGenerator) delete(m *schema.Message, _ *goFunc, where, whereArgs []
 	src.WriteString("\n\n")
 	src.WriteString(fmt.Sprintf("res, err := conn.ExecContext(ctx, \"DELETE FROM `%s` WHERE %s\", %s)\n", m.TableName, strings.Join(where, " AND "), strings.Join(whereArgs, ",")))
 	src.WriteString("if err != nil {\n")
-	src.WriteString("return xerrors.Errorf(\": %w\", err)\n")
+	src.WriteString("return err\n")
 	src.WriteString("}\n\n")
 	src.WriteString("if n, err := res.RowsAffected(); err != nil {\n")
-	src.WriteString("return xerrors.Errorf(\": %w\", err)\n")
+	src.WriteString("return err\n")
 	src.WriteString("} else if n == 0 {\n")
 	src.WriteString("return sql.ErrNoRows\n")
 	src.WriteString("}\n\n")
@@ -317,11 +315,11 @@ func (g GoDAOGenerator) update(m *schema.Message, f *goFunc) string {
 	src.Writef("append(values, %s)...,", strings.Join(whereArgs, ","))
 	src.Write(")")
 	src.Write("if err != nil {")
-	src.Write("return xerrors.Errorf(\": %w\", err)")
+	src.Write("return err")
 	src.Write("}")
 
 	src.Write("if n, err := res.RowsAffected(); err != nil {")
-	src.Write("return xerrors.Errorf(\": %w\", err)")
+	src.Write("return err")
 	src.Write("} else if n == 0 {")
 	src.Write("return sql.ErrNoRows")
 	src.Write("}")
@@ -344,7 +342,7 @@ func (g GoDAOGenerator) primaryKeySelect(entityName string, m *schema.Message, _
 		cols = append(cols, "&v."+schema.ToCamel(f.Name))
 	})
 	src.Writef("if err := row.Scan(%s); err != nil {", strings.Join(cols, ","))
-	src.Write("return nil, xerrors.Errorf(\": %w\", err)\n}")
+	src.Write("return nil, err\n}")
 	src.LineBreak()
 
 	g.selectChildObject(src, m)
@@ -386,7 +384,7 @@ func (g GoDAOGenerator) selectMultipleRowQuery(m *schema.Message, name string, s
 		src.WriteString(schema.ToLowerCamel(a.Name) + ",\n")
 	}
 	src.WriteString(")\n")
-	src.WriteString("if err != nil {\nreturn nil, xerrors.Errorf(\": %w\", err)\n}\n")
+	src.WriteString("if err != nil {\nreturn nil, err\n}\n")
 	src.WriteRune('\n')
 
 	// Object mapping
@@ -398,7 +396,7 @@ func (g GoDAOGenerator) selectMultipleRowQuery(m *schema.Message, name string, s
 		scanCols[i] = "&r." + schema.ToCamel(v)
 	}
 	src.WriteString(fmt.Sprintf("if err := rows.Scan(%s); err != nil {\n", strings.Join(scanCols, ",")))
-	src.WriteString("return nil, xerrors.Errorf(\": %w\", err)\n")
+	src.WriteString("return nil, err\n")
 	src.WriteString("}\n")
 	src.WriteString("r.ResetMark()\n")
 	src.WriteString("res = append(res, r)\n")
@@ -440,7 +438,7 @@ func (g GoDAOGenerator) selectSingleRowQuery(m *schema.Message, name string, stm
 		cols = append(cols, "&v."+schema.ToCamel(f.Name))
 	})
 	src.WriteString(fmt.Sprintf("if err := row.Scan(%s); err != nil {\n", strings.Join(cols, ",")))
-	src.WriteString("return nil, xerrors.Errorf(\": %w\", err)\n}\n\n")
+	src.WriteString("return nil, err\n}\n\n")
 
 	g.selectChildObject(src, m)
 
@@ -487,7 +485,7 @@ func (g GoDAOGenerator) selectChildObject(src *Buffer, m *schema.Message) {
 		s := strings.Split(f.Type, ".")
 		src.WriteString(fmt.Sprintf("rel, err := d.%s.Select(ctx, %s)\n", schema.ToLowerCamel(s[len(s)-1]), strings.Join(r, ",")))
 		src.WriteString("if err != nil {\n")
-		src.WriteString("return nil, xerrors.Errorf(\": %w\", err)\n")
+		src.WriteString("return nil, err\n")
 		src.WriteString("}\n")
 		src.WriteString(fmt.Sprintf("v.%s = rel\n", schema.ToCamel(f.Name)))
 		if f.Null {

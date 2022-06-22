@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/xerrors"
-
 	"go.f110.dev/protoc-ddl/sample"
 )
 
@@ -88,16 +86,18 @@ func NewUser(conn *sql.DB) *User {
 func (d *User) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	tx, err := d.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if err := fn(tx); err != nil {
-		rErr := tx.Rollback()
-		return xerrors.Errorf("%v: %w", rErr, err)
+		if rErr := tx.Rollback(); rErr != nil {
+			return rErr
+		}
+		return err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	return nil
 
@@ -108,7 +108,7 @@ func (d *User) Select(ctx context.Context, id int32) (*sample.User, error) {
 
 	v := &sample.User{}
 	if err := row.Scan(&v.Id, &v.Age, &v.Name, &v.Title, &v.LastName, &v.CreatedAt); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	v.ResetMark()
@@ -131,14 +131,14 @@ func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, 
 		query,
 	)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	res := make([]*sample.User, 0)
 	for rows.Next() {
 		r := &sample.User{}
 		if err := rows.Scan(&r.Id, &r.Age, &r.Name, &r.Title, &r.LastName, &r.CreatedAt); err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		r.ResetMark()
 		res = append(res, r)
@@ -163,14 +163,14 @@ func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample
 		query,
 	)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	res := make([]*sample.User, 0)
 	for rows.Next() {
 		r := &sample.User{}
 		if err := rows.Scan(&r.Id, &r.Age, &r.Name, &r.Title, &r.LastName, &r.CreatedAt); err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		r.ResetMark()
 		res = append(res, r)
@@ -195,11 +195,11 @@ func (d *User) Create(ctx context.Context, user *sample.User, opt ...ExecOption)
 		user.Age, user.Name, user.Title, user.LastName, user.CreatedAt,
 	)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	} else if n == 0 {
 		return nil, sql.ErrNoRows
 	}
@@ -207,7 +207,7 @@ func (d *User) Create(ctx context.Context, user *sample.User, opt ...ExecOption)
 	user = user.Copy()
 	insertedId, err := res.LastInsertId()
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 	user.Id = int32(insertedId)
 
@@ -227,11 +227,11 @@ func (d *User) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
 
 	res, err := conn.ExecContext(ctx, "DELETE FROM `users` WHERE `id` = ?", id)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}
@@ -268,10 +268,10 @@ func (d *User) Update(ctx context.Context, user *sample.User, opt ...ExecOption)
 		append(values, user.Id)...,
 	)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}
@@ -310,16 +310,18 @@ func NewBlog(conn *sql.DB) *Blog {
 func (d *Blog) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	tx, err := d.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if err := fn(tx); err != nil {
-		rErr := tx.Rollback()
-		return xerrors.Errorf("%v: %w", rErr, err)
+		if rErr := tx.Rollback(); rErr != nil {
+			return rErr
+		}
+		return err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	return nil
 
@@ -330,20 +332,20 @@ func (d *Blog) Select(ctx context.Context, id int64) (*sample.Blog, error) {
 
 	v := &sample.Blog{}
 	if err := row.Scan(&v.Id, &v.UserId, &v.Title, &v.Body, &v.CategoryId, &v.Attach, &v.EditorId, &v.Sign, &v.CreatedAt, &v.UpdatedAt); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	{
 		rel, err := d.user.Select(ctx, v.EditorId)
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		v.Editor = rel
 	}
 	{
 		rel, err := d.user.Select(ctx, v.UserId)
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		v.User = rel
 	}
@@ -369,14 +371,14 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 		title,
 	)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	res := make([]*sample.Blog, 0)
 	for rows.Next() {
 		r := &sample.Blog{}
 		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.Sign, &r.CreatedAt, &r.UpdatedAt); err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		r.ResetMark()
 		res = append(res, r)
@@ -386,14 +388,14 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 			{
 				rel, err := d.user.Select(ctx, v.EditorId)
 				if err != nil {
-					return nil, xerrors.Errorf(": %w", err)
+					return nil, err
 				}
 				v.Editor = rel
 			}
 			{
 				rel, err := d.user.Select(ctx, v.UserId)
 				if err != nil {
-					return nil, xerrors.Errorf(": %w", err)
+					return nil, err
 				}
 				v.User = rel
 			}
@@ -422,14 +424,14 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 		categoryId,
 	)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	res := make([]*sample.Blog, 0)
 	for rows.Next() {
 		r := &sample.Blog{}
 		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.Sign, &r.CreatedAt, &r.UpdatedAt); err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		r.ResetMark()
 		res = append(res, r)
@@ -439,14 +441,14 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 			{
 				rel, err := d.user.Select(ctx, v.EditorId)
 				if err != nil {
-					return nil, xerrors.Errorf(": %w", err)
+					return nil, err
 				}
 				v.Editor = rel
 			}
 			{
 				rel, err := d.user.Select(ctx, v.UserId)
 				if err != nil {
-					return nil, xerrors.Errorf(": %w", err)
+					return nil, err
 				}
 				v.User = rel
 			}
@@ -467,20 +469,20 @@ func (d *Blog) SelectByUserAndTitle(ctx context.Context, userId int32, title str
 	)
 	v := &sample.Blog{}
 	if err := row.Scan(&v.Id, &v.UserId, &v.Title, &v.Body, &v.CategoryId, &v.Attach, &v.EditorId, &v.Sign, &v.CreatedAt, &v.UpdatedAt); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	{
 		rel, err := d.user.Select(ctx, v.EditorId)
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		v.Editor = rel
 	}
 	{
 		rel, err := d.user.Select(ctx, v.UserId)
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		v.User = rel
 	}
@@ -505,11 +507,11 @@ func (d *Blog) Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption)
 		blog.UserId, blog.Title, blog.Body, blog.CategoryId, blog.Attach, blog.EditorId, blog.Sign, time.Now(),
 	)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	} else if n == 0 {
 		return nil, sql.ErrNoRows
 	}
@@ -517,7 +519,7 @@ func (d *Blog) Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption)
 	blog = blog.Copy()
 	insertedId, err := res.LastInsertId()
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 	blog.Id = int64(insertedId)
 
@@ -537,11 +539,11 @@ func (d *Blog) Delete(ctx context.Context, id int64, opt ...ExecOption) error {
 
 	res, err := conn.ExecContext(ctx, "DELETE FROM `blog` WHERE `id` = ?", id)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}
@@ -580,10 +582,10 @@ func (d *Blog) Update(ctx context.Context, blog *sample.Blog, opt ...ExecOption)
 		append(values, blog.Id)...,
 	)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}
@@ -622,16 +624,18 @@ func NewCommentImage(conn *sql.DB) *CommentImage {
 func (d *CommentImage) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	tx, err := d.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if err := fn(tx); err != nil {
-		rErr := tx.Rollback()
-		return xerrors.Errorf("%v: %w", rErr, err)
+		if rErr := tx.Rollback(); rErr != nil {
+			return rErr
+		}
+		return err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	return nil
 
@@ -642,20 +646,20 @@ func (d *CommentImage) Select(ctx context.Context, commentBlogId int64, commentU
 
 	v := &sample.CommentImage{}
 	if err := row.Scan(&v.CommentBlogId, &v.CommentUserId, &v.LikeId); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	{
 		rel, err := d.comment.Select(ctx, v.CommentBlogId, v.CommentUserId)
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		v.Comment = rel
 	}
 	{
 		rel, err := d.like.Select(ctx, v.LikeId)
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		v.Like = rel
 	}
@@ -681,14 +685,14 @@ func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64, opt ...L
 		likeId,
 	)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	res := make([]*sample.CommentImage, 0)
 	for rows.Next() {
 		r := &sample.CommentImage{}
 		if err := rows.Scan(&r.CommentBlogId, &r.CommentUserId, &r.LikeId); err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		r.ResetMark()
 		res = append(res, r)
@@ -698,14 +702,14 @@ func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64, opt ...L
 			{
 				rel, err := d.comment.Select(ctx, v.CommentBlogId, v.CommentUserId)
 				if err != nil {
-					return nil, xerrors.Errorf(": %w", err)
+					return nil, err
 				}
 				v.Comment = rel
 			}
 			{
 				rel, err := d.like.Select(ctx, v.LikeId)
 				if err != nil {
-					return nil, xerrors.Errorf(": %w", err)
+					return nil, err
 				}
 				v.Like = rel
 			}
@@ -732,11 +736,11 @@ func (d *CommentImage) Create(ctx context.Context, commentImage *sample.CommentI
 		commentImage.CommentBlogId, commentImage.CommentUserId, commentImage.LikeId,
 	)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	} else if n == 0 {
 		return nil, sql.ErrNoRows
 	}
@@ -759,11 +763,11 @@ func (d *CommentImage) Delete(ctx context.Context, commentBlogId int64, commentU
 
 	res, err := conn.ExecContext(ctx, "DELETE FROM `comment_image` WHERE `comment_blog_id` = ? AND `comment_user_id` = ? AND `like_id` = ?", commentBlogId, commentUserId, likeId)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}
@@ -800,10 +804,10 @@ func (d *CommentImage) Update(ctx context.Context, commentImage *sample.CommentI
 		append(values, commentImage.CommentBlogId, commentImage.CommentUserId, commentImage.LikeId)...,
 	)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}
@@ -842,16 +846,18 @@ func NewComment(conn *sql.DB) *Comment {
 func (d *Comment) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	tx, err := d.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if err := fn(tx); err != nil {
-		rErr := tx.Rollback()
-		return xerrors.Errorf("%v: %w", rErr, err)
+		if rErr := tx.Rollback(); rErr != nil {
+			return rErr
+		}
+		return err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	return nil
 
@@ -862,20 +868,20 @@ func (d *Comment) Select(ctx context.Context, blogId int64, userId int32) (*samp
 
 	v := &sample.Comment{}
 	if err := row.Scan(&v.BlogId, &v.UserId); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	{
 		rel, err := d.blog.Select(ctx, v.BlogId)
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		v.Blog = rel
 	}
 	{
 		rel, err := d.user.Select(ctx, v.UserId)
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		v.User = rel
 	}
@@ -893,20 +899,20 @@ func (d *Comment) SelectByUser(ctx context.Context, userId int32) (*sample.Comme
 	)
 	v := &sample.Comment{}
 	if err := row.Scan(&v.BlogId, &v.UserId); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	{
 		rel, err := d.blog.Select(ctx, v.BlogId)
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		v.Blog = rel
 	}
 	{
 		rel, err := d.user.Select(ctx, v.UserId)
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		v.User = rel
 	}
@@ -931,11 +937,11 @@ func (d *Comment) Create(ctx context.Context, comment *sample.Comment, opt ...Ex
 		comment.BlogId, comment.UserId,
 	)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	} else if n == 0 {
 		return nil, sql.ErrNoRows
 	}
@@ -958,11 +964,11 @@ func (d *Comment) Delete(ctx context.Context, blogId int64, userId int32, opt ..
 
 	res, err := conn.ExecContext(ctx, "DELETE FROM `comment` WHERE `blog_id` = ? AND `user_id` = ?", blogId, userId)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}
@@ -999,10 +1005,10 @@ func (d *Comment) Update(ctx context.Context, comment *sample.Comment, opt ...Ex
 		append(values, comment.BlogId, comment.UserId)...,
 	)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}
@@ -1039,16 +1045,18 @@ func NewReply(conn *sql.DB) *Reply {
 func (d *Reply) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	tx, err := d.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if err := fn(tx); err != nil {
-		rErr := tx.Rollback()
-		return xerrors.Errorf("%v: %w", rErr, err)
+		if rErr := tx.Rollback(); rErr != nil {
+			return rErr
+		}
+		return err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	return nil
 
@@ -1059,14 +1067,14 @@ func (d *Reply) Select(ctx context.Context, id int32) (*sample.Reply, error) {
 
 	v := &sample.Reply{}
 	if err := row.Scan(&v.Id, &v.CommentBlogId, &v.CommentUserId, &v.Body); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	{
 		if v.CommentBlogId != nil && v.CommentUserId != nil {
 			rel, err := d.comment.Select(ctx, *v.CommentBlogId, *v.CommentUserId)
 			if err != nil {
-				return nil, xerrors.Errorf(": %w", err)
+				return nil, err
 			}
 			v.Comment = rel
 		}
@@ -1093,14 +1101,14 @@ func (d *Reply) ListByBody(ctx context.Context, body string, opt ...ListOption) 
 		body,
 	)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	res := make([]*sample.Reply, 0)
 	for rows.Next() {
 		r := &sample.Reply{}
 		if err := rows.Scan(&r.Id, &r.CommentBlogId, &r.CommentUserId, &r.Body); err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		r.ResetMark()
 		res = append(res, r)
@@ -1111,7 +1119,7 @@ func (d *Reply) ListByBody(ctx context.Context, body string, opt ...ListOption) 
 				if v.CommentBlogId != nil && v.CommentUserId != nil {
 					rel, err := d.comment.Select(ctx, *v.CommentBlogId, *v.CommentUserId)
 					if err != nil {
-						return nil, xerrors.Errorf(": %w", err)
+						return nil, err
 					}
 					v.Comment = rel
 				}
@@ -1139,11 +1147,11 @@ func (d *Reply) Create(ctx context.Context, reply *sample.Reply, opt ...ExecOpti
 		reply.CommentBlogId, reply.CommentUserId, reply.Body,
 	)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	} else if n == 0 {
 		return nil, sql.ErrNoRows
 	}
@@ -1151,7 +1159,7 @@ func (d *Reply) Create(ctx context.Context, reply *sample.Reply, opt ...ExecOpti
 	reply = reply.Copy()
 	insertedId, err := res.LastInsertId()
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 	reply.Id = int32(insertedId)
 
@@ -1171,11 +1179,11 @@ func (d *Reply) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
 
 	res, err := conn.ExecContext(ctx, "DELETE FROM `reply` WHERE `id` = ?", id)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}
@@ -1212,10 +1220,10 @@ func (d *Reply) Update(ctx context.Context, reply *sample.Reply, opt ...ExecOpti
 		append(values, reply.Id)...,
 	)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}
@@ -1253,16 +1261,18 @@ func NewLike(conn *sql.DB) *Like {
 func (d *Like) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	tx, err := d.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if err := fn(tx); err != nil {
-		rErr := tx.Rollback()
-		return xerrors.Errorf("%v: %w", rErr, err)
+		if rErr := tx.Rollback(); rErr != nil {
+			return rErr
+		}
+		return err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	return nil
 
@@ -1273,20 +1283,20 @@ func (d *Like) Select(ctx context.Context, id uint64) (*sample.Like, error) {
 
 	v := &sample.Like{}
 	if err := row.Scan(&v.Id, &v.UserId, &v.BlogId); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	{
 		rel, err := d.blog.Select(ctx, v.BlogId)
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		v.Blog = rel
 	}
 	{
 		rel, err := d.user.Select(ctx, v.UserId)
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		v.User = rel
 	}
@@ -1311,11 +1321,11 @@ func (d *Like) Create(ctx context.Context, like *sample.Like, opt ...ExecOption)
 		like.UserId, like.BlogId,
 	)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	} else if n == 0 {
 		return nil, sql.ErrNoRows
 	}
@@ -1323,7 +1333,7 @@ func (d *Like) Create(ctx context.Context, like *sample.Like, opt ...ExecOption)
 	like = like.Copy()
 	insertedId, err := res.LastInsertId()
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 	like.Id = uint64(insertedId)
 
@@ -1343,11 +1353,11 @@ func (d *Like) Delete(ctx context.Context, id uint64, opt ...ExecOption) error {
 
 	res, err := conn.ExecContext(ctx, "DELETE FROM `like` WHERE `id` = ?", id)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}
@@ -1384,10 +1394,10 @@ func (d *Like) Update(ctx context.Context, like *sample.Like, opt ...ExecOption)
 		append(values, like.Id)...,
 	)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}
@@ -1420,16 +1430,18 @@ func NewPostImage(conn *sql.DB) *PostImage {
 func (d *PostImage) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	tx, err := d.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if err := fn(tx); err != nil {
-		rErr := tx.Rollback()
-		return xerrors.Errorf("%v: %w", rErr, err)
+		if rErr := tx.Rollback(); rErr != nil {
+			return rErr
+		}
+		return err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	return nil
 
@@ -1440,7 +1452,7 @@ func (d *PostImage) Select(ctx context.Context, id int32) (*sample.PostImage, er
 
 	v := &sample.PostImage{}
 	if err := row.Scan(&v.Id, &v.Url); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	v.ResetMark()
@@ -1463,11 +1475,11 @@ func (d *PostImage) Create(ctx context.Context, postImage *sample.PostImage, opt
 		postImage.Id, postImage.Url,
 	)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	} else if n == 0 {
 		return nil, sql.ErrNoRows
 	}
@@ -1490,11 +1502,11 @@ func (d *PostImage) Delete(ctx context.Context, id int32, opt ...ExecOption) err
 
 	res, err := conn.ExecContext(ctx, "DELETE FROM `post_image` WHERE `id` = ?", id)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}
@@ -1531,10 +1543,10 @@ func (d *PostImage) Update(ctx context.Context, postImage *sample.PostImage, opt
 		append(values, postImage.Id)...,
 	)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}
@@ -1571,16 +1583,18 @@ func NewTask(conn *sql.DB) *Task {
 func (d *Task) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	tx, err := d.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if err := fn(tx); err != nil {
-		rErr := tx.Rollback()
-		return xerrors.Errorf("%v: %w", rErr, err)
+		if rErr := tx.Rollback(); rErr != nil {
+			return rErr
+		}
+		return err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	return nil
 
@@ -1591,13 +1605,13 @@ func (d *Task) Select(ctx context.Context, id int32) (*sample.Task, error) {
 
 	v := &sample.Task{}
 	if err := row.Scan(&v.Id, &v.ImageId); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	{
 		rel, err := d.postImage.Select(ctx, v.ImageId)
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		v.Image = rel
 	}
@@ -1622,14 +1636,14 @@ func (d *Task) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, 
 		query,
 	)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	res := make([]*sample.Task, 0)
 	for rows.Next() {
 		r := &sample.Task{}
 		if err := rows.Scan(&r.Id, &r.ImageId); err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, err
 		}
 		r.ResetMark()
 		res = append(res, r)
@@ -1639,7 +1653,7 @@ func (d *Task) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, 
 			{
 				rel, err := d.postImage.Select(ctx, v.ImageId)
 				if err != nil {
-					return nil, xerrors.Errorf(": %w", err)
+					return nil, err
 				}
 				v.Image = rel
 			}
@@ -1666,11 +1680,11 @@ func (d *Task) Create(ctx context.Context, task *sample.Task, opt ...ExecOption)
 		task.ImageId,
 	)
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	} else if n == 0 {
 		return nil, sql.ErrNoRows
 	}
@@ -1678,7 +1692,7 @@ func (d *Task) Create(ctx context.Context, task *sample.Task, opt ...ExecOption)
 	task = task.Copy()
 	insertedId, err := res.LastInsertId()
 	if err != nil {
-		return nil, xerrors.Errorf(": %w", err)
+		return nil, err
 	}
 	task.Id = int32(insertedId)
 
@@ -1698,11 +1712,11 @@ func (d *Task) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
 
 	res, err := conn.ExecContext(ctx, "DELETE FROM `task` WHERE `id` = ?", id)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}
@@ -1739,10 +1753,10 @@ func (d *Task) Update(ctx context.Context, task *sample.Task, opt ...ExecOption)
 		append(values, task.Id)...,
 	)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 	if n, err := res.RowsAffected(); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	} else if n == 0 {
 		return sql.ErrNoRows
 	}

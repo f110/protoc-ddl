@@ -17,8 +17,5 @@ go_library(
     srcs = ["schema.dao.go"],
     importpath = "go.f110.dev/protoc-ddl/sample/dao",
     visibility = ["//visibility:public"],
-    deps = [
-        "//sample:go_default_library",
-        "//vendor/golang.org/x/xerrors:go_default_library",
-    ],
+    deps = ["//sample:go_default_library"],
 )
