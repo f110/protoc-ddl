@@ -336,18 +336,14 @@ func (d *Blog) Select(ctx context.Context, id int64) (*sample.Blog, error) {
 	}
 
 	{
-		rel, err := d.user.Select(ctx, v.EditorId)
-		if err != nil {
-			return nil, err
+		if rel, _ := d.user.Select(ctx, v.EditorId); rel != nil {
+			v.Editor = rel
 		}
-		v.Editor = rel
 	}
 	{
-		rel, err := d.user.Select(ctx, v.UserId)
-		if err != nil {
-			return nil, err
+		if rel, _ := d.user.Select(ctx, v.UserId); rel != nil {
+			v.User = rel
 		}
-		v.User = rel
 	}
 
 	v.ResetMark()
@@ -386,18 +382,14 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 	if len(res) > 0 {
 		for _, v := range res {
 			{
-				rel, err := d.user.Select(ctx, v.EditorId)
-				if err != nil {
-					return nil, err
+				if rel, _ := d.user.Select(ctx, v.EditorId); rel != nil {
+					v.Editor = rel
 				}
-				v.Editor = rel
 			}
 			{
-				rel, err := d.user.Select(ctx, v.UserId)
-				if err != nil {
-					return nil, err
+				if rel, _ := d.user.Select(ctx, v.UserId); rel != nil {
+					v.User = rel
 				}
-				v.User = rel
 			}
 
 		}
@@ -439,18 +431,14 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 	if len(res) > 0 {
 		for _, v := range res {
 			{
-				rel, err := d.user.Select(ctx, v.EditorId)
-				if err != nil {
-					return nil, err
+				if rel, _ := d.user.Select(ctx, v.EditorId); rel != nil {
+					v.Editor = rel
 				}
-				v.Editor = rel
 			}
 			{
-				rel, err := d.user.Select(ctx, v.UserId)
-				if err != nil {
-					return nil, err
+				if rel, _ := d.user.Select(ctx, v.UserId); rel != nil {
+					v.User = rel
 				}
-				v.User = rel
 			}
 
 		}
@@ -473,18 +461,14 @@ func (d *Blog) SelectByUserAndTitle(ctx context.Context, userId int32, title str
 	}
 
 	{
-		rel, err := d.user.Select(ctx, v.EditorId)
-		if err != nil {
-			return nil, err
+		if rel, _ := d.user.Select(ctx, v.EditorId); rel != nil {
+			v.Editor = rel
 		}
-		v.Editor = rel
 	}
 	{
-		rel, err := d.user.Select(ctx, v.UserId)
-		if err != nil {
-			return nil, err
+		if rel, _ := d.user.Select(ctx, v.UserId); rel != nil {
+			v.User = rel
 		}
-		v.User = rel
 	}
 
 	v.ResetMark()
@@ -650,18 +634,14 @@ func (d *CommentImage) Select(ctx context.Context, commentBlogId int64, commentU
 	}
 
 	{
-		rel, err := d.comment.Select(ctx, v.CommentBlogId, v.CommentUserId)
-		if err != nil {
-			return nil, err
+		if rel, _ := d.comment.Select(ctx, v.CommentBlogId, v.CommentUserId); rel != nil {
+			v.Comment = rel
 		}
-		v.Comment = rel
 	}
 	{
-		rel, err := d.like.Select(ctx, v.LikeId)
-		if err != nil {
-			return nil, err
+		if rel, _ := d.like.Select(ctx, v.LikeId); rel != nil {
+			v.Like = rel
 		}
-		v.Like = rel
 	}
 
 	v.ResetMark()
@@ -700,18 +680,14 @@ func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64, opt ...L
 	if len(res) > 0 {
 		for _, v := range res {
 			{
-				rel, err := d.comment.Select(ctx, v.CommentBlogId, v.CommentUserId)
-				if err != nil {
-					return nil, err
+				if rel, _ := d.comment.Select(ctx, v.CommentBlogId, v.CommentUserId); rel != nil {
+					v.Comment = rel
 				}
-				v.Comment = rel
 			}
 			{
-				rel, err := d.like.Select(ctx, v.LikeId)
-				if err != nil {
-					return nil, err
+				if rel, _ := d.like.Select(ctx, v.LikeId); rel != nil {
+					v.Like = rel
 				}
-				v.Like = rel
 			}
 
 		}
@@ -872,18 +848,14 @@ func (d *Comment) Select(ctx context.Context, blogId int64, userId int32) (*samp
 	}
 
 	{
-		rel, err := d.blog.Select(ctx, v.BlogId)
-		if err != nil {
-			return nil, err
+		if rel, _ := d.blog.Select(ctx, v.BlogId); rel != nil {
+			v.Blog = rel
 		}
-		v.Blog = rel
 	}
 	{
-		rel, err := d.user.Select(ctx, v.UserId)
-		if err != nil {
-			return nil, err
+		if rel, _ := d.user.Select(ctx, v.UserId); rel != nil {
+			v.User = rel
 		}
-		v.User = rel
 	}
 
 	v.ResetMark()
@@ -903,18 +875,14 @@ func (d *Comment) SelectByUser(ctx context.Context, userId int32) (*sample.Comme
 	}
 
 	{
-		rel, err := d.blog.Select(ctx, v.BlogId)
-		if err != nil {
-			return nil, err
+		if rel, _ := d.blog.Select(ctx, v.BlogId); rel != nil {
+			v.Blog = rel
 		}
-		v.Blog = rel
 	}
 	{
-		rel, err := d.user.Select(ctx, v.UserId)
-		if err != nil {
-			return nil, err
+		if rel, _ := d.user.Select(ctx, v.UserId); rel != nil {
+			v.User = rel
 		}
-		v.User = rel
 	}
 
 	v.ResetMark()
@@ -1072,11 +1040,9 @@ func (d *Reply) Select(ctx context.Context, id int32) (*sample.Reply, error) {
 
 	{
 		if v.CommentBlogId != nil && v.CommentUserId != nil {
-			rel, err := d.comment.Select(ctx, *v.CommentBlogId, *v.CommentUserId)
-			if err != nil {
-				return nil, err
+			if rel, _ := d.comment.Select(ctx, *v.CommentBlogId, *v.CommentUserId); rel != nil {
+				v.Comment = rel
 			}
-			v.Comment = rel
 		}
 	}
 
@@ -1117,11 +1083,9 @@ func (d *Reply) ListByBody(ctx context.Context, body string, opt ...ListOption) 
 		for _, v := range res {
 			{
 				if v.CommentBlogId != nil && v.CommentUserId != nil {
-					rel, err := d.comment.Select(ctx, *v.CommentBlogId, *v.CommentUserId)
-					if err != nil {
-						return nil, err
+					if rel, _ := d.comment.Select(ctx, *v.CommentBlogId, *v.CommentUserId); rel != nil {
+						v.Comment = rel
 					}
-					v.Comment = rel
 				}
 			}
 
@@ -1287,18 +1251,14 @@ func (d *Like) Select(ctx context.Context, id uint64) (*sample.Like, error) {
 	}
 
 	{
-		rel, err := d.blog.Select(ctx, v.BlogId)
-		if err != nil {
-			return nil, err
+		if rel, _ := d.blog.Select(ctx, v.BlogId); rel != nil {
+			v.Blog = rel
 		}
-		v.Blog = rel
 	}
 	{
-		rel, err := d.user.Select(ctx, v.UserId)
-		if err != nil {
-			return nil, err
+		if rel, _ := d.user.Select(ctx, v.UserId); rel != nil {
+			v.User = rel
 		}
-		v.User = rel
 	}
 
 	v.ResetMark()
@@ -1610,11 +1570,9 @@ func (d *Task) Select(ctx context.Context, id int32) (*sample.Task, error) {
 	}
 
 	{
-		rel, err := d.postImage.Select(ctx, v.ImageId)
-		if err != nil {
-			return nil, err
+		if rel, _ := d.postImage.Select(ctx, v.ImageId); rel != nil {
+			v.Image = rel
 		}
-		v.Image = rel
 	}
 
 	v.ResetMark()
@@ -1652,11 +1610,9 @@ func (d *Task) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, 
 	if len(res) > 0 {
 		for _, v := range res {
 			{
-				rel, err := d.postImage.Select(ctx, v.ImageId)
-				if err != nil {
-					return nil, err
+				if rel, _ := d.postImage.Select(ctx, v.ImageId); rel != nil {
+					v.Image = rel
 				}
-				v.Image = rel
 			}
 
 		}
@@ -1696,11 +1652,9 @@ func (d *Task) ListPending(ctx context.Context, opt ...ListOption) ([]*sample.Ta
 	if len(res) > 0 {
 		for _, v := range res {
 			{
-				rel, err := d.postImage.Select(ctx, v.ImageId)
-				if err != nil {
-					return nil, err
+				if rel, _ := d.postImage.Select(ctx, v.ImageId); rel != nil {
+					v.Image = rel
 				}
-				v.Image = rel
 			}
 
 		}

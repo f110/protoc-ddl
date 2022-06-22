@@ -478,20 +478,18 @@ func (g GoDAOGenerator) selectChildObject(src *Buffer, m *schema.Message) {
 			}
 			check = append(check, "v."+schema.ToCamel(v.Name)+" != nil")
 		}
-		src.WriteString("{\n")
+		src.Write("{")
 		if f.Null {
-			src.WriteString(fmt.Sprintf("if %s {\n", strings.Join(check, " && ")))
+			src.Writef("if %s {", strings.Join(check, " && "))
 		}
 		s := strings.Split(f.Type, ".")
-		src.WriteString(fmt.Sprintf("rel, err := d.%s.Select(ctx, %s)\n", schema.ToLowerCamel(s[len(s)-1]), strings.Join(r, ",")))
-		src.WriteString("if err != nil {\n")
-		src.WriteString("return nil, err\n")
-		src.WriteString("}\n")
-		src.WriteString(fmt.Sprintf("v.%s = rel\n", schema.ToCamel(f.Name)))
+		src.Writef("if rel, _ := d.%s.Select(ctx, %s); rel != nil {", schema.ToLowerCamel(s[len(s)-1]), strings.Join(r, ","))
+		src.Writef("v.%s = rel", schema.ToCamel(f.Name))
+		src.Write("}")
 		if f.Null {
-			src.WriteString("}\n")
+			src.Write("}")
 		}
-		src.WriteString("}\n")
+		src.Write("}")
 	}
 	src.WriteRune('\n')
 }
