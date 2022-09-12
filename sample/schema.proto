@@ -35,9 +35,13 @@ message User {
   };
 }
 
+// Blog is a main table.
+// This table is most important table.
 message Blog {
-  int64  id          = 1 [(dev.f110.ddl.column) = { sequence: true }];
-  User   user        = 2;
+  int64 id   = 1 [(dev.f110.ddl.column) = { sequence: true }];
+  User  user = 2;
+  // title is a page title.
+  // max length is 100 character.
   string title       = 3 [(dev.f110.ddl.column) = { size: 100 }];
   string body        = 4 [(dev.f110.ddl.column) = { type: "text" }];
   int32  category_id = 5 [(dev.f110.ddl.column) = { null: true }];

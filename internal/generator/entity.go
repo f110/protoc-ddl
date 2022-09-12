@@ -83,7 +83,10 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 			}
 		}
 		if comment != "" {
-			src.WriteString(fmt.Sprintf("// %s\n", comment))
+			s := bufio.NewScanner(strings.NewReader(comment))
+			for s.Scan() {
+				src.WriteString(fmt.Sprintf("// %s\n", strings.TrimSpace(s.Text())))
+			}
 		}
 		src.WriteString(fmt.Sprintf("type %s struct {\n", m.Descriptor.GetName()))
 		m.Fields.Each(func(f *schema.Field) {
@@ -100,7 +103,10 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 				}
 			}
 			if fieldComment != "" {
-				src.WriteString(fmt.Sprintf("// %s\n", fieldComment))
+				s := bufio.NewScanner(strings.NewReader(fieldComment))
+				for s.Scan() {
+					src.WriteString(fmt.Sprintf("// %s\n", strings.TrimSpace(s.Text())))
+				}
 			}
 			src.WriteString(fmt.Sprintf("%s %s%s\n", schema.ToCamel(f.Name), null, GoDataTypeMap[f.Type]))
 		})

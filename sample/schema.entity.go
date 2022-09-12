@@ -90,9 +90,13 @@ func (e *User) Copy() *User {
 	return n
 }
 
+// Blog is a main table.
+// This table is most important table.
 type Blog struct {
-	Id         int64
-	UserId     int32
+	Id     int64
+	UserId int32
+	// title is a page title.
+	// max length is 100 character.
 	Title      string
 	Body       string
 	CategoryId *int32
