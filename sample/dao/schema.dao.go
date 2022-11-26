@@ -128,7 +128,7 @@ func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, 
 	listOpts := newListOpt(opt...)
 	query := "SELECT `id`, `age`, `name`, `title`, `last_name`, `created_at` FROM `users`"
 	orderCol := "`" + listOpts.sort + "`"
-	if orderCol == "" {
+	if listOpts.sort == "" {
 		orderCol = "`id`"
 	}
 	orderDi := "ASC"
@@ -165,7 +165,7 @@ func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample
 	listOpts := newListOpt(opt...)
 	query := "SELECT `id`, `age`, `name`, `title`, `last_name`, `created_at` FROM `users` WHERE `age` > 20"
 	orderCol := "`" + listOpts.sort + "`"
-	if orderCol == "" {
+	if listOpts.sort == "" {
 		orderCol = "`id`"
 	}
 	orderDi := "ASC"
@@ -373,7 +373,7 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 	listOpts := newListOpt(opt...)
 	query := "SELECT `id`, `user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `created_at`, `updated_at` FROM `blog` WHERE `title` = ?"
 	orderCol := "`" + listOpts.sort + "`"
-	if orderCol == "" {
+	if listOpts.sort == "" {
 		orderCol = "`id`"
 	}
 	orderDi := "ASC"
@@ -426,7 +426,7 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 	listOpts := newListOpt(opt...)
 	query := "SELECT `id`, `user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `created_at`, `updated_at` FROM `blog` WHERE `user_id` = ? AND `category_id` = ?"
 	orderCol := "`" + listOpts.sort + "`"
-	if orderCol == "" {
+	if listOpts.sort == "" {
 		orderCol = "`id`"
 	}
 	orderDi := "ASC"
@@ -681,7 +681,7 @@ func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64, opt ...L
 	listOpts := newListOpt(opt...)
 	query := "SELECT `comment_blog_id`, `comment_user_id`, `like_id` FROM `comment_image` WHERE `like_id` = ?"
 	orderCol := "`" + listOpts.sort + "`"
-	if orderCol == "" {
+	if listOpts.sort == "" {
 		orderCol = "`comment_blog_id`,`comment_user_id`,`like_id`"
 	}
 	orderDi := "ASC"
@@ -1088,7 +1088,7 @@ func (d *Reply) ListByBody(ctx context.Context, body string, opt ...ListOption) 
 	listOpts := newListOpt(opt...)
 	query := "SELECT `id`, `comment_blog_id`, `comment_user_id`, `body` FROM `reply` WHERE `body` = ?"
 	orderCol := "`" + listOpts.sort + "`"
-	if orderCol == "" {
+	if listOpts.sort == "" {
 		orderCol = "`id`"
 	}
 	orderDi := "ASC"
@@ -1622,7 +1622,7 @@ func (d *Task) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, 
 	listOpts := newListOpt(opt...)
 	query := "SELECT `id`, `image_id`, `start_at` FROM `task`"
 	orderCol := "`" + listOpts.sort + "`"
-	if orderCol == "" {
+	if listOpts.sort == "" {
 		orderCol = "`id`"
 	}
 	orderDi := "ASC"
@@ -1669,7 +1669,7 @@ func (d *Task) ListPending(ctx context.Context, opt ...ListOption) ([]*sample.Ta
 	listOpts := newListOpt(opt...)
 	query := "SELECT `id`, `image_id`, `start_at` FROM `task` WHERE `start_at` IS NULL"
 	orderCol := "`" + listOpts.sort + "`"
-	if orderCol == "" {
+	if listOpts.sort == "" {
 		orderCol = "`id`"
 	}
 	orderDi := "ASC"
