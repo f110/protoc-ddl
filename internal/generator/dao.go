@@ -381,7 +381,7 @@ func (g GoDAOGenerator) selectMultipleRowQuery(m *schema.Message, name string, s
 	f.Format(buf)
 	src.WriteString(fmt.Sprintf("query := %q\n", buf.String()))
 	src.WriteString("orderCol := \"`\"+listOpts.sort+\"`\"\n")
-	src.WriteString("if orderCol == \"\" {\n")
+	src.WriteString("if listOpts.sort == \"\" {\n")
 	src.WriteString(fmt.Sprintf("orderCol = \"%s\"\n", strings.Join(primaryKeys, ",")))
 	src.WriteString("}\n")
 	src.WriteString("orderDi := \"ASC\"\n")
