@@ -10,4 +10,5 @@ job(
         "@io_bazel_rules_go//go/toolchain:linux_amd64",
     ],
     cpu_limit = "2000m",
+    event = ["push"],
 )
