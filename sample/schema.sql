@@ -10,6 +10,7 @@ CREATE TABLE `users` (
 	`name` VARCHAR(255) NOT NULL,
 	`title` VARCHAR(255) NOT NULL,
 	`last_name` VARCHAR(255) NOT NULL,
+	`status` INTEGER UNSIGNED NOT NULL,
 	`created_at` DATETIME NOT NULL,
 	UNIQUE `idx_title` (`title`),
 	PRIMARY KEY(`id`)

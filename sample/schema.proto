@@ -5,6 +5,12 @@ option  go_package = "go.f110.dev/protoc-ddl/sample";
 import "ddl.proto";
 import "google/protobuf/timestamp.proto";
 
+enum UserStatus {
+  USER_STATUS_ACTIVE    = 0;
+  USER_STATUS_SUSPENDED = 1;
+  USER_STATUS_DELETED   = 3;
+}
+
 /* User represents a people who writer of the blog. */
 message User {
   option deprecated = true;
@@ -16,7 +22,8 @@ message User {
   string                    name       = 3;
   string                    title      = 4 [(dev.f110.ddl.column) = { unique: true }];  // this field should be unique
   string                    last_name  = 5 [deprecated = true];
-  google.protobuf.Timestamp created_at = 6;
+  UserStatus                status     = 6;
+  google.protobuf.Timestamp created_at = 7;
 
   option (dev.f110.ddl.table) = {
     table_name: "users"

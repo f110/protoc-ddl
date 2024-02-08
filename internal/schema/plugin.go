@@ -1,9 +1,9 @@
 package schema
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"regexp"
 	"strings"
 	"unicode"
@@ -11,6 +11,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/golang/protobuf/protoc-gen-go/plugin"
+	"google.golang.org/protobuf/types/descriptorpb"
 
 	"go.f110.dev/protoc-ddl"
 )
@@ -31,7 +32,7 @@ type EntityOption struct {
 }
 
 func ParseInput(in io.Reader) (*plugin_go.CodeGeneratorRequest, error) {
-	buf, err := ioutil.ReadAll(in)
+	buf, err := io.ReadAll(in)
 	if err != nil {
 		return nil, err
 	}
@@ -128,17 +129,54 @@ func (m *Message) String() string {
 	return strings.Join(s, "\n")
 }
 
+type Enum struct {
+	Descriptor *descriptor.EnumDescriptorProto
+	Package    string
+	FullName   string
+	Values     []*EnumValue
+}
+
+func NewEnum(d *descriptor.EnumDescriptorProto, f *descriptor.FileDescriptorProto) *Enum {
+	values := make([]*EnumValue, len(d.Value))
+	for i, v := range d.Value {
+		values[i] = NewEnumValue(v)
+	}
+	return &Enum{
+		Descriptor: d,
+		Package:    "." + f.GetPackage(),
+		FullName:   "." + f.GetPackage() + "." + d.GetName(),
+		Values:     values,
+	}
+}
+
+type EnumValue struct {
+	Name  string
+	Value int32
+}
+
+func NewEnumValue(d *descriptor.EnumValueDescriptorProto) *EnumValue {
+	return &EnumValue{
+		Name:  ToCamel(strings.ToLower(d.GetName())),
+		Value: d.GetNumber(),
+	}
+}
+
 type Messages struct {
 	messages []*Message
+	enums    map[string]*Enum
 	table    map[string]*Message
 }
 
-func NewMessages(messages []*Message) *Messages {
+func NewMessages(messages []*Message, enums []*Enum) *Messages {
 	table := make(map[string]*Message)
 	for _, v := range messages {
 		table[v.FullName] = v
 	}
-	return &Messages{messages: messages, table: table}
+	em := make(map[string]*Enum)
+	for _, v := range enums {
+		em[v.FullName] = v
+	}
+	return &Messages{messages: messages, enums: em, table: table}
 }
 
 func (m *Messages) FindByDescriptor(d *descriptor.DescriptorProto) *Message {
@@ -151,11 +189,21 @@ func (m *Messages) FindByDescriptor(d *descriptor.DescriptorProto) *Message {
 	return nil
 }
 
+func (m *Messages) FindEnum(fullName string) *Enum {
+	return m.enums[fullName]
+}
+
 func (m *Messages) Each(fn func(m *Message)) {
 	l := make([]*Message, len(m.messages))
 	copy(l, m.messages)
 
 	for _, v := range l {
+		fn(v)
+	}
+}
+
+func (m *Messages) EachEnum(fn func(e *Enum)) {
+	for _, v := range m.enums {
 		fn(v)
 	}
 }
@@ -226,6 +274,9 @@ func (m *Messages) denormalizeFields() {
 						v.Columns.Replace(f.Name, newFields...)
 					}
 				}
+				if _, ok := m.enums[f.Type]; ok {
+					f.Type = descriptorpb.FieldDescriptorProto_TYPE_UINT32.String()
+				}
 			})
 		}
 	}
@@ -287,6 +338,7 @@ type Field struct {
 	Ext          *ddl.ColumnOptions
 	Name         string
 	Type         string
+	OriginalType string
 	OptionalType string
 	Size         int
 	Null         bool
@@ -426,20 +478,25 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 	}
 
 	targetMessages := make([]*Message, 0)
+	enums := make([]*Enum, 0)
 	for _, fileName := range req.FileToGenerate {
 		f := files[fileName]
 		for _, m := range f.GetMessageType() {
 			opt := m.GetOptions()
 			_, err := proto.GetExtension(opt, ddl.E_Table)
-			if err == proto.ErrMissingExtension {
+			if errors.Is(err, proto.ErrMissingExtension) {
 				continue
 			}
 
 			targetMessages = append(targetMessages, NewMessage(m, f))
 		}
+
+		for _, v := range f.GetEnumType() {
+			enums = append(enums, NewEnum(v, f))
+		}
 	}
 
-	msgs := NewMessages(targetMessages)
+	msgs := NewMessages(targetMessages, enums)
 	msgs.Each(func(m *Message) {
 		e, err := proto.GetExtension(m.Descriptor.GetOptions(), ddl.E_Table)
 		if err != nil {
@@ -453,9 +510,17 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 			switch v.GetType() {
 			case descriptor.FieldDescriptorProto_TYPE_MESSAGE:
 				f = &Field{
-					Descriptor: v,
-					Name:       v.GetName(),
-					Type:       v.GetTypeName(),
+					Descriptor:   v,
+					Name:         v.GetName(),
+					Type:         v.GetTypeName(),
+					OriginalType: v.GetTypeName(),
+				}
+			case descriptor.FieldDescriptorProto_TYPE_ENUM:
+				f = &Field{
+					Descriptor:   v,
+					Name:         v.GetName(),
+					Type:         v.GetTypeName(),
+					OriginalType: v.GetTypeName(),
 				}
 			default:
 				f = &Field{

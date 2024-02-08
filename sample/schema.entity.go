@@ -13,10 +13,13 @@ import (
 var _ = time.Time{}
 var _ = bytes.Buffer{}
 
-type Column struct {
-	Name  string
-	Value interface{}
-}
+type UserStatus uint32
+
+const (
+	UserStatusActive    UserStatus = 0
+	UserStatusSuspended UserStatus = 1
+	UserStatusDeleted   UserStatus = 3
+)
 
 // Deprecated: User represents a people who writer of the blog.
 type User struct {
@@ -29,6 +32,7 @@ type User struct {
 	Title string
 	// Deprecated.
 	LastName  string
+	Status    UserStatus
 	CreatedAt time.Time
 
 	mu   sync.Mutex
@@ -50,6 +54,7 @@ func (e *User) IsChanged() bool {
 		e.Name != e.mark.Name ||
 		e.Title != e.mark.Title ||
 		e.LastName != e.mark.LastName ||
+		e.Status != e.mark.Status ||
 		!e.CreatedAt.Equal(e.mark.CreatedAt)
 }
 
@@ -70,6 +75,9 @@ func (e *User) ChangedColumn() []ddl.Column {
 	if e.LastName != e.mark.LastName {
 		res = append(res, ddl.Column{Name: "last_name", Value: e.LastName})
 	}
+	if e.Status != e.mark.Status {
+		res = append(res, ddl.Column{Name: "status", Value: e.Status})
+	}
 	if !e.CreatedAt.Equal(e.mark.CreatedAt) {
 		res = append(res, ddl.Column{Name: "created_at", Value: e.CreatedAt})
 	}
@@ -84,6 +92,7 @@ func (e *User) Copy() *User {
 		Name:      e.Name,
 		Title:     e.Title,
 		LastName:  e.LastName,
+		Status:    e.Status,
 		CreatedAt: e.CreatedAt,
 	}
 

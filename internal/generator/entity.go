@@ -67,11 +67,16 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 	src.WriteString("var _ = time.Time{}\n")
 	src.WriteString("var _ = bytes.Buffer{}\n")
 	src.WriteRune('\n')
-	src.WriteString("type Column struct {\n")
-	src.WriteString("Name string\n")
-	src.WriteString("Value interface{}\n")
-	src.WriteString("}\n")
-	src.WriteRune('\n')
+
+	messages.EachEnum(func(e *schema.Enum) {
+		src.WriteString(fmt.Sprintf("type %s uint32\n", e.Descriptor.GetName()))
+		src.WriteRune('\n')
+		src.WriteString("const (\n")
+		for _, v := range e.Values {
+			src.WriteString(fmt.Sprintf("%s %s = %d\n", v.Name, e.Descriptor.GetName(), v.Value))
+		}
+		src.WriteString(")\n")
+	})
 
 	messages.Each(func(m *schema.Message) {
 		comment := m.Comment
@@ -108,7 +113,13 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 					src.WriteString(fmt.Sprintf("// %s\n", strings.TrimSpace(s.Text())))
 				}
 			}
-			src.WriteString(fmt.Sprintf("%s %s%s\n", schema.ToCamel(f.Name), null, GoDataTypeMap[f.Type]))
+			typ := GoDataTypeMap[f.Type]
+			if f.OriginalType != "" {
+				if e := messages.FindEnum(f.OriginalType); e != nil {
+					typ = e.Descriptor.GetName()
+				}
+			}
+			src.WriteString(fmt.Sprintf("%s %s%s\n", schema.ToCamel(f.Name), null, typ))
 		})
 		src.WriteRune('\n')
 		for _, v := range m.Descriptor.Field {

@@ -72,7 +72,7 @@ func NewMigration(schemaFile, driver, dsn string) (*Migration, error) {
 	buf := new(bytes.Buffer)
 	switch driver {
 	case "mysql":
-		generator.MySQLGenerator{}.Generate(buf, schema.NewMessages([]*schema.Message{SchemaVersionTable}))
+		generator.MySQLGenerator{}.Generate(buf, schema.NewMessages([]*schema.Message{SchemaVersionTable}, nil))
 	}
 
 	sch, err := ioutil.ReadFile(schemaFile)

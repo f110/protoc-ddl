@@ -56,7 +56,7 @@ func TestGoDAOGenerator_Generate(t *testing.T) {
 					},
 				},
 			},
-		}),
+		}, nil),
 	)
 
 	t.Log(res.String())
