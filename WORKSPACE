@@ -20,11 +20,10 @@ http_archive(
 
 http_archive(
     name = "com_google_protobuf",
-    sha256 = "a295dd3b9551d3e2749a9969583dea110c6cdcc39d02088f7c7bb1100077e081",
-    strip_prefix = "protobuf-3.21.1",
+    sha256 = "8ff511a64fc46ee792d3fe49a5a1bcad6f7dc50dfbba5a28b0e5b979c17f9871",
+    strip_prefix = "protobuf-25.2",
     urls = [
-        "https://mirror.bazel.build/github.com/protocolbuffers/protobuf/archive/v3.21.1.tar.gz",
-        "https://github.com/protocolbuffers/protobuf/archive/refs/tags/v3.21.1.tar.gz",
+        "https://github.com/protocolbuffers/protobuf/releases/download/v25.2/protobuf-25.2.tar.gz",
     ],
 )
 
