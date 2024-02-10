@@ -45,16 +45,3 @@ vendor_proto_source(
     src = ":ddl_go_proto",
     visibility = ["//visibility:public"],
 )
-
-load("//build:job.bzl", "job")
-
-job(
-    name = "test_all",
-    all_revision = True,
-    command = "test",
-    cpu_limit = "2000m",
-    github_status = True,
-    targets = [
-        "//...",
-    ],
-)
