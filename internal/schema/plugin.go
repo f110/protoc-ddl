@@ -1,17 +1,15 @@
 package schema
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"regexp"
 	"strings"
 	"unicode"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/protoc-gen-go/descriptor"
-	"github.com/golang/protobuf/protoc-gen-go/plugin"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/pluginpb"
 
 	"go.f110.dev/protoc-ddl"
 )
@@ -31,12 +29,12 @@ type EntityOption struct {
 	OutputFile string
 }
 
-func ParseInput(in io.Reader) (*plugin_go.CodeGeneratorRequest, error) {
+func ParseInput(in io.Reader) (*pluginpb.CodeGeneratorRequest, error) {
 	buf, err := io.ReadAll(in)
 	if err != nil {
 		return nil, err
 	}
-	var input plugin_go.CodeGeneratorRequest
+	var input pluginpb.CodeGeneratorRequest
 	err = proto.Unmarshal(buf, &input)
 	if err != nil {
 		return nil, err
@@ -45,12 +43,12 @@ func ParseInput(in io.Reader) (*plugin_go.CodeGeneratorRequest, error) {
 	return &input, nil
 }
 
-func ProcessDDL(req *plugin_go.CodeGeneratorRequest) (DDLOption, *Messages) {
+func ProcessDDL(req *pluginpb.CodeGeneratorRequest) (DDLOption, *Messages) {
 	return parseOptionDDL(req.GetParameter()), parseTables(req)
 }
 
 type Message struct {
-	Descriptor    *descriptor.DescriptorProto
+	Descriptor    *descriptorpb.DescriptorProto
 	Package       string
 	FullName      string
 	TableName     string
@@ -65,10 +63,10 @@ type Message struct {
 
 	SelectQueries []*Query
 
-	fileDescriptor *descriptor.FileDescriptorProto
+	fileDescriptor *descriptorpb.FileDescriptorProto
 }
 
-func NewMessage(d *descriptor.DescriptorProto, f *descriptor.FileDescriptorProto) *Message {
+func NewMessage(d *descriptorpb.DescriptorProto, f *descriptorpb.FileDescriptorProto) *Message {
 	opt := d.GetOptions()
 	deprecated := false
 	if opt != nil {
@@ -130,13 +128,13 @@ func (m *Message) String() string {
 }
 
 type Enum struct {
-	Descriptor *descriptor.EnumDescriptorProto
+	Descriptor *descriptorpb.EnumDescriptorProto
 	Package    string
 	FullName   string
 	Values     []*EnumValue
 }
 
-func NewEnum(d *descriptor.EnumDescriptorProto, f *descriptor.FileDescriptorProto) *Enum {
+func NewEnum(d *descriptorpb.EnumDescriptorProto, f *descriptorpb.FileDescriptorProto) *Enum {
 	values := make([]*EnumValue, len(d.Value))
 	for i, v := range d.Value {
 		values[i] = NewEnumValue(v)
@@ -154,7 +152,7 @@ type EnumValue struct {
 	Value int32
 }
 
-func NewEnumValue(d *descriptor.EnumValueDescriptorProto) *EnumValue {
+func NewEnumValue(d *descriptorpb.EnumValueDescriptorProto) *EnumValue {
 	return &EnumValue{
 		Name:  ToCamel(strings.ToLower(d.GetName())),
 		Value: d.GetNumber(),
@@ -179,7 +177,7 @@ func NewMessages(messages []*Message, enums []*Enum) *Messages {
 	return &Messages{messages: messages, enums: em, table: table}
 }
 
-func (m *Messages) FindByDescriptor(d *descriptor.DescriptorProto) *Message {
+func (m *Messages) FindByDescriptor(d *descriptorpb.DescriptorProto) *Message {
 	for _, v := range m.messages {
 		if v.Descriptor == d {
 			return v
@@ -334,7 +332,7 @@ func (m *Messages) String() string {
 }
 
 type Field struct {
-	Descriptor   *descriptor.FieldDescriptorProto
+	Descriptor   *descriptorpb.FieldDescriptorProto
 	Ext          *ddl.ColumnOptions
 	Name         string
 	Type         string
@@ -458,21 +456,21 @@ type Index struct {
 	Unique  bool
 }
 
-func ProcessEntity(req *plugin_go.CodeGeneratorRequest) (EntityOption, *descriptor.FileOptions, *Messages) {
-	files := make(map[string]*descriptor.FileDescriptorProto)
+func ProcessEntity(req *pluginpb.CodeGeneratorRequest) (EntityOption, *descriptorpb.FileOptions, *Messages) {
+	files := make(map[string]*descriptorpb.FileDescriptorProto)
 	for _, f := range req.ProtoFile {
 		files[f.GetName()] = f
 	}
 
-	var opt *descriptor.FileOptions
+	var opt *descriptorpb.FileOptions
 	for _, filename := range req.FileToGenerate {
 		opt = files[filename].GetOptions()
 	}
 	return parseOptionEntity(req.GetParameter()), opt, parseTables(req)
 }
 
-func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
-	files := make(map[string]*descriptor.FileDescriptorProto)
+func parseTables(req *pluginpb.CodeGeneratorRequest) *Messages {
+	files := make(map[string]*descriptorpb.FileDescriptorProto)
 	for _, f := range req.ProtoFile {
 		files[f.GetName()] = f
 	}
@@ -483,8 +481,7 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 		f := files[fileName]
 		for _, m := range f.GetMessageType() {
 			opt := m.GetOptions()
-			_, err := proto.GetExtension(opt, ddl.E_Table)
-			if errors.Is(err, proto.ErrMissingExtension) {
+			if v := proto.GetExtension(opt, ddl.E_Table); v == nil {
 				continue
 			}
 
@@ -498,24 +495,24 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 
 	msgs := NewMessages(targetMessages, enums)
 	msgs.Each(func(m *Message) {
-		e, err := proto.GetExtension(m.Descriptor.GetOptions(), ddl.E_Table)
-		if err != nil {
+		e := proto.GetExtension(m.Descriptor.GetOptions(), ddl.E_Table)
+		ext := e.(*ddl.TableOptions)
+		if ext == nil {
 			return
 		}
-		ext := e.(*ddl.TableOptions)
 
 		foundFields := make([]*Field, 0)
 		for _, v := range m.Descriptor.Field {
 			var f *Field
 			switch v.GetType() {
-			case descriptor.FieldDescriptorProto_TYPE_MESSAGE:
+			case descriptorpb.FieldDescriptorProto_TYPE_MESSAGE:
 				f = &Field{
 					Descriptor:   v,
 					Name:         v.GetName(),
 					Type:         v.GetTypeName(),
 					OriginalType: v.GetTypeName(),
 				}
-			case descriptor.FieldDescriptorProto_TYPE_ENUM:
+			case descriptorpb.FieldDescriptorProto_TYPE_ENUM:
 				f = &Field{
 					Descriptor:   v,
 					Name:         v.GetName(),
@@ -534,11 +531,10 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 			}
 			foundFields = append(foundFields, f)
 
-			e, err := proto.GetExtension(v.GetOptions(), ddl.E_Column)
-			if err != nil {
-				continue
+			e := proto.GetExtension(v.GetOptions(), ddl.E_Column)
+			if ext := e.(*ddl.ColumnOptions); ext != nil {
+				f.Ext = ext
 			}
-			f.Ext = e.(*ddl.ColumnOptions)
 		}
 		if ext.WithTimestamp {
 			foundFields = append(foundFields,
@@ -598,21 +594,20 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 			}
 		})
 
-		e, err = proto.GetExtension(m.Descriptor.GetOptions(), ddl.E_Dao)
-		if err == nil {
-			ext := e.(*ddl.DAOOptions)
+		e = proto.GetExtension(m.Descriptor.GetOptions(), ddl.E_Dao)
+		if ext := e.(*ddl.DAOOptions); ext != nil {
 			for _, v := range ext.Queries {
 				m.SelectQueries = append(m.SelectQueries, &Query{Name: v.Name, Query: v.Query})
 			}
 		}
 
 		m.Fields.Each(func(f *Field) {
-			e, err := proto.GetExtension(f.Descriptor.GetOptions(), ddl.E_Column)
-			if err != nil {
+			e := proto.GetExtension(f.Descriptor.GetOptions(), ddl.E_Column)
+			ext := e.(*ddl.ColumnOptions)
+			if ext == nil {
 				return
 			}
 
-			ext := e.(*ddl.ColumnOptions)
 			f.Sequence = ext.Sequence
 			f.Null = ext.Null
 			f.Default = ext.Default
@@ -627,7 +622,7 @@ func parseTables(req *plugin_go.CodeGeneratorRequest) *Messages {
 	return msgs
 }
 
-func parseComment(in []*descriptor.FileDescriptorProto, msgs *Messages) {
+func parseComment(in []*descriptorpb.FileDescriptorProto, msgs *Messages) {
 	for _, f := range in {
 		for _, v := range f.GetSourceCodeInfo().GetLocation() {
 			if v.GetLeadingComments() == "" && v.GetTrailingComments() == "" && len(v.GetLeadingDetachedComments()) == 0 {

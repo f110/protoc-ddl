@@ -7,10 +7,9 @@ go_library(
     visibility = ["//:__subpackages__"],
     deps = [
         "//:go_default_library",
-        "//vendor/github.com/golang/protobuf/proto:go_default_library",
-        "//vendor/github.com/golang/protobuf/protoc-gen-go/descriptor:go_default_library",
-        "//vendor/github.com/golang/protobuf/protoc-gen-go/plugin:go_default_library",
+        "//vendor/google.golang.org/protobuf/proto:go_default_library",
         "//vendor/google.golang.org/protobuf/types/descriptorpb:go_default_library",
+        "//vendor/google.golang.org/protobuf/types/pluginpb:go_default_library",
     ],
 )
 

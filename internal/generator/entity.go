@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/golang/protobuf/protoc-gen-go/descriptor"
+	"google.golang.org/protobuf/types/descriptorpb"
 
 	"go.f110.dev/protoc-ddl/internal/schema"
 )
@@ -44,7 +44,7 @@ var (
 var importPackages = []string{"time", "bytes", "sync"}
 var thirdPartyPackages = []string{"go.f110.dev/protoc-ddl"}
 
-func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOptions, messages *schema.Messages) {
+func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOptions, messages *schema.Messages) {
 	src := new(bytes.Buffer)
 
 	packageName := fileOpt.GetGoPackage()
@@ -123,7 +123,7 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOpt
 		})
 		src.WriteRune('\n')
 		for _, v := range m.Descriptor.Field {
-			if v.GetType() == descriptor.FieldDescriptorProto_TYPE_MESSAGE && v.GetTypeName() != schema.TimestampType {
+			if v.GetType() == descriptorpb.FieldDescriptorProto_TYPE_MESSAGE && v.GetTypeName() != schema.TimestampType {
 				s := strings.Split(v.GetTypeName(), ".")
 				src.WriteString(fmt.Sprintf("%s *%s\n", schema.ToCamel(v.GetName()), s[len(s)-1]))
 			}
