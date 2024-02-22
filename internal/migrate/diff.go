@@ -7,7 +7,6 @@ import (
 	"sort"
 
 	mapset "github.com/deckarep/golang-set"
-	"github.com/pkg/errors"
 	"github.com/schemalex/schemalex"
 	"github.com/schemalex/schemalex/format"
 	"github.com/schemalex/schemalex/model"
@@ -320,7 +319,7 @@ func (d *Diff) writeAddColumnQuery(before, after model.Table, columnNames ...str
 	for _, columnName := range columnNames {
 		stmt, ok := after.LookupColumn(columnName)
 		if !ok {
-			return errors.Errorf(`failed to lookup column %s`, columnName)
+			return xerrors.Errorf(`failed to lookup column %s`, columnName)
 		}
 
 		beforeCol, hasBeforeCol := after.LookupColumnBefore(stmt.ID())
