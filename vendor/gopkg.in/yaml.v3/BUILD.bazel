@@ -17,7 +17,7 @@ go_library(
         "yamlh.go",
         "yamlprivateh.go",
     ],
-    importmap = "go.f110.dev/protoc-ddl/vendor/gopkg.in/yaml.v2",
-    importpath = "gopkg.in/yaml.v2",
+    importmap = "go.f110.dev/protoc-ddl/vendor/gopkg.in/yaml.v3",
+    importpath = "gopkg.in/yaml.v3",
     visibility = ["//visibility:public"],
 )
