@@ -11,11 +11,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pingcap/parser"
-	"github.com/pingcap/parser/ast"
-	"github.com/pingcap/parser/model"
-	"github.com/pingcap/parser/opcode"
-	"github.com/pingcap/parser/test_driver"
+	"github.com/pingcap/tidb/pkg/parser"
+	"github.com/pingcap/tidb/pkg/parser/ast"
+	"github.com/pingcap/tidb/pkg/parser/model"
+	"github.com/pingcap/tidb/pkg/parser/opcode"
+	"github.com/pingcap/tidb/pkg/parser/test_driver"
 	"google.golang.org/protobuf/types/descriptorpb"
 
 	"go.f110.dev/protoc-ddl/internal/schema"

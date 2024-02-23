@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/tidb/pkg/parser/ast"
 	"google.golang.org/protobuf/types/descriptorpb"
 
 	"go.f110.dev/protoc-ddl/internal/schema"

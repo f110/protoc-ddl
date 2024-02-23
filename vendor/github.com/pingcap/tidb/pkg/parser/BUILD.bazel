@@ -1,0 +1,37 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+exports_files([
+    "go.mod",
+    "go.sum",
+])
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "digester.go",
+        "generate.go",
+        "hintparser.go",
+        "hintparserimpl.go",
+        "keywords.go",
+        "lexer.go",
+        "misc.go",
+        "parser.go",
+        "yy_parser.go",
+    ],
+    importmap = "go.f110.dev/protoc-ddl/vendor/github.com/pingcap/tidb/pkg/parser",
+    importpath = "github.com/pingcap/tidb/pkg/parser",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/pingcap/errors:go_default_library",
+        "//vendor/github.com/pingcap/tidb/pkg/parser/ast:go_default_library",
+        "//vendor/github.com/pingcap/tidb/pkg/parser/auth:go_default_library",
+        "//vendor/github.com/pingcap/tidb/pkg/parser/charset:go_default_library",
+        "//vendor/github.com/pingcap/tidb/pkg/parser/duration:go_default_library",
+        "//vendor/github.com/pingcap/tidb/pkg/parser/model:go_default_library",
+        "//vendor/github.com/pingcap/tidb/pkg/parser/mysql:go_default_library",
+        "//vendor/github.com/pingcap/tidb/pkg/parser/opcode:go_default_library",
+        "//vendor/github.com/pingcap/tidb/pkg/parser/terror:go_default_library",
+        "//vendor/github.com/pingcap/tidb/pkg/parser/tidb:go_default_library",
+        "//vendor/github.com/pingcap/tidb/pkg/parser/types:go_default_library",
+    ],
+)
