@@ -7,8 +7,8 @@ github.com/davecgh/go-spew/spew
 # github.com/deckarep/golang-set v0.0.0-20170826194844-b3af78e1d186
 ## explicit
 github.com/deckarep/golang-set
-# github.com/go-sql-driver/mysql v1.5.0
-## explicit; go 1.10
+# github.com/go-sql-driver/mysql v1.7.1
+## explicit; go 1.13
 github.com/go-sql-driver/mysql
 # github.com/google/go-cmp v0.5.0
 ## explicit; go 1.8
