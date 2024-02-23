@@ -9,15 +9,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/pingcap/parser/ast"
+	"google.golang.org/protobuf/types/descriptorpb"
 
 	"go.f110.dev/protoc-ddl/internal/schema"
 )
 
 type GoDAOMockGenerator struct{}
 
-func (g GoDAOMockGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOptions, messages *schema.Messages, daoPath string) {
+func (g GoDAOMockGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOptions, messages *schema.Messages, daoPath string) {
 	src := newBuffer()
 
 	entityPackageName := fileOpt.GetGoPackage()

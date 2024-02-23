@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"os"
 
-	"github.com/golang/protobuf/proto"
-	plugin_go "github.com/golang/protobuf/protoc-gen-go/plugin"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/pluginpb"
 
 	"go.f110.dev/protoc-ddl/internal/generator"
 	"go.f110.dev/protoc-ddl/internal/schema"
@@ -18,7 +18,7 @@ func main() {
 	}
 	opt, fileOpt, messages := schema.ProcessEntity(req)
 
-	var res plugin_go.CodeGeneratorResponse
+	var res pluginpb.CodeGeneratorResponse
 	buf := new(bytes.Buffer)
 
 	switch opt.Lang {
@@ -26,7 +26,7 @@ func main() {
 		generator.GoDAOGenerator{}.Generate(buf, fileOpt, messages)
 	}
 
-	res.File = append(res.File, &plugin_go.CodeGeneratorResponse_File{
+	res.File = append(res.File, &pluginpb.CodeGeneratorResponse_File{
 		Name:    proto.String(opt.OutputFile),
 		Content: proto.String(buf.String()),
 	})

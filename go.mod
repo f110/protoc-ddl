@@ -5,7 +5,6 @@ go 1.22.0
 require (
 	github.com/deckarep/golang-set v0.0.0-20170826194844-b3af78e1d186
 	github.com/go-sql-driver/mysql v1.5.0
-	github.com/golang/protobuf v1.4.2
 	github.com/pingcap/parser v0.0.0-20200623164729-3a18f1e5dceb
 	github.com/schemalex/schemalex v0.1.1
 	github.com/spf13/pflag v1.0.5

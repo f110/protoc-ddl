@@ -11,12 +11,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/pingcap/parser"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/model"
 	"github.com/pingcap/parser/opcode"
 	"github.com/pingcap/parser/test_driver"
+	"google.golang.org/protobuf/types/descriptorpb"
 
 	"go.f110.dev/protoc-ddl/internal/schema"
 )
@@ -25,7 +25,7 @@ const GoDAOGeneratorVersion = "v0.1"
 
 type GoDAOGenerator struct{}
 
-func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptor.FileOptions, messages *schema.Messages) {
+func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOptions, messages *schema.Messages) {
 	src := newBuffer()
 
 	entityPackageName := fileOpt.GetGoPackage()
