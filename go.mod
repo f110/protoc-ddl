@@ -9,7 +9,7 @@ require (
 	github.com/schemalex/schemalex v0.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
-	go.f110.dev/xerrors v0.0.0-20240209124622-0bd93472d674
+	go.f110.dev/xerrors v0.0.0-20240224082246-4c2cd39fbb8f
 	google.golang.org/protobuf v1.32.0
 )
 
@@ -25,7 +25,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.26.0 // indirect
+	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/exp v0.0.0-20240205201215-2c58cdc269a3 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b // indirect

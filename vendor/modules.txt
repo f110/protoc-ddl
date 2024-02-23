@@ -60,8 +60,8 @@ github.com/spf13/pflag
 ## explicit; go 1.20
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
-# go.f110.dev/xerrors v0.0.0-20240209124622-0bd93472d674
-## explicit; go 1.20
+# go.f110.dev/xerrors v0.0.0-20240224082246-4c2cd39fbb8f
+## explicit; go 1.22.0
 go.f110.dev/xerrors
 # go.uber.org/atomic v1.11.0
 ## explicit; go 1.18
@@ -69,7 +69,7 @@ go.uber.org/atomic
 # go.uber.org/multierr v1.11.0
 ## explicit; go 1.19
 go.uber.org/multierr
-# go.uber.org/zap v1.26.0
+# go.uber.org/zap v1.27.0
 ## explicit; go 1.19
 go.uber.org/zap
 go.uber.org/zap/buffer

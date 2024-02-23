@@ -56,12 +56,24 @@ func (e *Error) StackTrace() Frames {
 	return StackTrace(e)
 }
 
+// New returns an error.
 func New(msg string) error {
 	return &Error{msg: msg}
 }
 
+// Newf returns an error with formatted text.
 func Newf(format string, a ...any) error {
 	return &Error{msg: fmt.Sprintf(format, a...)}
+}
+
+// NewWithStack returns an error with a stack trace.
+func NewWithStack(msg string) error {
+	return &Error{msg: msg, stackTrace: caller()}
+}
+
+// NewfWithStack returns an error with formatted text and a stack trace.
+func NewfWithStack(format string, a ...any) error {
+	return &Error{msg: fmt.Sprintf(format, a...), stackTrace: caller()}
 }
 
 // WithStack annotates err with a stack trace.
