@@ -4,14 +4,12 @@ github.com/BurntSushi/toml
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/deckarep/golang-set v0.0.0-20170826194844-b3af78e1d186
-## explicit
-github.com/deckarep/golang-set
+# github.com/deckarep/golang-set/v2 v2.6.0
+## explicit; go 1.18
+github.com/deckarep/golang-set/v2
 # github.com/go-sql-driver/mysql v1.7.1
 ## explicit; go 1.13
 github.com/go-sql-driver/mysql
-# github.com/google/go-cmp v0.5.5
-## explicit; go 1.8
 # github.com/kr/text v0.2.0
 ## explicit
 # github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e

@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"sort"
 
-	mapset "github.com/deckarep/golang-set"
+	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/schemalex/schemalex"
 	"github.com/schemalex/schemalex/format"
 	"github.com/schemalex/schemalex/model"
@@ -59,7 +59,7 @@ func (d *Diff) Query() string {
 }
 
 func (d *Diff) parse() error {
-	fromSet := mapset.NewSet()
+	fromSet := mapset.NewSet[string]()
 	for _, stmt := range d.fromStatement {
 		if cs, ok := stmt.(model.Table); ok {
 			if cs.Name() == SchemaVersionTable.TableName {
@@ -68,7 +68,7 @@ func (d *Diff) parse() error {
 			fromSet.Add(cs.ID())
 		}
 	}
-	toSet := mapset.NewSet()
+	toSet := mapset.NewSet[string]()
 	for _, stmt := range d.toStatement {
 		if cs, ok := stmt.(model.Table); ok {
 			toSet.Add(cs.ID())
@@ -92,7 +92,7 @@ func (d *Diff) addQuery(query string) {
 	d.queries = append(d.queries, query)
 }
 
-func (d *Diff) dropTable(fromSet, toSet mapset.Set) error {
+func (d *Diff) dropTable(fromSet, toSet mapset.Set[string]) error {
 	var buf bytes.Buffer
 	ids := fromSet.Difference(toSet)
 	for i, id := range ids.ToSlice() {
@@ -100,14 +100,14 @@ func (d *Diff) dropTable(fromSet, toSet mapset.Set) error {
 			buf.WriteByte('\n')
 		}
 
-		stmt, ok := d.fromStatement.Lookup(id.(string))
+		stmt, ok := d.fromStatement.Lookup(id)
 		if !ok {
-			return xerrors.Errorf("%s not found from source", id.(string))
+			return xerrors.Errorf("%s not found from source", id)
 		}
 
 		table, ok := stmt.(model.Table)
 		if !ok {
-			return xerrors.Errorf("%s not found from target", id.(string))
+			return xerrors.Errorf("%s not found from target", id)
 		}
 		d.addQuery(fmt.Sprintf("DROP TABLE `%s`", table.Name()))
 	}
@@ -115,13 +115,13 @@ func (d *Diff) dropTable(fromSet, toSet mapset.Set) error {
 	return nil
 }
 
-func (d *Diff) createTable(fromSet, toSet mapset.Set) error {
+func (d *Diff) createTable(fromSet, toSet mapset.Set[string]) error {
 	ids := toSet.Difference(fromSet)
 	buf := new(bytes.Buffer)
 	for _, id := range ids.ToSlice() {
-		stmt, ok := d.toStatement.Lookup(id.(string))
+		stmt, ok := d.toStatement.Lookup(id)
 		if !ok {
-			return xerrors.Errorf("%s not found from target", id.(string))
+			return xerrors.Errorf("%s not found from target", id)
 		}
 
 		if err := format.SQL(buf, stmt); err != nil {
@@ -134,40 +134,40 @@ func (d *Diff) createTable(fromSet, toSet mapset.Set) error {
 	return nil
 }
 
-func (d *Diff) alterTable(fromSet, toSet mapset.Set) error {
+func (d *Diff) alterTable(fromSet, toSet mapset.Set[string]) error {
 	ids := toSet.Intersect(fromSet)
 	for _, id := range ids.ToSlice() {
 		var stmt model.Stmt
 		var ok bool
 
-		stmt, ok = d.fromStatement.Lookup(id.(string))
+		stmt, ok = d.fromStatement.Lookup(id)
 		if !ok {
-			return xerrors.Errorf("%s not found from source", id.(string))
+			return xerrors.Errorf("%s not found from source", id)
 		}
 		beforeStmt := stmt.(model.Table)
 
-		stmt, ok = d.toStatement.Lookup(id.(string))
+		stmt, ok = d.toStatement.Lookup(id)
 		if !ok {
-			return xerrors.Errorf("%s not found from target", id.(string))
+			return xerrors.Errorf("%s not found from target", id)
 		}
 		afterStmt := stmt.(model.Table)
 
-		fromColumns := mapset.NewSet()
+		fromColumns := mapset.NewSet[string]()
 		for col := range beforeStmt.Columns() {
 			fromColumns.Add(col.ID())
 		}
 
-		toColumns := mapset.NewSet()
+		toColumns := mapset.NewSet[string]()
 		for col := range afterStmt.Columns() {
 			toColumns.Add(col.ID())
 		}
 
-		fromIndexes := mapset.NewSet()
+		fromIndexes := mapset.NewSet[string]()
 		for idx := range beforeStmt.Indexes() {
 			fromIndexes.Add(idx.ID())
 		}
 
-		toIndexes := mapset.NewSet()
+		toIndexes := mapset.NewSet[string]()
 		for idx := range afterStmt.Indexes() {
 			toIndexes.Add(idx.ID())
 		}
@@ -192,13 +192,13 @@ func (d *Diff) alterTable(fromSet, toSet mapset.Set) error {
 	return nil
 }
 
-func (d *Diff) dropTableIndexes(before, after model.Table, fromIndexes, toIndexes mapset.Set) error {
+func (d *Diff) dropTableIndexes(before, after model.Table, fromIndexes, toIndexes mapset.Set[string]) error {
 	indexes := fromIndexes.Difference(toIndexes)
 	lazy := make([]model.Index, 0, indexes.Cardinality())
 	for _, index := range indexes.ToSlice() {
-		indexStmt, ok := before.LookupIndex(index.(string))
+		indexStmt, ok := before.LookupIndex(index)
 		if !ok {
-			return xerrors.Errorf("%s not found from source", index.(string))
+			return xerrors.Errorf("%s not found from source", index)
 		}
 
 		if indexStmt.IsPrimaryKey() {
@@ -236,11 +236,11 @@ func (d *Diff) dropTableIndexes(before, after model.Table, fromIndexes, toIndexe
 	return nil
 }
 
-func (d *Diff) dropTableColumns(before model.Table, fromColumns, toColumns mapset.Set) error {
+func (d *Diff) dropTableColumns(before model.Table, fromColumns, toColumns mapset.Set[string]) error {
 	columnNames := fromColumns.Difference(toColumns)
 
 	for _, columnName := range columnNames.ToSlice() {
-		col, ok := before.LookupColumn(columnName.(string))
+		col, ok := before.LookupColumn(columnName)
 		if !ok {
 			return xerrors.Errorf(`failed to lookup column %s`, columnName)
 		}
@@ -251,13 +251,13 @@ func (d *Diff) dropTableColumns(before model.Table, fromColumns, toColumns mapse
 	return nil
 }
 
-func (d *Diff) addTableColumns(before, after model.Table, fromColumns, toColumns mapset.Set) error {
+func (d *Diff) addTableColumns(before, after model.Table, fromColumns, toColumns mapset.Set[string]) error {
 	beforeToNext := make(map[string]string)
 	nextToBefore := make(map[string]string)
 
 	var firstColumn model.TableColumn
 	for _, v := range toColumns.Difference(fromColumns).ToSlice() {
-		columnName := v.(string)
+		columnName := v
 		col, ok := after.LookupColumn(columnName)
 		if !ok {
 			return xerrors.Errorf(`failed to lookup column %s`, columnName)
@@ -281,7 +281,7 @@ func (d *Diff) addTableColumns(before, after model.Table, fromColumns, toColumns
 
 	var columnNames []string
 	for _, v := range toColumns.Intersect(fromColumns).ToSlice() {
-		columnName := v.(string)
+		columnName := v
 		if nextColumnName, ok := beforeToNext[columnName]; ok {
 			delete(beforeToNext, columnName)
 			delete(nextToBefore, nextColumnName)
@@ -344,16 +344,16 @@ func (d *Diff) writeAddColumnQuery(before, after model.Table, columnNames ...str
 	return nil
 }
 
-func (d *Diff) alterTableColumns(before, after model.Table, fromColumns, toColumns mapset.Set) error {
+func (d *Diff) alterTableColumns(before, after model.Table, fromColumns, toColumns mapset.Set[string]) error {
 	buf := new(bytes.Buffer)
 	columnNames := toColumns.Intersect(fromColumns)
 	for _, columnName := range columnNames.ToSlice() {
-		beforeColumnStmt, ok := before.LookupColumn(columnName.(string))
+		beforeColumnStmt, ok := before.LookupColumn(columnName)
 		if !ok {
 			return xerrors.Errorf(`column %s not found in old schema`, columnName)
 		}
 
-		afterColumnStmt, ok := after.LookupColumn(columnName.(string))
+		afterColumnStmt, ok := after.LookupColumn(columnName)
 		if !ok {
 			return xerrors.Errorf(`column %s not found in new schema`, columnName)
 		}
@@ -372,12 +372,12 @@ func (d *Diff) alterTableColumns(before, after model.Table, fromColumns, toColum
 	return nil
 }
 
-func (d *Diff) addTableIndexes(before, after model.Table, fromIndexes, toIndexes mapset.Set) error {
+func (d *Diff) addTableIndexes(before, after model.Table, fromIndexes, toIndexes mapset.Set[string]) error {
 	buf := new(bytes.Buffer)
 	indexes := toIndexes.Difference(fromIndexes)
 	lazy := make([]model.Index, 0, indexes.Cardinality())
 	for _, index := range indexes.ToSlice() {
-		indexStmt, ok := after.LookupIndex(index.(string))
+		indexStmt, ok := after.LookupIndex(index)
 		if !ok {
 			return xerrors.Errorf(`index '%s' not found in old schema (add index)`, index)
 		}

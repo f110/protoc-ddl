@@ -18,6 +18,7 @@ sample/dao/daotest/schema.mock.go: sample/schema.proto
 gen-sample: sample/schema.sql sample/schema.entity.go sample/dao/schema.dao.go sample/dao/daotest/schema.mock.go
 
 update-deps:
+	go mod tidy
 	go mod vendor
 	bazel run //:vendor_proto_source
 	bazel run //:gazelle -- update
