@@ -1,6 +1,6 @@
 module go.f110.dev/protoc-ddl
 
-go 1.18
+go 1.22.0
 
 require (
 	github.com/deckarep/golang-set v0.0.0-20170826194844-b3af78e1d186
