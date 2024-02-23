@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/spf13/pflag"
-	"golang.org/x/xerrors"
+	"go.f110.dev/xerrors"
 
 	"go.f110.dev/protoc-ddl/internal/migrate"
 )
@@ -26,17 +26,17 @@ func do(args []string) error {
 	fs.StringVar(&opt.DSN, "dsn", "", "DSN of target database")
 	fs.BoolVarP(&opt.Execute, "execute", "f", false, "Execute migration")
 	if err := fs.Parse(args); err != nil {
-		return xerrors.Errorf(": %w", err)
+		return xerrors.WithStack(err)
 	}
 
 	m, err := migrate.NewMigration(opt.SchemaFile, opt.Driver, opt.DSN)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 
 	err = m.Execute(context.Background(), opt.Execute)
 	if err != nil {
-		return xerrors.Errorf(": %w", err)
+		return err
 	}
 
 	return nil

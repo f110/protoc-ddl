@@ -5,5 +5,5 @@ go_library(
     srcs = ["mock.go"],
     importpath = "go.f110.dev/protoc-ddl/mock",
     visibility = ["//visibility:public"],
-    deps = ["//vendor/golang.org/x/xerrors:go_default_library"],
+    deps = ["//vendor/go.f110.dev/xerrors:go_default_library"],
 )
