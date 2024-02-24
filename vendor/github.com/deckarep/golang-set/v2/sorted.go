@@ -1,8 +1,11 @@
+//go:build go1.21
+// +build go1.21
+
 /*
 Open Source Initiative OSI - The MIT License (MIT):Licensing
 
 The MIT License (MIT)
-Copyright (c) 2013 Ralph Caraveo (deckarep@gmail.com)
+Copyright (c) 2013 - 2023 Ralph Caraveo (deckarep@gmail.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -25,34 +28,15 @@ SOFTWARE.
 
 package mapset
 
-// Iterator defines an iterator over a Set, its C channel can be used to range over the Set's
-// elements.
-type Iterator struct {
-	C    <-chan interface{}
-	stop chan struct{}
-}
+import (
+	"cmp"
+	"slices"
+)
 
-// Stop stops the Iterator, no further elements will be received on C, C will be closed.
-func (i *Iterator) Stop() {
-	// Allows for Stop() to be called multiple times
-	// (close() panics when called on already closed channel)
-	defer func() {
-		recover()
-	}()
-
-	close(i.stop)
-
-	// Exhaust any remaining elements.
-	for range i.C {
-	}
-}
-
-// newIterator returns a new Iterator instance together with its item and stop channels.
-func newIterator() (*Iterator, chan<- interface{}, <-chan struct{}) {
-	itemChan := make(chan interface{})
-	stopChan := make(chan struct{})
-	return &Iterator{
-		C:    itemChan,
-		stop: stopChan,
-	}, itemChan, stopChan
+// Sorted returns a sorted slice of a set of any ordered type in ascending order.
+// When sorting floating-point numbers, NaNs are ordered before other values.
+func Sorted[E cmp.Ordered](set Set[E]) []E {
+	s := set.ToSlice()
+	slices.Sort(s)
+	return s
 }

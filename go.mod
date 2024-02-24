@@ -3,7 +3,7 @@ module go.f110.dev/protoc-ddl
 go 1.22.0
 
 require (
-	github.com/deckarep/golang-set v0.0.0-20170826194844-b3af78e1d186
+	github.com/deckarep/golang-set/v2 v2.6.0
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/pingcap/parser v0.0.0-20200623164729-3a18f1e5dceb
 	github.com/schemalex/schemalex v0.1.1
@@ -16,7 +16,6 @@ require (
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pingcap/check v0.0.0-20200212061837-5e12011dc712 // indirect

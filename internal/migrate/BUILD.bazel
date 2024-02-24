@@ -11,7 +11,7 @@ go_library(
     deps = [
         "//internal/generator:go_default_library",
         "//internal/schema:go_default_library",
-        "//vendor/github.com/deckarep/golang-set:go_default_library",
+        "//vendor/github.com/deckarep/golang-set/v2:go_default_library",
         "//vendor/github.com/go-sql-driver/mysql:go_default_library",
         "//vendor/github.com/schemalex/schemalex:go_default_library",
         "//vendor/github.com/schemalex/schemalex/format:go_default_library",
