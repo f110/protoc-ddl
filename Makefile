@@ -20,6 +20,7 @@ gen-sample: sample/schema.sql sample/schema.entity.go sample/dao/schema.dao.go s
 update-deps:
 	go mod tidy
 	go mod vendor
+	find vendor -name BUILD.bazel -delete
 	bazel run //:vendor_proto_source
 	bazel run //:gazelle -- update
 
