@@ -1,7 +1,7 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
-load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@gazelle//:def.bzl", "gazelle")
 
 # gazelle:prefix go.f110.dev/protoc-ddl
 # gazelle:proto disable_global
@@ -23,6 +23,14 @@ go_proto_library(
     visibility = ["//visibility:public"],
 )
 
+load("//build:proto.bzl", "vendor_proto_source")
+
+vendor_proto_source(
+    name = "vendor_proto_source",
+    src = ":ddl_go_proto",
+    visibility = ["//visibility:public"],
+)
+
 go_library(
     name = "go_default_library",
     srcs = [
@@ -36,12 +44,4 @@ go_library(
         "//vendor/google.golang.org/protobuf/runtime/protoimpl:go_default_library",
         "//vendor/google.golang.org/protobuf/types/descriptorpb:go_default_library",
     ],
-)
-
-load("//build:proto.bzl", "vendor_proto_source")
-
-vendor_proto_source(
-    name = "vendor_proto_source",
-    src = ":ddl_go_proto",
-    visibility = ["//visibility:public"],
 )
