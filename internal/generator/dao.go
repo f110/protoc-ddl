@@ -130,6 +130,9 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOp
 		src.Writef("type %sInterface interface {", m.Descriptor.GetName())
 		src.WriteInterface(s.Tx(nil))
 		src.WriteInterface(s.PrimaryKeySelect(nil))
+		if len(m.PrimaryKeys) == 1 {
+			src.WriteInterface(s.PrimaryKeyMultiSelect())
+		}
 		src.WriteInterface(s.Select(nil)...)
 		src.WriteInterface(s.Create(nil), s.Update(nil), s.Delete(nil))
 		src.Write("}")
@@ -148,6 +151,7 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOp
 		src.LineBreak()
 
 		src.WriteFunc(s.PrimaryKeySelect(g.primaryKeySelect))
+		src.WriteFunc(s.PrimaryKeyMultiSelect())
 		src.WriteFunc(s.Select(g.selectRowQuery)...)
 		src.WriteFunc(s.Create(g.create), s.Delete(g.delete), s.Update(g.update))
 	})
@@ -416,11 +420,7 @@ func (g GoDAOGenerator) selectMultipleRowQuery(m *schema.Message, name string, s
 	src.WriteString("}\n")
 
 	if len(m.Relations) > 0 {
-		src.WriteString("if len(res) > 0 {\n")
-		src.WriteString("for _, v := range res {\n")
-		g.selectChildObject(src, m)
-		src.WriteString("}\n")
-		src.WriteString("}\n")
+		g.selectChildObjects(src, m)
 	}
 
 	src.WriteRune('\n')
@@ -459,10 +459,17 @@ func (g GoDAOGenerator) selectSingleRowQuery(m *schema.Message, name string, stm
 	src.WriteString("return v, nil\n")
 
 	return src.String()
-
 }
 
-func (g GoDAOGenerator) selectChildObject(src *Buffer, m *schema.Message) {
+func (g GoDAOGenerator) selectChildObjects(src *Buffer, m *schema.Message) {
+	src.WriteString("if len(res) > 0 {\n")
+	src.WriteString("for _, v := range res {\n")
+	g.selectChildObject(src, m)
+	src.WriteString("}\n")
+	src.WriteString("}\n")
+}
+
+func (GoDAOGenerator) selectChildObject(src *Buffer, m *schema.Message) {
 	if len(m.Relations) == 0 {
 		return
 	}
@@ -645,6 +652,55 @@ func (s *GoDAOStruct) PrimaryKeySelect(
 	}
 	if body != nil {
 		f.Body = body(s.entityPackageName, s.m, args, where, whereArgs)
+	}
+	return f
+}
+
+func (s *GoDAOStruct) PrimaryKeyMultiSelect() *goFunc {
+	if len(s.m.PrimaryKeys) != 1 {
+		return nil
+	}
+	funcArgs := fieldList{{Name: "ctx", Type: "context.Context"}}
+	funcArgs = append(funcArgs, &field{Name: schema.ToLowerCamel(s.m.PrimaryKeys[0].Name), Type: "..." + GoDataTypeMap[s.m.PrimaryKeys[0].Type]})
+
+	src := newBuffer()
+	src.Writef("inCause := strings.Repeat(\"?, \", len(%s))", schema.ToLowerCamel(s.m.PrimaryKeys[0].Name))
+	src.Writef("rows, err := d.conn.QueryContext(ctx,fmt.Sprintf(\"SELECT * FROM `%s` WHERE `%s` IN (%%s)\", inCause[:len(inCause)-2]))", s.m.TableName, s.m.PrimaryKeys[0].Name)
+	src.WriteString("if err != nil {\nreturn nil, err\n}\n")
+	src.LineBreak()
+	src.Writef("res := make([]*%s.%s,0,len(%s))", s.entityPackageName, s.m.Descriptor.GetName(), schema.ToLowerCamel(s.m.PrimaryKeys[0].Name))
+	src.WriteString("for rows.Next() {\n")
+	src.WriteString(fmt.Sprintf("r := &%s.%s{}\n", s.entityPackageName, s.m.Descriptor.GetName()))
+	cols := make([]string, 0)
+	fields := make([]*ast.SelectField, 0)
+	for _, v := range s.m.Fields.List() {
+		cols = append(cols, v.Name)
+		fields = append(fields, &ast.SelectField{
+			Expr: &ast.ColumnNameExpr{
+				Name: &ast.ColumnName{Name: model.NewCIStr(v.Name)},
+			},
+		})
+	}
+	scanCols := make([]string, len(cols))
+	for i, v := range cols {
+		scanCols[i] = "&r." + schema.ToCamel(v)
+	}
+	src.WriteString(fmt.Sprintf("if err := rows.Scan(%s); err != nil {\n", strings.Join(scanCols, ",")))
+	src.WriteString("return nil, err\n")
+	src.WriteString("}\n")
+	src.WriteString("}\n")
+	src.LineBreak()
+	src.WriteString("return res, nil\n")
+
+	f := &goFunc{
+		Name:     "SelectMulti",
+		Receiver: &field{Name: "d", Type: s.m.Descriptor.GetName(), Pointer: true},
+		Args:     funcArgs,
+		Returns: []*field{
+			{Slice: true, Type: s.entityPackageName + "." + s.m.Descriptor.GetName(), Pointer: true},
+			{Type: "error"},
+		},
+		Body: src.String(),
 	}
 	return f
 }

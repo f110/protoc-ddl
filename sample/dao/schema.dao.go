@@ -76,6 +76,7 @@ type User struct {
 type UserInterface interface {
 	Tx(ctx context.Context, fn func(tx *sql.Tx) error) error
 	Select(ctx context.Context, id int32) (*sample.User, error)
+	SelectMulti(ctx context.Context, id ...int32) ([]*sample.User, error)
 	ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, error)
 	ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample.User, error)
 	Create(ctx context.Context, user *sample.User, opt ...ExecOption) (*sample.User, error)
@@ -121,6 +122,25 @@ func (d *User) Select(ctx context.Context, id int32) (*sample.User, error) {
 
 	v.ResetMark()
 	return v, nil
+
+}
+
+func (d *User) SelectMulti(ctx context.Context, id ...int32) ([]*sample.User, error) {
+	inCause := strings.Repeat("?, ", len(id))
+	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `users` WHERE `id` IN (%s)", inCause[:len(inCause)-2]))
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]*sample.User, 0, len(id))
+	for rows.Next() {
+		r := &sample.User{}
+		if err := rows.Scan(&r.Id, &r.Age, &r.Name, &r.Title, &r.LastName, &r.Status, &r.CreatedAt); err != nil {
+			return nil, err
+		}
+	}
+
+	return res, nil
 
 }
 
@@ -308,6 +328,7 @@ type Blog struct {
 type BlogInterface interface {
 	Tx(ctx context.Context, fn func(tx *sql.Tx) error) error
 	Select(ctx context.Context, id int64) (*sample.Blog, error)
+	SelectMulti(ctx context.Context, id ...int64) ([]*sample.Blog, error)
 	ListByTitle(ctx context.Context, title string, opt ...ListOption) ([]*sample.Blog, error)
 	ListByUserAndCategory(ctx context.Context, userId int32, categoryId int32, opt ...ListOption) ([]*sample.Blog, error)
 	SelectByUserAndTitle(ctx context.Context, userId int32, title string) (*sample.Blog, error)
@@ -366,6 +387,25 @@ func (d *Blog) Select(ctx context.Context, id int64) (*sample.Blog, error) {
 
 	v.ResetMark()
 	return v, nil
+
+}
+
+func (d *Blog) SelectMulti(ctx context.Context, id ...int64) ([]*sample.Blog, error) {
+	inCause := strings.Repeat("?, ", len(id))
+	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `blog` WHERE `id` IN (%s)", inCause[:len(inCause)-2]))
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]*sample.Blog, 0, len(id))
+	for rows.Next() {
+		r := &sample.Blog{}
+		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.Sign, &r.CreatedAt, &r.UpdatedAt); err != nil {
+			return nil, err
+		}
+	}
+
+	return res, nil
 
 }
 
@@ -1028,6 +1068,7 @@ type Reply struct {
 type ReplyInterface interface {
 	Tx(ctx context.Context, fn func(tx *sql.Tx) error) error
 	Select(ctx context.Context, id int32) (*sample.Reply, error)
+	SelectMulti(ctx context.Context, id ...int32) ([]*sample.Reply, error)
 	ListByBody(ctx context.Context, body string, opt ...ListOption) ([]*sample.Reply, error)
 	Create(ctx context.Context, reply *sample.Reply, opt ...ExecOption) (*sample.Reply, error)
 	Update(ctx context.Context, reply *sample.Reply, opt ...ExecOption) error
@@ -1081,6 +1122,25 @@ func (d *Reply) Select(ctx context.Context, id int32) (*sample.Reply, error) {
 
 	v.ResetMark()
 	return v, nil
+
+}
+
+func (d *Reply) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Reply, error) {
+	inCause := strings.Repeat("?, ", len(id))
+	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `reply` WHERE `id` IN (%s)", inCause[:len(inCause)-2]))
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]*sample.Reply, 0, len(id))
+	for rows.Next() {
+		r := &sample.Reply{}
+		if err := rows.Scan(&r.Id, &r.CommentBlogId, &r.CommentUserId, &r.Body); err != nil {
+			return nil, err
+		}
+	}
+
+	return res, nil
 
 }
 
@@ -1245,6 +1305,7 @@ type Like struct {
 type LikeInterface interface {
 	Tx(ctx context.Context, fn func(tx *sql.Tx) error) error
 	Select(ctx context.Context, id uint64) (*sample.Like, error)
+	SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, error)
 	Create(ctx context.Context, like *sample.Like, opt ...ExecOption) (*sample.Like, error)
 	Update(ctx context.Context, like *sample.Like, opt ...ExecOption) error
 	Delete(ctx context.Context, id uint64, opt ...ExecOption) error
@@ -1301,6 +1362,25 @@ func (d *Like) Select(ctx context.Context, id uint64) (*sample.Like, error) {
 
 	v.ResetMark()
 	return v, nil
+
+}
+
+func (d *Like) SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, error) {
+	inCause := strings.Repeat("?, ", len(id))
+	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `like` WHERE `id` IN (%s)", inCause[:len(inCause)-2]))
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]*sample.Like, 0, len(id))
+	for rows.Next() {
+		r := &sample.Like{}
+		if err := rows.Scan(&r.Id, &r.UserId, &r.BlogId); err != nil {
+			return nil, err
+		}
+	}
+
+	return res, nil
 
 }
 
@@ -1412,6 +1492,7 @@ type PostImage struct {
 type PostImageInterface interface {
 	Tx(ctx context.Context, fn func(tx *sql.Tx) error) error
 	Select(ctx context.Context, id int32) (*sample.PostImage, error)
+	SelectMulti(ctx context.Context, id ...int32) ([]*sample.PostImage, error)
 	Create(ctx context.Context, postImage *sample.PostImage, opt ...ExecOption) (*sample.PostImage, error)
 	Update(ctx context.Context, postImage *sample.PostImage, opt ...ExecOption) error
 	Delete(ctx context.Context, id int32, opt ...ExecOption) error
@@ -1455,6 +1536,25 @@ func (d *PostImage) Select(ctx context.Context, id int32) (*sample.PostImage, er
 
 	v.ResetMark()
 	return v, nil
+
+}
+
+func (d *PostImage) SelectMulti(ctx context.Context, id ...int32) ([]*sample.PostImage, error) {
+	inCause := strings.Repeat("?, ", len(id))
+	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `post_image` WHERE `id` IN (%s)", inCause[:len(inCause)-2]))
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]*sample.PostImage, 0, len(id))
+	for rows.Next() {
+		r := &sample.PostImage{}
+		if err := rows.Scan(&r.Id, &r.Url); err != nil {
+			return nil, err
+		}
+	}
+
+	return res, nil
 
 }
 
@@ -1563,6 +1663,7 @@ type Task struct {
 type TaskInterface interface {
 	Tx(ctx context.Context, fn func(tx *sql.Tx) error) error
 	Select(ctx context.Context, id int32) (*sample.Task, error)
+	SelectMulti(ctx context.Context, id ...int32) ([]*sample.Task, error)
 	ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, error)
 	ListPending(ctx context.Context, opt ...ListOption) ([]*sample.Task, error)
 	Create(ctx context.Context, task *sample.Task, opt ...ExecOption) (*sample.Task, error)
@@ -1615,6 +1716,25 @@ func (d *Task) Select(ctx context.Context, id int32) (*sample.Task, error) {
 
 	v.ResetMark()
 	return v, nil
+
+}
+
+func (d *Task) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Task, error) {
+	inCause := strings.Repeat("?, ", len(id))
+	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `task` WHERE `id` IN (%s)", inCause[:len(inCause)-2]))
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]*sample.Task, 0, len(id))
+	for rows.Next() {
+		r := &sample.Task{}
+		if err := rows.Scan(&r.Id, &r.ImageId, &r.StartAt); err != nil {
+			return nil, err
+		}
+	}
+
+	return res, nil
 
 }
 
