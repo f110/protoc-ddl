@@ -109,7 +109,6 @@ func (d *User) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 		return err
 	}
 	return nil
-
 }
 
 func (d *User) Select(ctx context.Context, id int32) (*sample.User, error) {
@@ -122,7 +121,6 @@ func (d *User) Select(ctx context.Context, id int32) (*sample.User, error) {
 
 	v.ResetMark()
 	return v, nil
-
 }
 
 func (d *User) SelectMulti(ctx context.Context, id ...int32) ([]*sample.User, error) {
@@ -141,7 +139,6 @@ func (d *User) SelectMulti(ctx context.Context, id ...int32) ([]*sample.User, er
 	}
 
 	return res, nil
-
 }
 
 func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, error) {
@@ -178,7 +175,6 @@ func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, 
 	}
 
 	return res, nil
-
 }
 
 func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample.User, error) {
@@ -215,7 +211,6 @@ func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample
 	}
 
 	return res, nil
-
 }
 
 func (d *User) Create(ctx context.Context, user *sample.User, opt ...ExecOption) (*sample.User, error) {
@@ -251,7 +246,6 @@ func (d *User) Create(ctx context.Context, user *sample.User, opt ...ExecOption)
 
 	user.ResetMark()
 	return user, nil
-
 }
 
 func (d *User) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
@@ -275,7 +269,6 @@ func (d *User) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
 	}
 
 	return nil
-
 }
 
 func (d *User) Update(ctx context.Context, user *sample.User, opt ...ExecOption) error {
@@ -316,7 +309,6 @@ func (d *User) Update(ctx context.Context, user *sample.User, opt ...ExecOption)
 
 	user.ResetMark()
 	return nil
-
 }
 
 type Blog struct {
@@ -363,7 +355,6 @@ func (d *Blog) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 		return err
 	}
 	return nil
-
 }
 
 func (d *Blog) Select(ctx context.Context, id int64) (*sample.Blog, error) {
@@ -387,7 +378,6 @@ func (d *Blog) Select(ctx context.Context, id int64) (*sample.Blog, error) {
 
 	v.ResetMark()
 	return v, nil
-
 }
 
 func (d *Blog) SelectMulti(ctx context.Context, id ...int64) ([]*sample.Blog, error) {
@@ -405,8 +395,33 @@ func (d *Blog) SelectMulti(ctx context.Context, id ...int64) ([]*sample.Blog, er
 		}
 	}
 
+	if len(res) > 0 {
+		userPrimaryKeys := make([]int32, len(res))
+		editorPrimaryKeys := make([]int32, len(res))
+		for i, v := range res {
+			userPrimaryKeys[i] = v.UserId
+			editorPrimaryKeys[i] = v.EditorId
+		}
+		userData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
+			for _, v := range rels {
+				userData[v.Id] = v
+			}
+		}
+		editorData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, editorPrimaryKeys...)
+			for _, v := range rels {
+				editorData[v.Id] = v
+			}
+		}
+		for _, v := range res {
+			v.User = userData[v.UserId]
+			v.Editor = editorData[v.EditorId]
+		}
+	}
 	return res, nil
-
 }
 
 func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption) ([]*sample.Blog, error) {
@@ -443,23 +458,33 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 		res = append(res, r)
 	}
 	if len(res) > 0 {
+		userPrimaryKeys := make([]int32, len(res))
+		editorPrimaryKeys := make([]int32, len(res))
+		for i, v := range res {
+			userPrimaryKeys[i] = v.UserId
+			editorPrimaryKeys[i] = v.EditorId
+		}
+		userData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
+			for _, v := range rels {
+				userData[v.Id] = v
+			}
+		}
+		editorData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, editorPrimaryKeys...)
+			for _, v := range rels {
+				editorData[v.Id] = v
+			}
+		}
 		for _, v := range res {
-			{
-				if rel, _ := d.user.Select(ctx, v.EditorId); rel != nil {
-					v.Editor = rel
-				}
-			}
-			{
-				if rel, _ := d.user.Select(ctx, v.UserId); rel != nil {
-					v.User = rel
-				}
-			}
-
+			v.User = userData[v.UserId]
+			v.Editor = editorData[v.EditorId]
 		}
 	}
 
 	return res, nil
-
 }
 
 func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, categoryId int32, opt ...ListOption) ([]*sample.Blog, error) {
@@ -497,23 +522,33 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 		res = append(res, r)
 	}
 	if len(res) > 0 {
+		userPrimaryKeys := make([]int32, len(res))
+		editorPrimaryKeys := make([]int32, len(res))
+		for i, v := range res {
+			userPrimaryKeys[i] = v.UserId
+			editorPrimaryKeys[i] = v.EditorId
+		}
+		userData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
+			for _, v := range rels {
+				userData[v.Id] = v
+			}
+		}
+		editorData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, editorPrimaryKeys...)
+			for _, v := range rels {
+				editorData[v.Id] = v
+			}
+		}
 		for _, v := range res {
-			{
-				if rel, _ := d.user.Select(ctx, v.EditorId); rel != nil {
-					v.Editor = rel
-				}
-			}
-			{
-				if rel, _ := d.user.Select(ctx, v.UserId); rel != nil {
-					v.User = rel
-				}
-			}
-
+			v.User = userData[v.UserId]
+			v.Editor = editorData[v.EditorId]
 		}
 	}
 
 	return res, nil
-
 }
 
 func (d *Blog) SelectByUserAndTitle(ctx context.Context, userId int32, title string) (*sample.Blog, error) {
@@ -541,7 +576,6 @@ func (d *Blog) SelectByUserAndTitle(ctx context.Context, userId int32, title str
 
 	v.ResetMark()
 	return v, nil
-
 }
 
 func (d *Blog) Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption) (*sample.Blog, error) {
@@ -577,7 +611,6 @@ func (d *Blog) Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption)
 
 	blog.ResetMark()
 	return blog, nil
-
 }
 
 func (d *Blog) Delete(ctx context.Context, id int64, opt ...ExecOption) error {
@@ -601,7 +634,6 @@ func (d *Blog) Delete(ctx context.Context, id int64, opt ...ExecOption) error {
 	}
 
 	return nil
-
 }
 
 func (d *Blog) Update(ctx context.Context, blog *sample.Blog, opt ...ExecOption) error {
@@ -644,7 +676,6 @@ func (d *Blog) Update(ctx context.Context, blog *sample.Blog, opt ...ExecOption)
 
 	blog.ResetMark()
 	return nil
-
 }
 
 type CommentImage struct {
@@ -690,7 +721,6 @@ func (d *CommentImage) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error 
 		return err
 	}
 	return nil
-
 }
 
 func (d *CommentImage) Select(ctx context.Context, commentBlogId int64, commentUserId int32, likeId uint64) (*sample.CommentImage, error) {
@@ -714,7 +744,6 @@ func (d *CommentImage) Select(ctx context.Context, commentBlogId int64, commentU
 
 	v.ResetMark()
 	return v, nil
-
 }
 
 func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64, opt ...ListOption) ([]*sample.CommentImage, error) {
@@ -751,23 +780,31 @@ func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64, opt ...L
 		res = append(res, r)
 	}
 	if len(res) > 0 {
+		likePrimaryKeys := make([]uint64, len(res))
+		for i, v := range res {
+			likePrimaryKeys[i] = v.LikeId
+		}
+		likeData := make(map[uint64]*sample.Like)
+		{
+			rels, _ := d.like.SelectMulti(ctx, likePrimaryKeys...)
+			for _, v := range rels {
+				likeData[v.Id] = v
+			}
+		}
+		for _, v := range res {
+			v.Like = likeData[v.LikeId]
+		}
+
 		for _, v := range res {
 			{
 				if rel, _ := d.comment.Select(ctx, v.CommentBlogId, v.CommentUserId); rel != nil {
 					v.Comment = rel
 				}
 			}
-			{
-				if rel, _ := d.like.Select(ctx, v.LikeId); rel != nil {
-					v.Like = rel
-				}
-			}
-
 		}
 	}
 
 	return res, nil
-
 }
 
 func (d *CommentImage) Create(ctx context.Context, commentImage *sample.CommentImage, opt ...ExecOption) (*sample.CommentImage, error) {
@@ -798,7 +835,6 @@ func (d *CommentImage) Create(ctx context.Context, commentImage *sample.CommentI
 
 	commentImage.ResetMark()
 	return commentImage, nil
-
 }
 
 func (d *CommentImage) Delete(ctx context.Context, commentBlogId int64, commentUserId int32, likeId uint64, opt ...ExecOption) error {
@@ -822,7 +858,6 @@ func (d *CommentImage) Delete(ctx context.Context, commentBlogId int64, commentU
 	}
 
 	return nil
-
 }
 
 func (d *CommentImage) Update(ctx context.Context, commentImage *sample.CommentImage, opt ...ExecOption) error {
@@ -863,7 +898,6 @@ func (d *CommentImage) Update(ctx context.Context, commentImage *sample.CommentI
 
 	commentImage.ResetMark()
 	return nil
-
 }
 
 type Comment struct {
@@ -909,7 +943,6 @@ func (d *Comment) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 		return err
 	}
 	return nil
-
 }
 
 func (d *Comment) Select(ctx context.Context, blogId int64, userId int32) (*sample.Comment, error) {
@@ -933,7 +966,6 @@ func (d *Comment) Select(ctx context.Context, blogId int64, userId int32) (*samp
 
 	v.ResetMark()
 	return v, nil
-
 }
 
 func (d *Comment) SelectByUser(ctx context.Context, userId int32) (*sample.Comment, error) {
@@ -960,7 +992,6 @@ func (d *Comment) SelectByUser(ctx context.Context, userId int32) (*sample.Comme
 
 	v.ResetMark()
 	return v, nil
-
 }
 
 func (d *Comment) Create(ctx context.Context, comment *sample.Comment, opt ...ExecOption) (*sample.Comment, error) {
@@ -991,7 +1022,6 @@ func (d *Comment) Create(ctx context.Context, comment *sample.Comment, opt ...Ex
 
 	comment.ResetMark()
 	return comment, nil
-
 }
 
 func (d *Comment) Delete(ctx context.Context, blogId int64, userId int32, opt ...ExecOption) error {
@@ -1015,7 +1045,6 @@ func (d *Comment) Delete(ctx context.Context, blogId int64, userId int32, opt ..
 	}
 
 	return nil
-
 }
 
 func (d *Comment) Update(ctx context.Context, comment *sample.Comment, opt ...ExecOption) error {
@@ -1056,7 +1085,6 @@ func (d *Comment) Update(ctx context.Context, comment *sample.Comment, opt ...Ex
 
 	comment.ResetMark()
 	return nil
-
 }
 
 type Reply struct {
@@ -1101,7 +1129,6 @@ func (d *Reply) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 		return err
 	}
 	return nil
-
 }
 
 func (d *Reply) Select(ctx context.Context, id int32) (*sample.Reply, error) {
@@ -1122,7 +1149,6 @@ func (d *Reply) Select(ctx context.Context, id int32) (*sample.Reply, error) {
 
 	v.ResetMark()
 	return v, nil
-
 }
 
 func (d *Reply) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Reply, error) {
@@ -1140,8 +1166,19 @@ func (d *Reply) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Reply, 
 		}
 	}
 
-	return res, nil
+	if len(res) > 0 {
 
+		for _, v := range res {
+			{
+				if v.CommentBlogId != nil && v.CommentUserId != nil {
+					if rel, _ := d.comment.Select(ctx, *v.CommentBlogId, *v.CommentUserId); rel != nil {
+						v.Comment = rel
+					}
+				}
+			}
+		}
+	}
+	return res, nil
 }
 
 func (d *Reply) ListByBody(ctx context.Context, body string, opt ...ListOption) ([]*sample.Reply, error) {
@@ -1178,6 +1215,7 @@ func (d *Reply) ListByBody(ctx context.Context, body string, opt ...ListOption) 
 		res = append(res, r)
 	}
 	if len(res) > 0 {
+
 		for _, v := range res {
 			{
 				if v.CommentBlogId != nil && v.CommentUserId != nil {
@@ -1186,12 +1224,10 @@ func (d *Reply) ListByBody(ctx context.Context, body string, opt ...ListOption) 
 					}
 				}
 			}
-
 		}
 	}
 
 	return res, nil
-
 }
 
 func (d *Reply) Create(ctx context.Context, reply *sample.Reply, opt ...ExecOption) (*sample.Reply, error) {
@@ -1227,7 +1263,6 @@ func (d *Reply) Create(ctx context.Context, reply *sample.Reply, opt ...ExecOpti
 
 	reply.ResetMark()
 	return reply, nil
-
 }
 
 func (d *Reply) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
@@ -1251,7 +1286,6 @@ func (d *Reply) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
 	}
 
 	return nil
-
 }
 
 func (d *Reply) Update(ctx context.Context, reply *sample.Reply, opt ...ExecOption) error {
@@ -1292,7 +1326,6 @@ func (d *Reply) Update(ctx context.Context, reply *sample.Reply, opt ...ExecOpti
 
 	reply.ResetMark()
 	return nil
-
 }
 
 type Like struct {
@@ -1338,7 +1371,6 @@ func (d *Like) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 		return err
 	}
 	return nil
-
 }
 
 func (d *Like) Select(ctx context.Context, id uint64) (*sample.Like, error) {
@@ -1362,7 +1394,6 @@ func (d *Like) Select(ctx context.Context, id uint64) (*sample.Like, error) {
 
 	v.ResetMark()
 	return v, nil
-
 }
 
 func (d *Like) SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, error) {
@@ -1380,8 +1411,33 @@ func (d *Like) SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, e
 		}
 	}
 
+	if len(res) > 0 {
+		userPrimaryKeys := make([]int32, len(res))
+		blogPrimaryKeys := make([]int64, len(res))
+		for i, v := range res {
+			userPrimaryKeys[i] = v.UserId
+			blogPrimaryKeys[i] = v.BlogId
+		}
+		userData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
+			for _, v := range rels {
+				userData[v.Id] = v
+			}
+		}
+		blogData := make(map[int64]*sample.Blog)
+		{
+			rels, _ := d.blog.SelectMulti(ctx, blogPrimaryKeys...)
+			for _, v := range rels {
+				blogData[v.Id] = v
+			}
+		}
+		for _, v := range res {
+			v.User = userData[v.UserId]
+			v.Blog = blogData[v.BlogId]
+		}
+	}
 	return res, nil
-
 }
 
 func (d *Like) Create(ctx context.Context, like *sample.Like, opt ...ExecOption) (*sample.Like, error) {
@@ -1417,7 +1473,6 @@ func (d *Like) Create(ctx context.Context, like *sample.Like, opt ...ExecOption)
 
 	like.ResetMark()
 	return like, nil
-
 }
 
 func (d *Like) Delete(ctx context.Context, id uint64, opt ...ExecOption) error {
@@ -1441,7 +1496,6 @@ func (d *Like) Delete(ctx context.Context, id uint64, opt ...ExecOption) error {
 	}
 
 	return nil
-
 }
 
 func (d *Like) Update(ctx context.Context, like *sample.Like, opt ...ExecOption) error {
@@ -1482,7 +1536,6 @@ func (d *Like) Update(ctx context.Context, like *sample.Like, opt ...ExecOption)
 
 	like.ResetMark()
 	return nil
-
 }
 
 type PostImage struct {
@@ -1523,7 +1576,6 @@ func (d *PostImage) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 		return err
 	}
 	return nil
-
 }
 
 func (d *PostImage) Select(ctx context.Context, id int32) (*sample.PostImage, error) {
@@ -1536,7 +1588,6 @@ func (d *PostImage) Select(ctx context.Context, id int32) (*sample.PostImage, er
 
 	v.ResetMark()
 	return v, nil
-
 }
 
 func (d *PostImage) SelectMulti(ctx context.Context, id ...int32) ([]*sample.PostImage, error) {
@@ -1555,7 +1606,6 @@ func (d *PostImage) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Pos
 	}
 
 	return res, nil
-
 }
 
 func (d *PostImage) Create(ctx context.Context, postImage *sample.PostImage, opt ...ExecOption) (*sample.PostImage, error) {
@@ -1586,7 +1636,6 @@ func (d *PostImage) Create(ctx context.Context, postImage *sample.PostImage, opt
 
 	postImage.ResetMark()
 	return postImage, nil
-
 }
 
 func (d *PostImage) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
@@ -1610,7 +1659,6 @@ func (d *PostImage) Delete(ctx context.Context, id int32, opt ...ExecOption) err
 	}
 
 	return nil
-
 }
 
 func (d *PostImage) Update(ctx context.Context, postImage *sample.PostImage, opt ...ExecOption) error {
@@ -1651,7 +1699,6 @@ func (d *PostImage) Update(ctx context.Context, postImage *sample.PostImage, opt
 
 	postImage.ResetMark()
 	return nil
-
 }
 
 type Task struct {
@@ -1697,7 +1744,6 @@ func (d *Task) Tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 		return err
 	}
 	return nil
-
 }
 
 func (d *Task) Select(ctx context.Context, id int32) (*sample.Task, error) {
@@ -1716,7 +1762,6 @@ func (d *Task) Select(ctx context.Context, id int32) (*sample.Task, error) {
 
 	v.ResetMark()
 	return v, nil
-
 }
 
 func (d *Task) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Task, error) {
@@ -1734,8 +1779,23 @@ func (d *Task) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Task, er
 		}
 	}
 
+	if len(res) > 0 {
+		imagePrimaryKeys := make([]int32, len(res))
+		for i, v := range res {
+			imagePrimaryKeys[i] = v.ImageId
+		}
+		imageData := make(map[int32]*sample.PostImage)
+		{
+			rels, _ := d.postImage.SelectMulti(ctx, imagePrimaryKeys...)
+			for _, v := range rels {
+				imageData[v.Id] = v
+			}
+		}
+		for _, v := range res {
+			v.Image = imageData[v.ImageId]
+		}
+	}
 	return res, nil
-
 }
 
 func (d *Task) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, error) {
@@ -1771,18 +1831,23 @@ func (d *Task) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, 
 		res = append(res, r)
 	}
 	if len(res) > 0 {
-		for _, v := range res {
-			{
-				if rel, _ := d.postImage.Select(ctx, v.ImageId); rel != nil {
-					v.Image = rel
-				}
+		imagePrimaryKeys := make([]int32, len(res))
+		for i, v := range res {
+			imagePrimaryKeys[i] = v.ImageId
+		}
+		imageData := make(map[int32]*sample.PostImage)
+		{
+			rels, _ := d.postImage.SelectMulti(ctx, imagePrimaryKeys...)
+			for _, v := range rels {
+				imageData[v.Id] = v
 			}
-
+		}
+		for _, v := range res {
+			v.Image = imageData[v.ImageId]
 		}
 	}
 
 	return res, nil
-
 }
 
 func (d *Task) ListPending(ctx context.Context, opt ...ListOption) ([]*sample.Task, error) {
@@ -1818,18 +1883,23 @@ func (d *Task) ListPending(ctx context.Context, opt ...ListOption) ([]*sample.Ta
 		res = append(res, r)
 	}
 	if len(res) > 0 {
-		for _, v := range res {
-			{
-				if rel, _ := d.postImage.Select(ctx, v.ImageId); rel != nil {
-					v.Image = rel
-				}
+		imagePrimaryKeys := make([]int32, len(res))
+		for i, v := range res {
+			imagePrimaryKeys[i] = v.ImageId
+		}
+		imageData := make(map[int32]*sample.PostImage)
+		{
+			rels, _ := d.postImage.SelectMulti(ctx, imagePrimaryKeys...)
+			for _, v := range rels {
+				imageData[v.Id] = v
 			}
-
+		}
+		for _, v := range res {
+			v.Image = imageData[v.ImageId]
 		}
 	}
 
 	return res, nil
-
 }
 
 func (d *Task) Create(ctx context.Context, task *sample.Task, opt ...ExecOption) (*sample.Task, error) {
@@ -1865,7 +1935,6 @@ func (d *Task) Create(ctx context.Context, task *sample.Task, opt ...ExecOption)
 
 	task.ResetMark()
 	return task, nil
-
 }
 
 func (d *Task) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
@@ -1889,7 +1958,6 @@ func (d *Task) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
 	}
 
 	return nil
-
 }
 
 func (d *Task) Update(ctx context.Context, task *sample.Task, opt ...ExecOption) error {
@@ -1930,5 +1998,4 @@ func (d *Task) Update(ctx context.Context, task *sample.Task, opt ...ExecOption)
 
 	task.ResetMark()
 	return nil
-
 }
