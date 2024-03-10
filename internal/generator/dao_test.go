@@ -54,6 +54,10 @@ func TestGoDAOGenerator_Generate(t *testing.T) {
 						Name:  "Name",
 						Query: "SELECT name FROM user WHERE id = ? AND name = ?",
 					},
+					{
+						Name:  "UniqUname",
+						Query: "SELECT distinct(name) FROM user",
+					},
 				},
 			},
 		}, nil),
