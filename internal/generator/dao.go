@@ -393,6 +393,7 @@ func (g GoDAOGenerator) primaryKeyMultiSelect(entityName string, m *schema.Messa
 	src.WriteString(fmt.Sprintf("if err := rows.Scan(%s); err != nil {\n", strings.Join(scanCols, ",")))
 	src.WriteString("return nil, err\n")
 	src.WriteString("}\n")
+	src.WriteString("res = append(res, r)")
 	src.WriteString("}\n")
 	src.LineBreak()
 	if len(m.Relations) > 0 {

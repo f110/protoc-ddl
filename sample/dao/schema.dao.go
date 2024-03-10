@@ -140,6 +140,7 @@ func (d *User) SelectMulti(ctx context.Context, id ...int32) ([]*sample.User, er
 		if err := rows.Scan(&r.Id, &r.Age, &r.Name, &r.Title, &r.LastName, &r.Status, &r.CreatedAt); err != nil {
 			return nil, err
 		}
+		res = append(res, r)
 	}
 
 	return res, nil
@@ -401,6 +402,7 @@ func (d *Blog) SelectMulti(ctx context.Context, id ...int64) ([]*sample.Blog, er
 		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.Sign, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, err
 		}
+		res = append(res, r)
 	}
 
 	if len(res) > 0 {
@@ -1176,6 +1178,7 @@ func (d *Reply) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Reply, 
 		if err := rows.Scan(&r.Id, &r.CommentBlogId, &r.CommentUserId, &r.Body); err != nil {
 			return nil, err
 		}
+		res = append(res, r)
 	}
 
 	if len(res) > 0 {
@@ -1425,21 +1428,15 @@ func (d *Like) SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, e
 		if err := rows.Scan(&r.Id, &r.UserId, &r.BlogId); err != nil {
 			return nil, err
 		}
+		res = append(res, r)
 	}
 
 	if len(res) > 0 {
-		blogPrimaryKeys := make([]int64, len(res))
 		userPrimaryKeys := make([]int32, len(res))
+		blogPrimaryKeys := make([]int64, len(res))
 		for i, v := range res {
-			blogPrimaryKeys[i] = v.BlogId
 			userPrimaryKeys[i] = v.UserId
-		}
-		blogData := make(map[int64]*sample.Blog)
-		{
-			rels, _ := d.blog.SelectMulti(ctx, blogPrimaryKeys...)
-			for _, v := range rels {
-				blogData[v.Id] = v
-			}
+			blogPrimaryKeys[i] = v.BlogId
 		}
 		userData := make(map[int32]*sample.User)
 		{
@@ -1448,9 +1445,16 @@ func (d *Like) SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, e
 				userData[v.Id] = v
 			}
 		}
+		blogData := make(map[int64]*sample.Blog)
+		{
+			rels, _ := d.blog.SelectMulti(ctx, blogPrimaryKeys...)
+			for _, v := range rels {
+				blogData[v.Id] = v
+			}
+		}
 		for _, v := range res {
-			v.Blog = blogData[v.BlogId]
 			v.User = userData[v.UserId]
+			v.Blog = blogData[v.BlogId]
 		}
 	}
 	return res, nil
@@ -1623,6 +1627,7 @@ func (d *PostImage) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Pos
 		if err := rows.Scan(&r.Id, &r.Url); err != nil {
 			return nil, err
 		}
+		res = append(res, r)
 	}
 
 	return res, nil
@@ -1801,6 +1806,7 @@ func (d *Task) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Task, er
 		if err := rows.Scan(&r.Id, &r.ImageId, &r.StartAt); err != nil {
 			return nil, err
 		}
+		res = append(res, r)
 	}
 
 	if len(res) > 0 {
