@@ -57,6 +57,14 @@ func TestAstFormatter(t *testing.T) {
 			Query:    "SELECT count(distinct `age`) FROM `user`",
 			Rendered: "SELECT COUNT(distinct `age`) FROM `user`",
 		},
+		{
+			Query:    "SELECT * FROM `user` WHERE `name` != \"\"",
+			Rendered: "SELECT * FROM `user` WHERE `name` != \"\"",
+		},
+		{
+			Query:    "SELECT * FROM `user` WHERE `name` = \"foo\"",
+			Rendered: "SELECT * FROM `user` WHERE `name` = \"foo\"",
+		},
 	}
 
 	const debug = false

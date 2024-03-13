@@ -123,6 +123,8 @@ func (a *queryFormatVisitor) Enter(in ast.Node) (node ast.Node, skipChildren boo
 		switch v.Type.EvalType() {
 		case types.ETInt:
 			a.writer.Write([]byte(fmt.Sprintf("%d", v.GetInt64())))
+		case types.ETString:
+			a.writer.Write([]byte(fmt.Sprintf("%q", v.GetString())))
 		}
 	case *ast.FuncCallExpr:
 		a.writer.Write([]byte(v.FnName.String()))
