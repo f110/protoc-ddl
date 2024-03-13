@@ -53,6 +53,10 @@ func TestAstFormatter(t *testing.T) {
 			Query:    "SELECT DISTINCT `name` FROM `user`",
 			Rendered: "SELECT DISTINCT `name` FROM `user`",
 		},
+		{
+			Query:    "SELECT count(distinct `age`) FROM `user`",
+			Rendered: "SELECT COUNT(distinct `age`) FROM `user`",
+		},
 	}
 
 	const debug = false

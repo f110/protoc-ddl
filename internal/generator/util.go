@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 
 	"github.com/pingcap/tidb/pkg/parser/ast"
 	"github.com/pingcap/tidb/pkg/parser/opcode"
@@ -130,6 +131,12 @@ func (a *queryFormatVisitor) Enter(in ast.Node) (node ast.Node, skipChildren boo
 	case *ast.IsNullExpr:
 		a.formatIsNullExpr(v)
 		return in, true
+	case *ast.AggregateFuncExpr:
+		a.writer.Write([]byte(strings.ToUpper(v.F)))
+		a.writer.Write([]byte("("))
+		if v.Distinct {
+			a.writer.Write([]byte("distinct "))
+		}
 	default:
 		if a.debug {
 			log.Printf("Not supported: %T", v)
@@ -147,6 +154,8 @@ func (a *queryFormatVisitor) Leave(in ast.Node) (node ast.Node, ok bool) {
 	switch in.(type) {
 	case *ast.BinaryOperationExpr:
 		a.ctx.state = 0
+	case *ast.AggregateFuncExpr:
+		a.writer.Write([]byte(")"))
 	}
 	return in, true
 }
