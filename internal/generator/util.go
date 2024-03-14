@@ -55,6 +55,9 @@ func (f *QueryFormatter) Format(w io.Writer) {
 
 func (f *QueryFormatter) selectFormat(w io.Writer, stmt *ast.SelectStmt) {
 	io.WriteString(w, "SELECT")
+	if stmt.Distinct {
+		w.Write([]byte(" DISTINCT"))
+	}
 	if stmt.Fields != nil {
 		w.Write([]byte(" "))
 		vis := newVisitor(fieldListState, f.message, w, f.debug)

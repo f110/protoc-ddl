@@ -49,6 +49,10 @@ func TestAstFormatter(t *testing.T) {
 			Query:    "SELECT * FROM `user` WHERE `created_at` IS NULL",
 			Rendered: "SELECT * FROM `user` WHERE `created_at` IS NULL",
 		},
+		{
+			Query:    "SELECT DISTINCT `name` FROM `user`",
+			Rendered: "SELECT DISTINCT `name` FROM `user`",
+		},
 	}
 
 	const debug = false
