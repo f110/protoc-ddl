@@ -1,11 +1,13 @@
-load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@bazel_gazelle//:def.bzl", "gazelle")
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
-load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@rules_proto//proto:defs.bzl", "proto_library")
 
 # gazelle:prefix go.f110.dev/protoc-ddl
 # gazelle:proto disable_global
 # gazelle:resolve go go.f110.dev/protoc-ddl :go_default_library
+
+load("//build:proto.bzl", "vendor_proto_source")
 
 gazelle(name = "gazelle")
 
@@ -22,8 +24,6 @@ go_proto_library(
     proto = ":ddl_proto",
     visibility = ["//visibility:public"],
 )
-
-load("//build:proto.bzl", "vendor_proto_source")
 
 vendor_proto_source(
     name = "vendor_proto_source",
