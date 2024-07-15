@@ -5,4 +5,4 @@ bazel_dep(name = "bazel_skylib", version = "1.5.0")
 
 go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
 
-go_sdk.download(version = "1.22.3")
+go_sdk.download(version = "1.22.5")
