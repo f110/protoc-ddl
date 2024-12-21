@@ -1,7 +1,7 @@
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//lib:shell.bzl", "shell")
-load("@io_bazel_rules_go//go:def.bzl", "go_context", "GoSource")
+load("@io_bazel_rules_go//go:def.bzl", "GoSource", "go_context")
 
 def _execute_protoc(ctx, protoc, lang_name, plugin, proto, args, out, well_known_protos):
     proto = proto[ProtoInfo]
@@ -132,7 +132,7 @@ sql_schema = rule(
 def _vendor_ddl_impl(ctx):
     generated = []
     if GoSource in ctx.attr.src:
-        generated += [x for x in ctx.attr.src[GoSource].orig_srcs if not x in generated]
+        generated += [x for x in ctx.attr.src[GoSource].srcs if not x in generated]
 
     if OutputGroupInfo in ctx.attr.src:
         if "schema" in ctx.attr.src[OutputGroupInfo]:
