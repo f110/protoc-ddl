@@ -11,11 +11,11 @@ go_library(
     deps = [
         "//internal/generator:go_default_library",
         "//internal/schema:go_default_library",
-        "//vendor/github.com/deckarep/golang-set/v2:go_default_library",
-        "//vendor/github.com/go-sql-driver/mysql:go_default_library",
-        "//vendor/github.com/schemalex/schemalex:go_default_library",
-        "//vendor/github.com/schemalex/schemalex/format:go_default_library",
-        "//vendor/github.com/schemalex/schemalex/model:go_default_library",
-        "//vendor/go.f110.dev/xerrors:go_default_library",
+        "@com_github_deckarep_golang_set_v2//:go_default_library",
+        "@com_github_go_sql_driver_mysql//:go_default_library",
+        "@com_github_schemalex_schemalex//:go_default_library",
+        "@com_github_schemalex_schemalex//format:go_default_library",
+        "@com_github_schemalex_schemalex//model:go_default_library",
+        "@dev_f110_go_xerrors//:go_default_library",
     ],
 )

@@ -8,8 +8,8 @@ go_library(
     deps = [
         "//internal/generator:go_default_library",
         "//internal/schema:go_default_library",
-        "//vendor/google.golang.org/protobuf/proto:go_default_library",
-        "//vendor/google.golang.org/protobuf/types/pluginpb:go_default_library",
+        "@org_golang_google_protobuf//proto:go_default_library",
+        "@org_golang_google_protobuf//types/pluginpb:go_default_library",
     ],
 )
 
