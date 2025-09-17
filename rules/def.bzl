@@ -1,7 +1,7 @@
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//lib:shell.bzl", "shell")
-load("@io_bazel_rules_go//go:def.bzl", "GoSource", "go_context")
+load("@rules_go//go:def.bzl", "GoSource", "go_context")
 
 def _execute_protoc(ctx, protoc, lang_name, plugin, proto, args, out, well_known_protos):
     proto = proto[ProtoInfo]
@@ -106,7 +106,7 @@ sql_schema = rule(
         "protoc": attr.label(
             executable = True,
             cfg = "host",
-            default = "@com_google_protobuf//:protoc",
+            default = "@protobuf//:protoc",
         ),
         "compiler": attr.label(
             executable = True,
@@ -114,7 +114,7 @@ sql_schema = rule(
             default = "//cmd/protoc-gen-ddl",
         ),
         "_well_known_protos": attr.label(
-            default = "@com_google_protobuf//:well_known_type_protos",
+            default = "@protobuf//:well_known_type_protos",
             allow_files = True,
         ),
         "_schema_hash": attr.label(
@@ -123,10 +123,10 @@ sql_schema = rule(
             default = "//rules/tools/schema_hash",
         ),
         "_go_context_data": attr.label(
-            default = "@io_bazel_rules_go//:go_context_data",
+            default = "@rules_go//:go_context_data",
         ),
     },
-    toolchains = ["@io_bazel_rules_go//go:toolchain"],
+    toolchains = ["@rules_go//go:toolchain"],
 )
 
 def _vendor_ddl_impl(ctx):
@@ -223,7 +223,7 @@ schema_entity = rule(
         "protoc": attr.label(
             executable = True,
             cfg = "host",
-            default = "@com_google_protobuf//:protoc",
+            default = "@protobuf//:protoc",
         ),
         "compiler": attr.label(
             executable = True,
@@ -231,14 +231,14 @@ schema_entity = rule(
             default = "//cmd/protoc-gen-entity",
         ),
         "_well_known_protos": attr.label(
-            default = "@com_google_protobuf//:well_known_type_protos",
+            default = "@protobuf//:well_known_type_protos",
             allow_files = True,
         ),
         "_go_context_data": attr.label(
-            default = "@io_bazel_rules_go//:go_context_data",
+            default = "@rules_go//:go_context_data",
         ),
     },
-    toolchains = ["@io_bazel_rules_go//go:toolchain"],
+    toolchains = ["@rules_go//go:toolchain"],
 )
 
 def _schema_dao_impl(ctx):
@@ -285,7 +285,7 @@ schema_dao = rule(
         "protoc": attr.label(
             executable = True,
             cfg = "host",
-            default = "@com_google_protobuf//:protoc",
+            default = "@protobuf//:protoc",
         ),
         "compiler": attr.label(
             executable = True,
@@ -293,14 +293,14 @@ schema_dao = rule(
             default = "//cmd/protoc-gen-dao",
         ),
         "_well_known_protos": attr.label(
-            default = "@com_google_protobuf//:well_known_type_protos",
+            default = "@protobuf//:well_known_type_protos",
             allow_files = True,
         ),
         "_go_context_data": attr.label(
-            default = "@io_bazel_rules_go//:go_context_data",
+            default = "@rules_go//:go_context_data",
         ),
     },
-    toolchains = ["@io_bazel_rules_go//go:toolchain"],
+    toolchains = ["@rules_go//go:toolchain"],
 )
 
 def _schema_dao_mock_impl(ctx):
@@ -349,7 +349,7 @@ schema_dao_mock = rule(
         "protoc": attr.label(
             executable = True,
             cfg = "host",
-            default = "@com_google_protobuf//:protoc",
+            default = "@protobuf//:protoc",
         ),
         "compiler": attr.label(
             executable = True,
@@ -357,12 +357,12 @@ schema_dao_mock = rule(
             default = "//cmd/protoc-gen-dao-mock",
         ),
         "_well_known_protos": attr.label(
-            default = "@com_google_protobuf//:well_known_type_protos",
+            default = "@protobuf//:well_known_type_protos",
             allow_files = True,
         ),
         "_go_context_data": attr.label(
-            default = "@io_bazel_rules_go//:go_context_data",
+            default = "@rules_go//:go_context_data",
         ),
     },
-    toolchains = ["@io_bazel_rules_go//go:toolchain"],
+    toolchains = ["@rules_go//go:toolchain"],
 )
