@@ -406,18 +406,11 @@ func (d *Blog) SelectMulti(ctx context.Context, id ...int64) ([]*sample.Blog, er
 	}
 
 	if len(res) > 0 {
-		editorPrimaryKeys := make([]int32, len(res))
 		userPrimaryKeys := make([]int32, len(res))
+		editorPrimaryKeys := make([]int32, len(res))
 		for i, v := range res {
-			editorPrimaryKeys[i] = v.EditorId
 			userPrimaryKeys[i] = v.UserId
-		}
-		editorData := make(map[int32]*sample.User)
-		{
-			rels, _ := d.user.SelectMulti(ctx, editorPrimaryKeys...)
-			for _, v := range rels {
-				editorData[v.Id] = v
-			}
+			editorPrimaryKeys[i] = v.EditorId
 		}
 		userData := make(map[int32]*sample.User)
 		{
@@ -426,9 +419,16 @@ func (d *Blog) SelectMulti(ctx context.Context, id ...int64) ([]*sample.Blog, er
 				userData[v.Id] = v
 			}
 		}
+		editorData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, editorPrimaryKeys...)
+			for _, v := range rels {
+				editorData[v.Id] = v
+			}
+		}
 		for _, v := range res {
-			v.Editor = editorData[v.EditorId]
 			v.User = userData[v.UserId]
+			v.Editor = editorData[v.EditorId]
 		}
 	}
 	return res, nil
