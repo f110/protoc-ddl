@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library")
 load("//rules:def.bzl", "schema_dao", "vendor_ddl")
 
 schema_dao(
