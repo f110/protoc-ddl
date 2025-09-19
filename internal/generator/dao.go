@@ -13,7 +13,6 @@ import (
 
 	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
-	"github.com/pingcap/tidb/pkg/parser/model"
 	"github.com/pingcap/tidb/pkg/parser/opcode"
 	"github.com/pingcap/tidb/pkg/parser/test_driver"
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -382,7 +381,7 @@ func (g GoDAOGenerator) primaryKeyMultiSelect(entityName string, m *schema.Messa
 		cols = append(cols, v.Name)
 		fields = append(fields, &ast.SelectField{
 			Expr: &ast.ColumnNameExpr{
-				Name: &ast.ColumnName{Name: model.NewCIStr(v.Name)},
+				Name: &ast.ColumnName{Name: ast.NewCIStr(v.Name)},
 			},
 		})
 	}
@@ -928,7 +927,7 @@ func (s *GoDAOStruct) selectQuery(
 			cols = append(cols, v.Name)
 			fields = append(fields, &ast.SelectField{
 				Expr: &ast.ColumnNameExpr{
-					Name: &ast.ColumnName{Name: model.NewCIStr(v.Name)},
+					Name: &ast.ColumnName{Name: ast.NewCIStr(v.Name)},
 				},
 			})
 		}
