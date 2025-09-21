@@ -1,7 +1,7 @@
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
-    name = "go_default_library",
+    name = "generator",
     srcs = [
         "buffer.go",
         "dao.go",
@@ -13,31 +13,31 @@ go_library(
     importpath = "go.f110.dev/protoc-ddl/internal/generator",
     visibility = ["//:__subpackages__"],
     deps = [
-        "//internal/schema:go_default_library",
-        "@com_github_pingcap_tidb_pkg_parser//:go_default_library",
-        "@com_github_pingcap_tidb_pkg_parser//ast:go_default_library",
-        "@com_github_pingcap_tidb_pkg_parser//opcode:go_default_library",
-        "@com_github_pingcap_tidb_pkg_parser//test_driver:go_default_library",
-        "@com_github_pingcap_tidb_pkg_parser//types:go_default_library",
-        "@org_golang_google_protobuf//types/descriptorpb:go_default_library",
+        "//internal/schema",
+        "@com_github_pingcap_tidb_pkg_parser//:parser",
+        "@com_github_pingcap_tidb_pkg_parser//ast",
+        "@com_github_pingcap_tidb_pkg_parser//opcode",
+        "@com_github_pingcap_tidb_pkg_parser//test_driver",
+        "@com_github_pingcap_tidb_pkg_parser//types",
+        "@org_golang_google_protobuf//types/descriptorpb",
     ],
 )
 
 go_test(
-    name = "go_default_test",
+    name = "generator_test",
     srcs = [
         "dao_test.go",
         "util_test.go",
     ],
-    embed = [":go_default_library"],
+    embed = [":generator"],
     deps = [
-        "//internal/schema:go_default_library",
-        "@com_github_pingcap_tidb_pkg_parser//:go_default_library",
-        "@com_github_pingcap_tidb_pkg_parser//ast:go_default_library",
-        "@com_github_pingcap_tidb_pkg_parser//test_driver:go_default_library",
-        "@com_github_stretchr_testify//assert:go_default_library",
-        "@com_github_stretchr_testify//require:go_default_library",
-        "@org_golang_google_protobuf//proto:go_default_library",
-        "@org_golang_google_protobuf//types/descriptorpb:go_default_library",
+        "//internal/schema",
+        "@com_github_pingcap_tidb_pkg_parser//:parser",
+        "@com_github_pingcap_tidb_pkg_parser//ast",
+        "@com_github_pingcap_tidb_pkg_parser//test_driver",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//types/descriptorpb",
     ],
 )
