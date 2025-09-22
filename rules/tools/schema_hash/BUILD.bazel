@@ -1,15 +1,15 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
 
 go_library(
-    name = "go_default_library",
+    name = "schema_hash_lib",
     srcs = ["main.go"],
     importpath = "go.f110.dev/protoc-ddl/rules/tools/schema_hash",
     visibility = ["//visibility:private"],
-    deps = ["@com_github_spf13_pflag//:go_default_library"],
+    deps = ["@com_github_spf13_pflag//:pflag"],
 )
 
 go_binary(
     name = "schema_hash",
-    embed = [":go_default_library"],
+    embed = [":schema_hash_lib"],
     visibility = ["//visibility:public"],
 )

@@ -1,20 +1,20 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_cross_binary", "go_library")
 
 go_library(
-    name = "go_default_library",
+    name = "migrate_lib",
     srcs = ["main.go"],
     importpath = "go.f110.dev/protoc-ddl/cmd/migrate",
     visibility = ["//visibility:private"],
     deps = [
-        "//internal/migrate:go_default_library",
-        "@com_github_spf13_pflag//:go_default_library",
-        "@dev_f110_go_xerrors//:go_default_library",
+        "//internal/migrate",
+        "@com_github_spf13_pflag//:pflag",
+        "@dev_f110_go_xerrors//:xerrors",
     ],
 )
 
 go_binary(
     name = "migrate",
-    embed = [":go_default_library"],
+    embed = [":migrate_lib"],
     visibility = ["//visibility:public"],
 )
 

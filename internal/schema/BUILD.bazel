@@ -1,20 +1,20 @@
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
-    name = "go_default_library",
+    name = "schema",
     srcs = ["plugin.go"],
     importpath = "go.f110.dev/protoc-ddl/internal/schema",
     visibility = ["//:__subpackages__"],
     deps = [
-        "//:go_default_library",
-        "@org_golang_google_protobuf//proto:go_default_library",
-        "@org_golang_google_protobuf//types/descriptorpb:go_default_library",
-        "@org_golang_google_protobuf//types/pluginpb:go_default_library",
+        "//:protoc-ddl",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//types/descriptorpb",
+        "@org_golang_google_protobuf//types/pluginpb",
     ],
 )
 
 go_test(
-    name = "go_default_test",
+    name = "schema_test",
     srcs = ["plugin_test.go"],
-    embed = [":go_default_library"],
+    embed = [":schema"],
 )

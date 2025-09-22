@@ -14,13 +14,13 @@ vendor_ddl(
 )
 
 go_library(
-    name = "go_default_library",
+    name = "daotest",
     srcs = ["schema.mock.go"],
     importpath = "go.f110.dev/protoc-ddl/sample/dao/daotest",
     visibility = ["//visibility:public"],
     deps = [
-        "//mock:go_default_library",
-        "//sample:go_default_library",
-        "//sample/dao:go_default_library",
+        "//mock",
+        "//sample",
+        "//sample/dao",
     ],
 )
