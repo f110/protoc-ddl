@@ -1010,7 +1010,7 @@ func (s *GoDAOStruct) findArgFieldFromExprIfExist(fields map[string]*schema.Fiel
 	}
 
 	switch stmt.Op {
-	case opcode.EQ, opcode.GT:
+	case opcode.EQ, opcode.GT, opcode.GE, opcode.LE:
 		f := s.findArgFieldFromComparisonExprIfExist(fields, stmt)
 		if len(f) > 0 {
 			res = append(res, f...)
@@ -1026,7 +1026,7 @@ func (s *GoDAOStruct) findArgFieldFromExprIfExist(fields map[string]*schema.Fiel
 			res = append(res, f...)
 		}
 	default:
-		log.Printf("%T", stmt)
+		log.Printf("%T: %#v", stmt, stmt)
 	}
 
 	return res
