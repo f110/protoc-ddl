@@ -51,6 +51,15 @@ func (d *User) RegisterListAll(value []*sample.User, err error) {
 	d.Register("ListAll", map[string]interface{}{}, value, err)
 }
 
+func (d *User) ListOffsetAll(ctx context.Context, id int32, opt ...dao.ListOption) ([]*sample.User, error) {
+	v, err := d.Call("ListOffsetAll", map[string]interface{}{"id": id})
+	return v.([]*sample.User), err
+}
+
+func (d *User) RegisterListOffsetAll(id int32, value []*sample.User, err error) {
+	d.Register("ListOffsetAll", map[string]interface{}{"id": id}, value, err)
+}
+
 func (d *User) ListOverTwenty(ctx context.Context, opt ...dao.ListOption) ([]*sample.User, error) {
 	v, err := d.Call("ListOverTwenty", map[string]interface{}{})
 	return v.([]*sample.User), err

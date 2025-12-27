@@ -36,6 +36,10 @@ message User {
       query: "SELECT * FROM `:table_name:`"
     }
     queries: {
+      name: "OffsetAll"
+      query: "SELECT * FROM `:table_name:` WHERE id >= ?"
+    }
+    queries: {
       name: "OverTwenty"
       query: "SELECT * FROM `:table_name:` WHERE age > 20"
     }

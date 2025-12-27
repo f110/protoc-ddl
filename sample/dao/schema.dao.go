@@ -78,6 +78,7 @@ type UserInterface interface {
 	Select(ctx context.Context, id int32) (*sample.User, error)
 	SelectMulti(ctx context.Context, id ...int32) ([]*sample.User, error)
 	ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, error)
+	ListOffsetAll(ctx context.Context, id int32, opt ...ListOption) ([]*sample.User, error)
 	ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample.User, error)
 	Create(ctx context.Context, user *sample.User, opt ...ExecOption) (*sample.User, error)
 	Update(ctx context.Context, user *sample.User, opt ...ExecOption) error
@@ -164,6 +165,43 @@ func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, 
 	rows, err := d.conn.QueryContext(
 		ctx,
 		query,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]*sample.User, 0)
+	for rows.Next() {
+		r := &sample.User{}
+		if err := rows.Scan(&r.Id, &r.Age, &r.Name, &r.Title, &r.LastName, &r.Status, &r.CreatedAt); err != nil {
+			return nil, err
+		}
+		r.ResetMark()
+		res = append(res, r)
+	}
+
+	return res, nil
+}
+
+func (d *User) ListOffsetAll(ctx context.Context, id int32, opt ...ListOption) ([]*sample.User, error) {
+	listOpts := newListOpt(opt...)
+	query := "SELECT `id`, `age`, `name`, `title`, `last_name`, `status`, `created_at` FROM `users` WHERE `id` >= ?"
+	orderCol := "`" + listOpts.sort + "`"
+	if listOpts.sort == "" {
+		orderCol = "`id`"
+	}
+	orderDi := "ASC"
+	if listOpts.desc {
+		orderDi = "DESC"
+	}
+	query = query + fmt.Sprintf(" ORDER BY %s %s", orderCol, orderDi)
+	if listOpts.limit > 0 {
+		query = query + fmt.Sprintf(" LIMIT %d", listOpts.limit)
+	}
+	rows, err := d.conn.QueryContext(
+		ctx,
+		query,
+		id,
 	)
 	if err != nil {
 		return nil, err
@@ -532,18 +570,11 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 		res = append(res, r)
 	}
 	if len(res) > 0 {
-		userPrimaryKeys := make([]int32, len(res))
 		editorPrimaryKeys := make([]int32, len(res))
+		userPrimaryKeys := make([]int32, len(res))
 		for i, v := range res {
-			userPrimaryKeys[i] = v.UserId
 			editorPrimaryKeys[i] = v.EditorId
-		}
-		userData := make(map[int32]*sample.User)
-		{
-			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
-			for _, v := range rels {
-				userData[v.Id] = v
-			}
+			userPrimaryKeys[i] = v.UserId
 		}
 		editorData := make(map[int32]*sample.User)
 		{
@@ -552,9 +583,16 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 				editorData[v.Id] = v
 			}
 		}
+		userData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
+			for _, v := range rels {
+				userData[v.Id] = v
+			}
+		}
 		for _, v := range res {
-			v.User = userData[v.UserId]
 			v.Editor = editorData[v.EditorId]
+			v.User = userData[v.UserId]
 		}
 	}
 
