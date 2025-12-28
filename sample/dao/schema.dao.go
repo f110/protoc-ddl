@@ -367,6 +367,7 @@ type BlogInterface interface {
 	ListByTitle(ctx context.Context, title string, opt ...ListOption) ([]*sample.Blog, error)
 	ListByUserAndCategory(ctx context.Context, userId int32, categoryId int32, opt ...ListOption) ([]*sample.Blog, error)
 	SelectByUserAndTitle(ctx context.Context, userId int32, title string) (*sample.Blog, error)
+	ListByEditors(ctx context.Context, opt ...ListOption) ([]*sample.Blog, error)
 	Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption) (*sample.Blog, error)
 	Update(ctx context.Context, blog *sample.Blog, opt ...ExecOption) error
 	Delete(ctx context.Context, id int64, opt ...ExecOption) error
@@ -624,6 +625,68 @@ func (d *Blog) SelectByUserAndTitle(ctx context.Context, userId int32, title str
 
 	v.ResetMark()
 	return v, nil
+}
+
+func (d *Blog) ListByEditors(ctx context.Context, opt ...ListOption) ([]*sample.Blog, error) {
+	listOpts := newListOpt(opt...)
+	query := "SELECT `id`, `user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `created_at`, `updated_at` FROM `blog` WHERE `editor_id` IN (?)"
+	orderCol := "`" + listOpts.sort + "`"
+	if listOpts.sort == "" {
+		orderCol = "`id`"
+	}
+	orderDi := "ASC"
+	if listOpts.desc {
+		orderDi = "DESC"
+	}
+	query = query + fmt.Sprintf(" ORDER BY %s %s", orderCol, orderDi)
+	if listOpts.limit > 0 {
+		query = query + fmt.Sprintf(" LIMIT %d", listOpts.limit)
+	}
+	rows, err := d.conn.QueryContext(
+		ctx,
+		query,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]*sample.Blog, 0)
+	for rows.Next() {
+		r := &sample.Blog{}
+		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.Sign, &r.CreatedAt, &r.UpdatedAt); err != nil {
+			return nil, err
+		}
+		r.ResetMark()
+		res = append(res, r)
+	}
+	if len(res) > 0 {
+		userPrimaryKeys := make([]int32, len(res))
+		editorPrimaryKeys := make([]int32, len(res))
+		for i, v := range res {
+			userPrimaryKeys[i] = v.UserId
+			editorPrimaryKeys[i] = v.EditorId
+		}
+		userData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
+			for _, v := range rels {
+				userData[v.Id] = v
+			}
+		}
+		editorData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, editorPrimaryKeys...)
+			for _, v := range rels {
+				editorData[v.Id] = v
+			}
+		}
+		for _, v := range res {
+			v.User = userData[v.UserId]
+			v.Editor = editorData[v.EditorId]
+		}
+	}
+
+	return res, nil
 }
 
 func (d *Blog) Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption) (*sample.Blog, error) {
