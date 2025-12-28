@@ -85,7 +85,7 @@ type UserInterface interface {
 	Delete(ctx context.Context, id int32, opt ...ExecOption) error
 }
 
-var _ UserInterface = &User{}
+var _ UserInterface = (*User)(nil)
 
 func NewUser(conn *sql.DB) *User {
 	return &User{
@@ -134,6 +134,7 @@ func (d *User) SelectMulti(ctx context.Context, id ...int32) ([]*sample.User, er
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.User, 0, len(id))
 	for rows.Next() {
@@ -169,6 +170,7 @@ func (d *User) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.User, 
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.User, 0)
 	for rows.Next() {
@@ -206,6 +208,7 @@ func (d *User) ListOffsetAll(ctx context.Context, id int32, opt ...ListOption) (
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.User, 0)
 	for rows.Next() {
@@ -242,6 +245,7 @@ func (d *User) ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.User, 0)
 	for rows.Next() {
@@ -373,7 +377,7 @@ type BlogInterface interface {
 	Delete(ctx context.Context, id int64, opt ...ExecOption) error
 }
 
-var _ BlogInterface = &Blog{}
+var _ BlogInterface = (*Blog)(nil)
 
 func NewBlog(conn *sql.DB) *Blog {
 	return &Blog{
@@ -434,6 +438,7 @@ func (d *Blog) SelectMulti(ctx context.Context, id ...int64) ([]*sample.Blog, er
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.Blog, 0, len(id))
 	for rows.Next() {
@@ -496,6 +501,7 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.Blog, 0)
 	for rows.Next() {
@@ -560,6 +566,7 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.Blog, 0)
 	for rows.Next() {
@@ -571,18 +578,11 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 		res = append(res, r)
 	}
 	if len(res) > 0 {
-		editorPrimaryKeys := make([]int32, len(res))
 		userPrimaryKeys := make([]int32, len(res))
+		editorPrimaryKeys := make([]int32, len(res))
 		for i, v := range res {
-			editorPrimaryKeys[i] = v.EditorId
 			userPrimaryKeys[i] = v.UserId
-		}
-		editorData := make(map[int32]*sample.User)
-		{
-			rels, _ := d.user.SelectMulti(ctx, editorPrimaryKeys...)
-			for _, v := range rels {
-				editorData[v.Id] = v
-			}
+			editorPrimaryKeys[i] = v.EditorId
 		}
 		userData := make(map[int32]*sample.User)
 		{
@@ -591,9 +591,16 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 				userData[v.Id] = v
 			}
 		}
+		editorData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, editorPrimaryKeys...)
+			for _, v := range rels {
+				editorData[v.Id] = v
+			}
+		}
 		for _, v := range res {
-			v.Editor = editorData[v.EditorId]
 			v.User = userData[v.UserId]
+			v.Editor = editorData[v.EditorId]
 		}
 	}
 
@@ -805,7 +812,7 @@ type CommentImageInterface interface {
 	Delete(ctx context.Context, commentBlogId int64, commentUserId int32, likeId uint64, opt ...ExecOption) error
 }
 
-var _ CommentImageInterface = &CommentImage{}
+var _ CommentImageInterface = (*CommentImage)(nil)
 
 func NewCommentImage(conn *sql.DB) *CommentImage {
 	return &CommentImage{
@@ -880,6 +887,7 @@ func (d *CommentImage) ListByLikeId(ctx context.Context, likeId uint64, opt ...L
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.CommentImage, 0)
 	for rows.Next() {
@@ -1027,7 +1035,7 @@ type CommentInterface interface {
 	Delete(ctx context.Context, blogId int64, userId int32, opt ...ExecOption) error
 }
 
-var _ CommentInterface = &Comment{}
+var _ CommentInterface = (*Comment)(nil)
 
 func NewComment(conn *sql.DB) *Comment {
 	return &Comment{
@@ -1214,7 +1222,7 @@ type ReplyInterface interface {
 	Delete(ctx context.Context, id int32, opt ...ExecOption) error
 }
 
-var _ ReplyInterface = &Reply{}
+var _ ReplyInterface = (*Reply)(nil)
 
 func NewReply(conn *sql.DB) *Reply {
 	return &Reply{
@@ -1272,6 +1280,7 @@ func (d *Reply) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Reply, 
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.Reply, 0, len(id))
 	for rows.Next() {
@@ -1320,6 +1329,7 @@ func (d *Reply) ListByBody(ctx context.Context, body string, opt ...ListOption) 
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.Reply, 0)
 	for rows.Next() {
@@ -1460,7 +1470,7 @@ type LikeInterface interface {
 	Delete(ctx context.Context, id uint64, opt ...ExecOption) error
 }
 
-var _ LikeInterface = &Like{}
+var _ LikeInterface = (*Like)(nil)
 
 func NewLike(conn *sql.DB) *Like {
 	return &Like{
@@ -1522,6 +1532,7 @@ func (d *Like) SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, e
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.Like, 0, len(id))
 	for rows.Next() {
@@ -1672,7 +1683,7 @@ type PostImageInterface interface {
 	Delete(ctx context.Context, id int32, opt ...ExecOption) error
 }
 
-var _ PostImageInterface = &PostImage{}
+var _ PostImageInterface = (*PostImage)(nil)
 
 func NewPostImage(conn *sql.DB) *PostImage {
 	return &PostImage{
@@ -1721,6 +1732,7 @@ func (d *PostImage) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Pos
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.PostImage, 0, len(id))
 	for rows.Next() {
@@ -1844,7 +1856,7 @@ type TaskInterface interface {
 	Delete(ctx context.Context, id int32, opt ...ExecOption) error
 }
 
-var _ TaskInterface = &Task{}
+var _ TaskInterface = (*Task)(nil)
 
 func NewTask(conn *sql.DB) *Task {
 	return &Task{
@@ -1900,6 +1912,7 @@ func (d *Task) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Task, er
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.Task, 0, len(id))
 	for rows.Next() {
@@ -1951,6 +1964,7 @@ func (d *Task) ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, 
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.Task, 0)
 	for rows.Next() {
@@ -2003,6 +2017,7 @@ func (d *Task) ListPending(ctx context.Context, opt ...ListOption) ([]*sample.Ta
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.Task, 0)
 	for rows.Next() {
