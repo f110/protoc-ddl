@@ -22,6 +22,7 @@ const (
 	binaryOperationRightState
 	fieldListState
 	fieldListSubsequentState
+	inStatementState
 	fromCauseState
 	whereCauseState
 )
@@ -118,7 +119,12 @@ func (a *queryFormatVisitor) Enter(in ast.Node) (node ast.Node, skipChildren boo
 			a.writer.Write([]byte(fmt.Sprintf("`%s`", v.Name.String())))
 		}
 	case *test_driver.ParamMarkerExpr:
-		a.writer.Write([]byte("?"))
+		switch a.ctx.state {
+		case inStatementState:
+			a.writer.Write([]byte(" IN (?)"))
+		default:
+			a.writer.Write([]byte("?"))
+		}
 	case *test_driver.ValueExpr:
 		switch v.Type.EvalType() {
 		case types.ETInt:
@@ -139,6 +145,9 @@ func (a *queryFormatVisitor) Enter(in ast.Node) (node ast.Node, skipChildren boo
 		if v.Distinct {
 			a.writer.Write([]byte("distinct "))
 		}
+	case *ast.PatternInExpr:
+		a.ctx.state = inStatementState
+		log.Printf("%T", v.Expr)
 	default:
 		if a.debug {
 			log.Printf("Not supported: %T", v)
@@ -158,6 +167,8 @@ func (a *queryFormatVisitor) Leave(in ast.Node) (node ast.Node, ok bool) {
 		a.ctx.state = 0
 	case *ast.AggregateFuncExpr:
 		a.writer.Write([]byte(")"))
+	case *ast.PatternInExpr:
+		a.ctx.state = whereCauseState
 	}
 	return in, true
 }

@@ -93,6 +93,10 @@ message Blog {
       name: "ByUserAndTitle"
       query: "select * from blog where user_id = ? and title = ?"
     }
+    queries: {
+      name: "ByEditors"
+      query: "select * from `:table_name:` where editor_id in (?)"
+    }
   };
 }
 
