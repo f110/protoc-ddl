@@ -136,7 +136,7 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOp
 		src.WriteInterface(s.Create(nil), s.Update(nil), s.Delete(nil))
 		src.Write("}")
 		src.LineBreak()
-		src.Writef("var _ %sInterface = &%s{}", m.Descriptor.GetName(), m.Descriptor.GetName())
+		src.Writef("var _ %sInterface = (*%s)(nil)", m.Descriptor.GetName(), m.Descriptor.GetName())
 		src.LineBreak()
 		src.WriteString(fmt.Sprintf("func New%s(conn *sql.DB) *%s {\n", m.Descriptor.GetName(), m.Descriptor.GetName()))
 		src.WriteString(fmt.Sprintf("return &%s{\nconn: conn,\n", m.Descriptor.GetName()))
@@ -371,6 +371,7 @@ func (g GoDAOGenerator) primaryKeyMultiSelect(entityName string, m *schema.Messa
 	src.Writef("for i := 0;i < len(%s);i++ {\nargs[i] = %s[i]}", schema.ToLowerCamel(m.PrimaryKeys[0].Name), schema.ToLowerCamel(m.PrimaryKeys[0].Name))
 	src.Writef("rows, err := d.conn.QueryContext(ctx,fmt.Sprintf(\"SELECT * FROM `%s` WHERE `%s` IN (%%s)\", inCause[:len(inCause)-2]),args...)", m.TableName, m.PrimaryKeys[0].Name)
 	src.WriteString("if err != nil {\nreturn nil, err\n}\n")
+	src.WriteString("defer rows.Close()\n")
 	src.LineBreak()
 	src.Writef("res := make([]*%s.%s,0,len(%s))", entityName, m.Descriptor.GetName(), schema.ToLowerCamel(m.PrimaryKeys[0].Name))
 	src.WriteString("for rows.Next() {\n")
@@ -440,7 +441,8 @@ func (g GoDAOGenerator) selectMultipleRowQuery(m *schema.Message, name string, s
 	}
 	src.WriteString(")\n")
 	src.WriteString("if err != nil {\nreturn nil, err\n}\n")
-	src.WriteRune('\n')
+	src.WriteString("defer rows.Close()\n")
+	src.LineBreak()
 
 	// Object mapping
 	src.WriteString(fmt.Sprintf("res := make([]*%s.%s, 0)\n", entityName, m.Descriptor.GetName()))
