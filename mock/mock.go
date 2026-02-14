@@ -7,8 +7,8 @@ import (
 )
 
 type call struct {
-	args  map[string]interface{}
-	value interface{}
+	args  map[string]any
+	value any
 	err   error
 }
 
@@ -23,14 +23,14 @@ func New() *Mock {
 	return &Mock{mock: make(map[string][]*call), called: make(map[string][]*call)}
 }
 
-func (m *Mock) Register(name string, args map[string]interface{}, value interface{}, err error) {
+func (m *Mock) Register(name string, args map[string]any, value any, err error) {
 	if _, ok := m.mock[name]; !ok {
 		m.mock[name] = make([]*call, 0)
 	}
 	m.mock[name] = append(m.mock[name], &call{args: args, value: value, err: err})
 }
 
-func (m *Mock) Call(name string, args map[string]interface{}) (interface{}, error) {
+func (m *Mock) Call(name string, args map[string]any) (any, error) {
 	if _, ok := m.called[name]; !ok {
 		m.called[name] = make([]*call, 0)
 	}
@@ -55,7 +55,7 @@ func (m *Mock) Reset() {
 }
 
 type Call struct {
-	Args map[string]interface{}
+	Args map[string]any
 }
 
 func (m *Mock) Called(name string) []Call {

@@ -101,7 +101,7 @@ func (GoDAOMockGenerator) primaryKeySelect(entityName string, m *schema.Message,
 		a = append(a, "\""+schema.ToLowerCamel(v.Name)+"\":"+schema.ToLowerCamel(v.Name))
 	}
 
-	src.WriteString("v, err := d.Call(\"Select\",map[string]interface{}{")
+	src.WriteString("v, err := d.Call(\"Select\",map[string]any{")
 	src.WriteString(strings.Join(a, ","))
 	src.Write("})")
 	src.Writef("return v.(*%s.%s), err", entityName, m.Descriptor.GetName())
@@ -112,7 +112,7 @@ func (GoDAOMockGenerator) primaryKeySelect(entityName string, m *schema.Message,
 func (GoDAOMockGenerator) primaryKeyMultiSelect(entityName string, m *schema.Message, _, _, _ []string) string {
 	src := newBuffer()
 
-	src.Writef("v, err := d.Call(\"SelectMulti\",map[string]interface{}{\"%s\":%s})", schema.ToLowerCamel(m.PrimaryKeys[0].Name), schema.ToLowerCamel(m.PrimaryKeys[0].Name))
+	src.Writef("v, err := d.Call(\"SelectMulti\",map[string]any{\"%s\":%s})", schema.ToLowerCamel(m.PrimaryKeys[0].Name), schema.ToLowerCamel(m.PrimaryKeys[0].Name))
 	src.Writef("return v.([]*%s.%s), err", entityName, m.Descriptor.GetName())
 
 	return src.String()
@@ -126,7 +126,7 @@ func (GoDAOMockGenerator) mockPrimaryKeySelect(entityName string, m *schema.Mess
 	}
 	funcArgs = append(funcArgs, &field{Name: "value", Type: entityName + "." + m.Descriptor.GetName(), Pointer: true})
 
-	src.WriteString("d.Register(\"Select\", map[string]interface{}{")
+	src.WriteString("d.Register(\"Select\", map[string]any{")
 	args := make([]string, 0)
 	for _, v := range funcArgs[:len(funcArgs)-1] {
 		args = append(args, "\""+v.Name+"\":"+v.Name)
@@ -150,7 +150,7 @@ func (GoDAOMockGenerator) mockPrimaryKeyMultiSelect(entityName string, m *schema
 	)
 
 	src := newBuffer()
-	src.Writef("d.Register(\"SelectMulti\",map[string]interface{}{\"%s\":%s},value,nil)", schema.ToLowerCamel(m.PrimaryKeys[0].Name), schema.ToLowerCamel(m.PrimaryKeys[0].Name))
+	src.Writef("d.Register(\"SelectMulti\",map[string]any{\"%s\":%s},value,nil)", schema.ToLowerCamel(m.PrimaryKeys[0].Name), schema.ToLowerCamel(m.PrimaryKeys[0].Name))
 
 	return &goFunc{
 		Name:     "RegisterSelectMulti",
@@ -173,7 +173,7 @@ func (GoDAOMockGenerator) selectRowQuery(m *schema.Message, name string, stmt *a
 		s := strings.Split(v, " ")
 		a = append(a, fmt.Sprintf("\"%s\":%s", s[0], s[0]))
 	}
-	src.Writef("v, err := d.Call(\"%s\", map[string]interface{}{%s})", name, strings.Join(a, ","))
+	src.Writef("v, err := d.Call(\"%s\", map[string]any{%s})", name, strings.Join(a, ","))
 	if single {
 		src.Writef("return v.(*%s.%s), err", entityName, m.Descriptor.GetName())
 	} else {
@@ -193,7 +193,7 @@ func (GoDAOMockGenerator) mockSelectQuery(entityName string, m *schema.Message, 
 	args = append(args, &field{Name: "err", Type: "error"})
 
 	src := newBuffer()
-	src.Buffer.WriteString(fmt.Sprintf("d.Register(\"%s\", map[string]interface{}{", selectFunc.Name))
+	src.Buffer.WriteString(fmt.Sprintf("d.Register(\"%s\", map[string]any{", selectFunc.Name))
 	a := make([]string, 0)
 	for _, v := range args[:len(args)-2] {
 		a = append(a, fmt.Sprintf("\"%s\":%s", v.Name, v.Name))
@@ -217,7 +217,7 @@ func (GoDAOMockGenerator) create(m *schema.Message, f *goFunc) string {
 		a = append(a, fmt.Sprintf("\"%s\":%s", v.Name, v.Name))
 	}
 
-	src.Writef("_, _ = d.Call(\"%s\", map[string]interface{}{%s})", f.Name, strings.Join(a, ","))
+	src.Writef("_, _ = d.Call(\"%s\", map[string]any{%s})", f.Name, strings.Join(a, ","))
 	src.Writef("return %s, nil", schema.ToLowerCamel(m.Descriptor.GetName()))
 
 	return src.String()
@@ -231,7 +231,7 @@ func (GoDAOMockGenerator) delete(m *schema.Message, f *goFunc, _, _ []string) st
 		a = append(a, fmt.Sprintf("\"%s\":%s", v.Name, v.Name))
 	}
 
-	src.Writef("_, _ = d.Call(\"%s\", map[string]interface{}{%s})", f.Name, strings.Join(a, ","))
+	src.Writef("_, _ = d.Call(\"%s\", map[string]any{%s})", f.Name, strings.Join(a, ","))
 	src.Writef("return nil")
 
 	return src.String()
@@ -245,7 +245,7 @@ func (GoDAOMockGenerator) update(m *schema.Message, f *goFunc) string {
 		a = append(a, fmt.Sprintf("\"%s\":%s", v.Name, v.Name))
 	}
 
-	src.Writef("_, _ = d.Call(\"%s\", map[string]interface{}{%s})", f.Name, strings.Join(a, ","))
+	src.Writef("_, _ = d.Call(\"%s\", map[string]any{%s})", f.Name, strings.Join(a, ","))
 	src.Writef("return nil")
 
 	return src.String()

@@ -66,7 +66,7 @@ func newExecOpt(opts ...ExecOption) *execOpt {
 }
 
 type execConn interface {
-	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
 type User struct {
@@ -333,7 +333,7 @@ func (d *User) Update(ctx context.Context, user *sample.User, opt ...ExecOption)
 
 	changedColumn := user.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
-	values := make([]interface{}, len(changedColumn)+1)
+	values := make([]any, len(changedColumn)+1)
 	for i := range changedColumn {
 		cols[i] = "`" + changedColumn[i].Name + "` = ?"
 		values[i] = changedColumn[i].Value
@@ -656,6 +656,7 @@ func (d *Blog) ListByEditors(ctx context.Context, opt ...ListOption) ([]*sample.
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	res := make([]*sample.Blog, 0)
 	for rows.Next() {
@@ -769,7 +770,7 @@ func (d *Blog) Update(ctx context.Context, blog *sample.Blog, opt ...ExecOption)
 
 	changedColumn := blog.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
-	values := make([]interface{}, len(changedColumn)+1)
+	values := make([]any, len(changedColumn)+1)
 	for i := range changedColumn {
 		cols[i] = "`" + changedColumn[i].Name + "` = ?"
 		values[i] = changedColumn[i].Value
@@ -994,7 +995,7 @@ func (d *CommentImage) Update(ctx context.Context, commentImage *sample.CommentI
 
 	changedColumn := commentImage.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
-	values := make([]interface{}, len(changedColumn)+1)
+	values := make([]any, len(changedColumn)+1)
 	for i := range changedColumn {
 		cols[i] = "`" + changedColumn[i].Name + "` = ?"
 		values[i] = changedColumn[i].Value
@@ -1181,7 +1182,7 @@ func (d *Comment) Update(ctx context.Context, comment *sample.Comment, opt ...Ex
 
 	changedColumn := comment.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
-	values := make([]interface{}, len(changedColumn)+1)
+	values := make([]any, len(changedColumn)+1)
 	for i := range changedColumn {
 		cols[i] = "`" + changedColumn[i].Name + "` = ?"
 		values[i] = changedColumn[i].Value
@@ -1429,7 +1430,7 @@ func (d *Reply) Update(ctx context.Context, reply *sample.Reply, opt ...ExecOpti
 
 	changedColumn := reply.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
-	values := make([]interface{}, len(changedColumn)+1)
+	values := make([]any, len(changedColumn)+1)
 	for i := range changedColumn {
 		cols[i] = "`" + changedColumn[i].Name + "` = ?"
 		values[i] = changedColumn[i].Value
@@ -1544,18 +1545,11 @@ func (d *Like) SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, e
 	}
 
 	if len(res) > 0 {
-		userPrimaryKeys := make([]int32, len(res))
 		blogPrimaryKeys := make([]int64, len(res))
+		userPrimaryKeys := make([]int32, len(res))
 		for i, v := range res {
-			userPrimaryKeys[i] = v.UserId
 			blogPrimaryKeys[i] = v.BlogId
-		}
-		userData := make(map[int32]*sample.User)
-		{
-			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
-			for _, v := range rels {
-				userData[v.Id] = v
-			}
+			userPrimaryKeys[i] = v.UserId
 		}
 		blogData := make(map[int64]*sample.Blog)
 		{
@@ -1564,9 +1558,16 @@ func (d *Like) SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, e
 				blogData[v.Id] = v
 			}
 		}
+		userData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
+			for _, v := range rels {
+				userData[v.Id] = v
+			}
+		}
 		for _, v := range res {
-			v.User = userData[v.UserId]
 			v.Blog = blogData[v.BlogId]
+			v.User = userData[v.UserId]
 		}
 	}
 	return res, nil
@@ -1645,7 +1646,7 @@ func (d *Like) Update(ctx context.Context, like *sample.Like, opt ...ExecOption)
 
 	changedColumn := like.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
-	values := make([]interface{}, len(changedColumn)+1)
+	values := make([]any, len(changedColumn)+1)
 	for i := range changedColumn {
 		cols[i] = "`" + changedColumn[i].Name + "` = ?"
 		values[i] = changedColumn[i].Value
@@ -1814,7 +1815,7 @@ func (d *PostImage) Update(ctx context.Context, postImage *sample.PostImage, opt
 
 	changedColumn := postImage.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
-	values := make([]interface{}, len(changedColumn)+1)
+	values := make([]any, len(changedColumn)+1)
 	for i := range changedColumn {
 		cols[i] = "`" + changedColumn[i].Name + "` = ?"
 		values[i] = changedColumn[i].Value
@@ -2121,7 +2122,7 @@ func (d *Task) Update(ctx context.Context, task *sample.Task, opt ...ExecOption)
 
 	changedColumn := task.ChangedColumn()
 	cols := make([]string, len(changedColumn)+1)
-	values := make([]interface{}, len(changedColumn)+1)
+	values := make([]any, len(changedColumn)+1)
 	for i := range changedColumn {
 		cols[i] = "`" + changedColumn[i].Name + "` = ?"
 		values[i] = changedColumn[i].Value
