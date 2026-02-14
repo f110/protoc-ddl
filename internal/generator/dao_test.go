@@ -9,7 +9,6 @@ import (
 	"github.com/pingcap/tidb/pkg/parser/ast"
 	_ "github.com/pingcap/tidb/pkg/parser/test_driver"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/descriptorpb"
 
 	"go.f110.dev/protoc-ddl/internal/schema"
@@ -25,12 +24,12 @@ func TestGoDAOGenerator_Generate(t *testing.T) {
 	GoDAOGenerator{}.Generate(
 		res,
 		&descriptorpb.FileOptions{
-			GoPackage: proto.String("go.f110.dev/protoc-ddl/test/database"),
+			GoPackage: new("go.f110.dev/protoc-ddl/test/database"),
 		},
 		schema.NewMessages([]*schema.Message{
 			{
 				Descriptor: &descriptorpb.DescriptorProto{
-					Name: proto.String("User"),
+					Name: new("User"),
 				},
 				TableName:   "user",
 				PrimaryKeys: []*schema.Field{primaryKey},

@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"go/format"
-	"io/ioutil"
 	"os"
 
 	"github.com/spf13/pflag"
@@ -33,7 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	b, err := ioutil.ReadFile(schemaFile)
+	b, err := os.ReadFile(schemaFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not read schema file: %v\n", err)
 		os.Exit(1)
@@ -60,7 +59,7 @@ func main() {
 	}
 
 	if outfile != "" {
-		ioutil.WriteFile(outfile, out, 0644)
+		os.WriteFile(outfile, out, 0644)
 	} else {
 		os.Stdout.Write(out)
 	}

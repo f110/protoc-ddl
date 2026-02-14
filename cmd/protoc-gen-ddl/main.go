@@ -28,8 +28,8 @@ func main() {
 	}
 
 	res.File = append(res.File, &pluginpb.CodeGeneratorResponse_File{
-		Name:    proto.String(opt.OutputFile),
-		Content: proto.String(buf.String()),
+		Name:    new(opt.OutputFile),
+		Content: new(buf.String()),
 	})
 
 	output, err := proto.Marshal(&res)
