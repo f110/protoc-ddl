@@ -14,7 +14,7 @@ func newBuffer() *Buffer {
 	return &Buffer{Buffer: new(bytes.Buffer)}
 }
 
-func (b *Buffer) Writef(format string, a ...interface{}) {
+func (b *Buffer) Writef(format string, a ...any) {
 	b.Buffer.WriteString(fmt.Sprintf(format+"\n", a...))
 }
 

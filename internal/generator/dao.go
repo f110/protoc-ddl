@@ -98,7 +98,7 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOp
 	}
 
 	type execConn interface {
-		ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+		ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	}
 
 `)
@@ -302,7 +302,7 @@ func (g GoDAOGenerator) update(m *schema.Message, f *goFunc) string {
 
 	src.Writef("changedColumn := %s.ChangedColumn()", valueArgs.Name)
 	src.Write("cols := make([]string, len(changedColumn)+1)")
-	src.Write("values := make([]interface{}, len(changedColumn)+1)")
+	src.Write("values := make([]any, len(changedColumn)+1)")
 	src.Write("for i := range changedColumn {")
 	src.Write("cols[i] = \"`\" + changedColumn[i].Name + \"` = ?\"")
 	src.Write("values[i] = changedColumn[i].Value")
