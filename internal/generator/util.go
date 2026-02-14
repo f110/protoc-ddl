@@ -101,9 +101,9 @@ func (a *queryFormatVisitor) Enter(in ast.Node) (node ast.Node, skipChildren boo
 		}
 	case *ast.TableName:
 		if v.Name.String() == ":table_name:" && a.message != nil {
-			a.writer.Write([]byte(fmt.Sprintf("`%s`", a.message.TableName)))
+			a.writer.Write(fmt.Appendf(nil, "`%s`", a.message.TableName))
 		} else {
-			a.writer.Write([]byte(fmt.Sprintf("`%s`", v.Name.String())))
+			a.writer.Write(fmt.Appendf(nil, "`%s`", v.Name.String()))
 		}
 	case *ast.BinaryOperationExpr:
 		a.formatBinaryOperationExpr(v)
@@ -111,12 +111,12 @@ func (a *queryFormatVisitor) Enter(in ast.Node) (node ast.Node, skipChildren boo
 	case *ast.ColumnName:
 		switch a.ctx.state {
 		case fieldListState:
-			a.writer.Write([]byte(fmt.Sprintf("`%s`", v.Name.String())))
+			a.writer.Write(fmt.Appendf(nil, "`%s`", v.Name.String()))
 			a.ctx.state = fieldListSubsequentState
 		case fieldListSubsequentState:
-			a.writer.Write([]byte(fmt.Sprintf(", `%s`", v.Name.String())))
+			a.writer.Write(fmt.Appendf(nil, ", `%s`", v.Name.String()))
 		default:
-			a.writer.Write([]byte(fmt.Sprintf("`%s`", v.Name.String())))
+			a.writer.Write(fmt.Appendf(nil, "`%s`", v.Name.String()))
 		}
 	case *test_driver.ParamMarkerExpr:
 		switch a.ctx.state {
@@ -128,9 +128,9 @@ func (a *queryFormatVisitor) Enter(in ast.Node) (node ast.Node, skipChildren boo
 	case *test_driver.ValueExpr:
 		switch v.Type.EvalType() {
 		case types.ETInt:
-			a.writer.Write([]byte(fmt.Sprintf("%d", v.GetInt64())))
+			a.writer.Write(fmt.Appendf(nil, "%d", v.GetInt64()))
 		case types.ETString:
-			a.writer.Write([]byte(fmt.Sprintf("%q", v.GetString())))
+			a.writer.Write(fmt.Appendf(nil, "%q", v.GetString()))
 		}
 	case *ast.FuncCallExpr:
 		a.writer.Write([]byte(v.FnName.String()))

@@ -226,7 +226,7 @@ func (g GoDAOGenerator) create(m *schema.Message, f *goFunc) string {
 		queryArgs = append(queryArgs, "time.Now()")
 	}
 	args := make([]string, len(cols))
-	for i := 0; i < len(args); i++ {
+	for i := range args {
 		args[i] = "?"
 	}
 

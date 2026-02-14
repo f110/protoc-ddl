@@ -8,7 +8,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
+
 	"log"
 	"sync"
 	"time"
@@ -75,7 +76,7 @@ func NewMigration(schemaFile, driver, dsn string) (*Migration, error) {
 		generator.MySQLGenerator{}.Generate(buf, schema.NewMessages([]*schema.Message{SchemaVersionTable}, nil))
 	}
 
-	sch, err := ioutil.ReadFile(schemaFile)
+	sch, err := os.ReadFile(schemaFile)
 	if err != nil {
 		return nil, xerrors.WithStack(err)
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -83,13 +84,7 @@ func NewMessage(d *descriptorpb.DescriptorProto, f *descriptorpb.FileDescriptorP
 }
 
 func (m *Message) IsPrimaryKey(f *Field) bool {
-	for _, v := range m.PrimaryKeys {
-		if v == f {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(m.PrimaryKeys, f)
 }
 
 func (m *Message) IsReturningSingleRow(fields ...*Field) bool {
@@ -667,8 +662,8 @@ type Query struct {
 
 func parseOptionDDL(p string) DDLOption {
 	opt := DDLOption{OutputFile: "sql/schema.sql"}
-	params := strings.Split(p, ",")
-	for _, param := range params {
+	params := strings.SplitSeq(p, ",")
+	for param := range params {
 		s := strings.SplitN(param, "=", 2)
 		if len(s) == 1 {
 			opt.OutputFile = s[0]
@@ -687,8 +682,8 @@ func parseOptionDDL(p string) DDLOption {
 
 func parseOptionEntity(p string) EntityOption {
 	opt := EntityOption{}
-	params := strings.Split(p, ",")
-	for _, param := range params {
+	params := strings.SplitSeq(p, ",")
+	for param := range params {
 		s := strings.SplitN(param, "=", 2)
 		if len(s) == 1 {
 			opt.OutputFile = s[0]
