@@ -13,80 +13,64 @@ protoc-ddl is a tool of define and generate the schema for RDB.
 $ go get go.f110.dev/protoc-ddl/cmd/protoc-gen-ddl
 ```
 
-## With Bazel
+## With Bazel (Bzlmod)
 
-`WORKSPACE`
+`MODULE.bazel`
 
-```
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+```starlark
+bazel_dep(name = "protoc_ddl", version = "1.0")
+bazel_dep(name = "rules_go", version = "0.57.0")
+bazel_dep(name = "rules_proto", version = "7.1.0")
+bazel_dep(name = "protobuf", version = "32.1")
 
-http_archive(
-    name = "io_bazel_rules_go",
-    sha256 = "a8d6b1b354d371a646d2f7927319974e0f9e52f73a2452d2b3877118169eb6bb",
-    urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.23.3/rules_go-v0.23.3.tar.gz",
-        "https://github.com/bazelbuild/rules_go/releases/download/v0.23.3/rules_go-v0.23.3.tar.gz",
-    ],
+# protoc_ddl is not yet published to Bazel Central Registry.
+# Pin it to a specific revision via git_override.
+git_override(
+    module_name = "protoc_ddl",
+    remote = "https://github.com/f110/protoc-ddl.git",
+    commit = "<commit hash>",
 )
-
-git_repository(
-    name = "dev_f110_protoc_ddl",
-    commit = "61319c2f91243da88d6d88a04d3e5b783b86f510",
-    remote = "https://github.com/f110/protoc-ddl",
-)
-
-load("@io_bazel_rules_go//go:deps.bzl", "go_rules_dependencies", "go_register_toolchains")
-
-go_rules_dependencies()
-
-go_register_toolchains()
-
-load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
-
-protobuf_deps()
 ```
 
 `BUILD.bazel`
 
-```
+```starlark
 load("@rules_proto//proto:defs.bzl", "proto_library")
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
-load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
+load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//proto:def.bzl", "go_proto_library")
+load("@protoc_ddl//rules:def.bzl", "sql_schema", "vendor_ddl")
 
 proto_library(
     name = "database_proto",
     srcs = ["schema.proto"],
     visibility = ["//visibility:public"],
     deps = [
-        "@dev_f110_protoc_ddl//:ddl_proto",
-        "@com_google_protobuf//:timestamp_proto",
+        "@protoc_ddl//:ddl_proto",
+        "@protobuf//:timestamp_proto",
     ],
 )
 
 go_proto_library(
     name = "database_go_proto",
-    importpath = "go.f110.dev/mono/tools/build/pkg/database",
+    importpath = "example.com/database",
     proto = ":database_proto",
     visibility = ["//visibility:public"],
-    deps = ["//:go_default_library"],
+    deps = ["@protoc_ddl//:protoc-ddl"],
 )
 
 go_library(
-    name = "go_default_library",
+    name = "database",
     embed = [":database_go_proto"],
-    importpath = "go.f110.dev/mono/tools/build/pkg/database",
+    importpath = "example.com/database",
     visibility = ["//visibility:public"],
 )
-
-load("@dev_f110_protoc_ddl//rules:def.bzl", "sql_schema", "vendor_sql_schema")
 
 sql_schema(
     name = "schema",
     proto = ":database_proto",
 )
 
-vendor_sql_schema(
+vendor_ddl(
     name = "vendor_schema",
     src = ":schema",
 )
@@ -95,7 +79,7 @@ vendor_sql_schema(
 You can see the generated schema file by the following command.
 
 ```
-$ bazel run //:vendor_sql_schema
+$ bazel run //:vendor_schema
 ```
 
 You will see the generated schema file in the same directory at `*.sql`.
