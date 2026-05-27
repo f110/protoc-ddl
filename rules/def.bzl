@@ -3,8 +3,11 @@ load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//lib:shell.bzl", "shell")
 load("@rules_go//go:def.bzl", "GoSource", "go_context")
 
-def _execute_protoc(ctx, protoc, lang_name, plugin, proto, args, out, well_known_protos):
+_PROTO_TOOLCHAIN = "@protobuf//bazel/private:proto_toolchain_type"
+
+def _execute_protoc(ctx, lang_name, plugin, proto, args, out, well_known_protos):
     proto = proto[ProtoInfo]
+    protoc = ctx.toolchains[_PROTO_TOOLCHAIN].proto.proto_compiler
 
     args.add("--plugin", ("protoc-gen-%s=%s" % (lang_name, plugin.path)))
     args.add_all(proto.transitive_proto_path, format_each = "--proto_path=%s")
@@ -41,7 +44,6 @@ def _sql_schema_impl(ctx):
 
     _execute_protoc(
         ctx,
-        ctx.executable.protoc,
         "ddl",
         ctx.executable.compiler,
         ctx.attr.proto,
@@ -103,11 +105,6 @@ sql_schema = rule(
             doc = "The source import path. This attr will be used only if lang is go.",
         ),
         "with_hash": attr.bool(),
-        "protoc": attr.label(
-            executable = True,
-            cfg = "host",
-            default = "@protobuf//:protoc",
-        ),
         "compiler": attr.label(
             executable = True,
             cfg = "host",
@@ -126,7 +123,10 @@ sql_schema = rule(
             default = "@rules_go//:go_context_data",
         ),
     },
-    toolchains = ["@rules_go//go:toolchain"],
+    toolchains = [
+        "@rules_go//go:toolchain",
+        _PROTO_TOOLCHAIN,
+    ],
 )
 
 def _vendor_ddl_impl(ctx):
@@ -189,7 +189,6 @@ def _schema_entity_impl(ctx):
 
     _execute_protoc(
         ctx,
-        ctx.executable.protoc,
         "entity",
         ctx.executable.compiler,
         ctx.attr.proto,
@@ -220,11 +219,6 @@ schema_entity = rule(
     attrs = {
         "proto": attr.label(providers = [ProtoInfo]),
         "lang": attr.string(mandatory = True),
-        "protoc": attr.label(
-            executable = True,
-            cfg = "host",
-            default = "@protobuf//:protoc",
-        ),
         "compiler": attr.label(
             executable = True,
             cfg = "host",
@@ -238,7 +232,10 @@ schema_entity = rule(
             default = "@rules_go//:go_context_data",
         ),
     },
-    toolchains = ["@rules_go//go:toolchain"],
+    toolchains = [
+        "@rules_go//go:toolchain",
+        _PROTO_TOOLCHAIN,
+    ],
 )
 
 def _schema_dao_impl(ctx):
@@ -251,7 +248,6 @@ def _schema_dao_impl(ctx):
 
     _execute_protoc(
         ctx,
-        ctx.executable.protoc,
         "dao",
         ctx.executable.compiler,
         ctx.attr.proto,
@@ -282,11 +278,6 @@ schema_dao = rule(
     attrs = {
         "proto": attr.label(providers = [ProtoInfo]),
         "lang": attr.string(mandatory = True),
-        "protoc": attr.label(
-            executable = True,
-            cfg = "host",
-            default = "@protobuf//:protoc",
-        ),
         "compiler": attr.label(
             executable = True,
             cfg = "host",
@@ -300,7 +291,10 @@ schema_dao = rule(
             default = "@rules_go//:go_context_data",
         ),
     },
-    toolchains = ["@rules_go//go:toolchain"],
+    toolchains = [
+        "@rules_go//go:toolchain",
+        _PROTO_TOOLCHAIN,
+    ],
 )
 
 def _schema_dao_mock_impl(ctx):
@@ -314,7 +308,6 @@ def _schema_dao_mock_impl(ctx):
 
     _execute_protoc(
         ctx,
-        ctx.executable.protoc,
         "dao-mock",
         ctx.executable.compiler,
         ctx.attr.proto,
@@ -346,11 +339,6 @@ schema_dao_mock = rule(
         "proto": attr.label(providers = [ProtoInfo]),
         "lang": attr.string(mandatory = True),
         "daopath": attr.string(),
-        "protoc": attr.label(
-            executable = True,
-            cfg = "host",
-            default = "@protobuf//:protoc",
-        ),
         "compiler": attr.label(
             executable = True,
             cfg = "host",
@@ -364,5 +352,8 @@ schema_dao_mock = rule(
             default = "@rules_go//:go_context_data",
         ),
     },
-    toolchains = ["@rules_go//go:toolchain"],
+    toolchains = [
+        "@rules_go//go:toolchain",
+        _PROTO_TOOLCHAIN,
+    ],
 )
