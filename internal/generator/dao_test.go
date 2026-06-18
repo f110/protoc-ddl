@@ -65,6 +65,50 @@ func TestGoDAOGenerator_Generate(t *testing.T) {
 	t.Log(res.String())
 }
 
+func TestGoDAOGenerator_UpdateColumnSlice(t *testing.T) {
+	pk := &schema.Field{Name: "id", Type: "TYPE_INT32", Sequence: true}
+	gen := func(withTimestamp bool, fields []*schema.Field) string {
+		buf := new(bytes.Buffer)
+		GoDAOGenerator{}.Generate(
+			buf,
+			&descriptorpb.FileOptions{GoPackage: new("go.f110.dev/protoc-ddl/test/database")},
+			schema.NewMessages([]*schema.Message{
+				{
+					Descriptor:    &descriptorpb.DescriptorProto{Name: new("Item")},
+					TableName:     "item",
+					PrimaryKeys:   []*schema.Field{pk},
+					Fields:        schema.NewFields(fields),
+					WithTimestamp: withTimestamp,
+				},
+			}, nil),
+		)
+		return buf.String()
+	}
+
+	// A table without timestamps must size the UPDATE column slice exactly to the
+	// changed columns. A stray +1 leaves an empty trailing element that renders as
+	// "SET `col` = ?,  WHERE ...", which is invalid SQL and makes every Update fail.
+	t.Run("without timestamp", func(t *testing.T) {
+		out := gen(false, []*schema.Field{pk, {Name: "name", Type: "TYPE_STRING"}})
+		require.Contains(t, out, "cols := make([]string, len(changedColumn))")
+		require.NotContains(t, out, "len(changedColumn)+1")
+		require.NotContains(t, out, "`updated_at` = ?")
+	})
+
+	// A table with timestamps reserves the extra slot for the auto-managed
+	// updated_at column.
+	t.Run("with timestamp", func(t *testing.T) {
+		out := gen(true, []*schema.Field{
+			pk,
+			{Name: "name", Type: "TYPE_STRING"},
+			{Name: "created_at", Type: schema.TimestampType},
+			{Name: "updated_at", Type: schema.TimestampType, Null: true},
+		})
+		require.Contains(t, out, "cols := make([]string, len(changedColumn)+1)")
+		require.Contains(t, out, "cols[len(cols)-1] = \"`updated_at` = ?\"")
+	})
+}
+
 func TestGoDAOStruct_findArgs(t *testing.T) {
 	tableFields := []*schema.Field{
 		{

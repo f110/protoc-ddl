@@ -301,8 +301,14 @@ func (g GoDAOGenerator) update(m *schema.Message, f *goFunc) string {
 	src.LineBreak()
 
 	src.Writef("changedColumn := %s.ChangedColumn()", valueArgs.Name)
-	src.Write("cols := make([]string, len(changedColumn)+1)")
-	src.Write("values := make([]any, len(changedColumn)+1)")
+	if m.WithTimestamp {
+		// Reserve one extra slot for the auto-managed updated_at column.
+		src.Write("cols := make([]string, len(changedColumn)+1)")
+		src.Write("values := make([]any, len(changedColumn)+1)")
+	} else {
+		src.Write("cols := make([]string, len(changedColumn))")
+		src.Write("values := make([]any, len(changedColumn))")
+	}
 	src.Write("for i := range changedColumn {")
 	src.Write("cols[i] = \"`\" + changedColumn[i].Name + \"` = ?\"")
 	src.Write("values[i] = changedColumn[i].Value")
