@@ -127,7 +127,7 @@ func (d *User) Select(ctx context.Context, id int32) (*sample.User, error) {
 func (d *User) SelectMulti(ctx context.Context, id ...int32) ([]*sample.User, error) {
 	inCause := strings.Repeat("?, ", len(id))
 	args := make([]any, len(id))
-	for i := range id {
+	for i := 0; i < len(id); i++ {
 		args[i] = id[i]
 	}
 	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `users` WHERE `id` IN (%s)", inCause[:len(inCause)-2]), args...)
@@ -332,8 +332,8 @@ func (d *User) Update(ctx context.Context, user *sample.User, opt ...ExecOption)
 	}
 
 	changedColumn := user.ChangedColumn()
-	cols := make([]string, len(changedColumn)+1)
-	values := make([]any, len(changedColumn)+1)
+	cols := make([]string, len(changedColumn))
+	values := make([]any, len(changedColumn))
 	for i := range changedColumn {
 		cols[i] = "`" + changedColumn[i].Name + "` = ?"
 		values[i] = changedColumn[i].Value
@@ -431,7 +431,7 @@ func (d *Blog) Select(ctx context.Context, id int64) (*sample.Blog, error) {
 func (d *Blog) SelectMulti(ctx context.Context, id ...int64) ([]*sample.Blog, error) {
 	inCause := strings.Repeat("?, ", len(id))
 	args := make([]any, len(id))
-	for i := range id {
+	for i := 0; i < len(id); i++ {
 		args[i] = id[i]
 	}
 	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `blog` WHERE `id` IN (%s)", inCause[:len(inCause)-2]), args...)
@@ -994,8 +994,8 @@ func (d *CommentImage) Update(ctx context.Context, commentImage *sample.CommentI
 	}
 
 	changedColumn := commentImage.ChangedColumn()
-	cols := make([]string, len(changedColumn)+1)
-	values := make([]any, len(changedColumn)+1)
+	cols := make([]string, len(changedColumn))
+	values := make([]any, len(changedColumn))
 	for i := range changedColumn {
 		cols[i] = "`" + changedColumn[i].Name + "` = ?"
 		values[i] = changedColumn[i].Value
@@ -1181,8 +1181,8 @@ func (d *Comment) Update(ctx context.Context, comment *sample.Comment, opt ...Ex
 	}
 
 	changedColumn := comment.ChangedColumn()
-	cols := make([]string, len(changedColumn)+1)
-	values := make([]any, len(changedColumn)+1)
+	cols := make([]string, len(changedColumn))
+	values := make([]any, len(changedColumn))
 	for i := range changedColumn {
 		cols[i] = "`" + changedColumn[i].Name + "` = ?"
 		values[i] = changedColumn[i].Value
@@ -1274,7 +1274,7 @@ func (d *Reply) Select(ctx context.Context, id int32) (*sample.Reply, error) {
 func (d *Reply) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Reply, error) {
 	inCause := strings.Repeat("?, ", len(id))
 	args := make([]any, len(id))
-	for i := range id {
+	for i := 0; i < len(id); i++ {
 		args[i] = id[i]
 	}
 	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `reply` WHERE `id` IN (%s)", inCause[:len(inCause)-2]), args...)
@@ -1429,8 +1429,8 @@ func (d *Reply) Update(ctx context.Context, reply *sample.Reply, opt ...ExecOpti
 	}
 
 	changedColumn := reply.ChangedColumn()
-	cols := make([]string, len(changedColumn)+1)
-	values := make([]any, len(changedColumn)+1)
+	cols := make([]string, len(changedColumn))
+	values := make([]any, len(changedColumn))
 	for i := range changedColumn {
 		cols[i] = "`" + changedColumn[i].Name + "` = ?"
 		values[i] = changedColumn[i].Value
@@ -1526,7 +1526,7 @@ func (d *Like) Select(ctx context.Context, id uint64) (*sample.Like, error) {
 func (d *Like) SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, error) {
 	inCause := strings.Repeat("?, ", len(id))
 	args := make([]any, len(id))
-	for i := range id {
+	for i := 0; i < len(id); i++ {
 		args[i] = id[i]
 	}
 	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `like` WHERE `id` IN (%s)", inCause[:len(inCause)-2]), args...)
@@ -1645,8 +1645,8 @@ func (d *Like) Update(ctx context.Context, like *sample.Like, opt ...ExecOption)
 	}
 
 	changedColumn := like.ChangedColumn()
-	cols := make([]string, len(changedColumn)+1)
-	values := make([]any, len(changedColumn)+1)
+	cols := make([]string, len(changedColumn))
+	values := make([]any, len(changedColumn))
 	for i := range changedColumn {
 		cols[i] = "`" + changedColumn[i].Name + "` = ?"
 		values[i] = changedColumn[i].Value
@@ -1726,7 +1726,7 @@ func (d *PostImage) Select(ctx context.Context, id int32) (*sample.PostImage, er
 func (d *PostImage) SelectMulti(ctx context.Context, id ...int32) ([]*sample.PostImage, error) {
 	inCause := strings.Repeat("?, ", len(id))
 	args := make([]any, len(id))
-	for i := range id {
+	for i := 0; i < len(id); i++ {
 		args[i] = id[i]
 	}
 	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `post_image` WHERE `id` IN (%s)", inCause[:len(inCause)-2]), args...)
@@ -1814,8 +1814,8 @@ func (d *PostImage) Update(ctx context.Context, postImage *sample.PostImage, opt
 	}
 
 	changedColumn := postImage.ChangedColumn()
-	cols := make([]string, len(changedColumn)+1)
-	values := make([]any, len(changedColumn)+1)
+	cols := make([]string, len(changedColumn))
+	values := make([]any, len(changedColumn))
 	for i := range changedColumn {
 		cols[i] = "`" + changedColumn[i].Name + "` = ?"
 		values[i] = changedColumn[i].Value
@@ -1906,7 +1906,7 @@ func (d *Task) Select(ctx context.Context, id int32) (*sample.Task, error) {
 func (d *Task) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Task, error) {
 	inCause := strings.Repeat("?, ", len(id))
 	args := make([]any, len(id))
-	for i := range id {
+	for i := 0; i < len(id); i++ {
 		args[i] = id[i]
 	}
 	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `task` WHERE `id` IN (%s)", inCause[:len(inCause)-2]), args...)
@@ -2121,8 +2121,8 @@ func (d *Task) Update(ctx context.Context, task *sample.Task, opt ...ExecOption)
 	}
 
 	changedColumn := task.ChangedColumn()
-	cols := make([]string, len(changedColumn)+1)
-	values := make([]any, len(changedColumn)+1)
+	cols := make([]string, len(changedColumn))
+	values := make([]any, len(changedColumn))
 	for i := range changedColumn {
 		cols[i] = "`" + changedColumn[i].Name + "` = ?"
 		values[i] = changedColumn[i].Value
