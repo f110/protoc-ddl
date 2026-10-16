@@ -130,6 +130,48 @@ func TestGoDAOGenerator_SelectMultiRangeLoop(t *testing.T) {
 	require.NotContains(t, out, "i < len(id)")
 }
 
+func TestGoDAOGenerator_RelationOrderIsStable(t *testing.T) {
+	gen := func() string {
+		pk := &schema.Field{Name: "id", Type: "TYPE_INT32", Sequence: true}
+		parentPK := &schema.Field{Name: "id", Type: "TYPE_INT32", Descriptor: &descriptorpb.FieldDescriptorProto{Name: new("id")}}
+		relations := schema.Relations{}
+		fields := []*schema.Field{pk}
+		for _, name := range []string{"alpha", "bravo", "charlie", "delta"} {
+			ref := &schema.Field{Name: name + "_id", Type: "TYPE_INT32", Descriptor: parentPK.Descriptor}
+			relations[&schema.Field{Name: name, Type: ".database.User"}] = []*schema.Field{ref}
+			fields = append(fields, ref)
+		}
+
+		buf := new(bytes.Buffer)
+		GoDAOGenerator{}.Generate(
+			buf,
+			&descriptorpb.FileOptions{GoPackage: new("go.f110.dev/protoc-ddl/test/database")},
+			schema.NewMessages([]*schema.Message{
+				{
+					Descriptor:  &descriptorpb.DescriptorProto{Name: new("User")},
+					TableName:   "user",
+					PrimaryKeys: []*schema.Field{parentPK},
+					Fields:      schema.NewFields([]*schema.Field{parentPK, {Name: "name", Type: "TYPE_STRING"}}),
+				},
+				{
+					Descriptor:    &descriptorpb.DescriptorProto{Name: new("Item")},
+					TableName:     "item",
+					PrimaryKeys:   []*schema.Field{pk},
+					Fields:        schema.NewFields(fields),
+					Relations:     relations,
+					SelectQueries: []*schema.Query{{Name: "All", Query: "SELECT * FROM item"}},
+				},
+			}, nil),
+		)
+		return buf.String()
+	}
+
+	expected := gen()
+	for range 20 {
+		require.Equal(t, expected, gen())
+	}
+}
+
 func TestGoDAOStruct_findArgs(t *testing.T) {
 	tableFields := []*schema.Field{
 		{

@@ -450,18 +450,11 @@ func (d *Blog) SelectMulti(ctx context.Context, id ...int64) ([]*sample.Blog, er
 	}
 
 	if len(res) > 0 {
-		userPrimaryKeys := make([]int32, len(res))
 		editorPrimaryKeys := make([]int32, len(res))
+		userPrimaryKeys := make([]int32, len(res))
 		for i, v := range res {
-			userPrimaryKeys[i] = v.UserId
 			editorPrimaryKeys[i] = v.EditorId
-		}
-		userData := make(map[int32]*sample.User)
-		{
-			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
-			for _, v := range rels {
-				userData[v.Id] = v
-			}
+			userPrimaryKeys[i] = v.UserId
 		}
 		editorData := make(map[int32]*sample.User)
 		{
@@ -470,9 +463,16 @@ func (d *Blog) SelectMulti(ctx context.Context, id ...int64) ([]*sample.Blog, er
 				editorData[v.Id] = v
 			}
 		}
+		userData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
+			for _, v := range rels {
+				userData[v.Id] = v
+			}
+		}
 		for _, v := range res {
-			v.User = userData[v.UserId]
 			v.Editor = editorData[v.EditorId]
+			v.User = userData[v.UserId]
 		}
 	}
 	return res, nil
@@ -578,18 +578,11 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 		res = append(res, r)
 	}
 	if len(res) > 0 {
-		userPrimaryKeys := make([]int32, len(res))
 		editorPrimaryKeys := make([]int32, len(res))
+		userPrimaryKeys := make([]int32, len(res))
 		for i, v := range res {
-			userPrimaryKeys[i] = v.UserId
 			editorPrimaryKeys[i] = v.EditorId
-		}
-		userData := make(map[int32]*sample.User)
-		{
-			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
-			for _, v := range rels {
-				userData[v.Id] = v
-			}
+			userPrimaryKeys[i] = v.UserId
 		}
 		editorData := make(map[int32]*sample.User)
 		{
@@ -598,9 +591,16 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 				editorData[v.Id] = v
 			}
 		}
+		userData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
+			for _, v := range rels {
+				userData[v.Id] = v
+			}
+		}
 		for _, v := range res {
-			v.User = userData[v.UserId]
 			v.Editor = editorData[v.EditorId]
+			v.User = userData[v.UserId]
 		}
 	}
 
@@ -668,18 +668,11 @@ func (d *Blog) ListByEditors(ctx context.Context, opt ...ListOption) ([]*sample.
 		res = append(res, r)
 	}
 	if len(res) > 0 {
-		userPrimaryKeys := make([]int32, len(res))
 		editorPrimaryKeys := make([]int32, len(res))
+		userPrimaryKeys := make([]int32, len(res))
 		for i, v := range res {
-			userPrimaryKeys[i] = v.UserId
 			editorPrimaryKeys[i] = v.EditorId
-		}
-		userData := make(map[int32]*sample.User)
-		{
-			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
-			for _, v := range rels {
-				userData[v.Id] = v
-			}
+			userPrimaryKeys[i] = v.UserId
 		}
 		editorData := make(map[int32]*sample.User)
 		{
@@ -688,9 +681,16 @@ func (d *Blog) ListByEditors(ctx context.Context, opt ...ListOption) ([]*sample.
 				editorData[v.Id] = v
 			}
 		}
+		userData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
+			for _, v := range rels {
+				userData[v.Id] = v
+			}
+		}
 		for _, v := range res {
-			v.User = userData[v.UserId]
 			v.Editor = editorData[v.EditorId]
+			v.User = userData[v.UserId]
 		}
 	}
 
@@ -1545,18 +1545,11 @@ func (d *Like) SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, e
 	}
 
 	if len(res) > 0 {
-		userPrimaryKeys := make([]int32, len(res))
 		blogPrimaryKeys := make([]int64, len(res))
+		userPrimaryKeys := make([]int32, len(res))
 		for i, v := range res {
-			userPrimaryKeys[i] = v.UserId
 			blogPrimaryKeys[i] = v.BlogId
-		}
-		userData := make(map[int32]*sample.User)
-		{
-			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
-			for _, v := range rels {
-				userData[v.Id] = v
-			}
+			userPrimaryKeys[i] = v.UserId
 		}
 		blogData := make(map[int64]*sample.Blog)
 		{
@@ -1565,9 +1558,16 @@ func (d *Like) SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, e
 				blogData[v.Id] = v
 			}
 		}
+		userData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
+			for _, v := range rels {
+				userData[v.Id] = v
+			}
+		}
 		for _, v := range res {
-			v.User = userData[v.UserId]
 			v.Blog = blogData[v.BlogId]
+			v.User = userData[v.UserId]
 		}
 	}
 	return res, nil
