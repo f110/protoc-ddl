@@ -374,7 +374,7 @@ func (g GoDAOGenerator) primaryKeyMultiSelect(entityName string, m *schema.Messa
 	src := newBuffer()
 	src.Writef("inCause := strings.Repeat(\"?, \", len(%s))", schema.ToLowerCamel(m.PrimaryKeys[0].Name))
 	src.Writef("args := make([]any, len(%s))", schema.ToLowerCamel(m.PrimaryKeys[0].Name))
-	src.Writef("for i := 0;i < len(%s);i++ {\nargs[i] = %s[i]}", schema.ToLowerCamel(m.PrimaryKeys[0].Name), schema.ToLowerCamel(m.PrimaryKeys[0].Name))
+	src.Writef("for i := range %s {\nargs[i] = %s[i]}",schema.ToLowerCamel(m.PrimaryKeys[0].Name), schema.ToLowerCamel(m.PrimaryKeys[0].Name))
 	src.Writef("rows, err := d.conn.QueryContext(ctx,fmt.Sprintf(\"SELECT * FROM `%s` WHERE `%s` IN (%%s)\", inCause[:len(inCause)-2]),args...)", m.TableName, m.PrimaryKeys[0].Name)
 	src.WriteString("if err != nil {\nreturn nil, err\n}\n")
 	src.WriteString("defer rows.Close()\n")

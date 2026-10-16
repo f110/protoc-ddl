@@ -109,6 +109,27 @@ func TestGoDAOGenerator_UpdateColumnSlice(t *testing.T) {
 	})
 }
 
+func TestGoDAOGenerator_SelectMultiRangeLoop(t *testing.T) {
+	pk := &schema.Field{Name: "id", Type: "TYPE_INT32", Sequence: true}
+	buf := new(bytes.Buffer)
+	GoDAOGenerator{}.Generate(
+		buf,
+		&descriptorpb.FileOptions{GoPackage: new("go.f110.dev/protoc-ddl/test/database")},
+		schema.NewMessages([]*schema.Message{
+			{
+				Descriptor:  &descriptorpb.DescriptorProto{Name: new("Item")},
+				TableName:   "item",
+				PrimaryKeys: []*schema.Field{pk},
+				Fields:      schema.NewFields([]*schema.Field{pk, {Name: "name", Type: "TYPE_STRING"}}),
+			},
+		}, nil),
+	)
+
+	out := buf.String()
+	require.Contains(t, out, "for i := range id {")
+	require.NotContains(t, out, "i < len(id)")
+}
+
 func TestGoDAOStruct_findArgs(t *testing.T) {
 	tableFields := []*schema.Field{
 		{
