@@ -127,7 +127,7 @@ func (d *User) Select(ctx context.Context, id int32) (*sample.User, error) {
 func (d *User) SelectMulti(ctx context.Context, id ...int32) ([]*sample.User, error) {
 	inCause := strings.Repeat("?, ", len(id))
 	args := make([]any, len(id))
-	for i := 0; i < len(id); i++ {
+	for i := range id {
 		args[i] = id[i]
 	}
 	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `users` WHERE `id` IN (%s)", inCause[:len(inCause)-2]), args...)
@@ -431,7 +431,7 @@ func (d *Blog) Select(ctx context.Context, id int64) (*sample.Blog, error) {
 func (d *Blog) SelectMulti(ctx context.Context, id ...int64) ([]*sample.Blog, error) {
 	inCause := strings.Repeat("?, ", len(id))
 	args := make([]any, len(id))
-	for i := 0; i < len(id); i++ {
+	for i := range id {
 		args[i] = id[i]
 	}
 	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `blog` WHERE `id` IN (%s)", inCause[:len(inCause)-2]), args...)
@@ -513,18 +513,11 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 		res = append(res, r)
 	}
 	if len(res) > 0 {
-		userPrimaryKeys := make([]int32, len(res))
 		editorPrimaryKeys := make([]int32, len(res))
+		userPrimaryKeys := make([]int32, len(res))
 		for i, v := range res {
-			userPrimaryKeys[i] = v.UserId
 			editorPrimaryKeys[i] = v.EditorId
-		}
-		userData := make(map[int32]*sample.User)
-		{
-			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
-			for _, v := range rels {
-				userData[v.Id] = v
-			}
+			userPrimaryKeys[i] = v.UserId
 		}
 		editorData := make(map[int32]*sample.User)
 		{
@@ -533,9 +526,16 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 				editorData[v.Id] = v
 			}
 		}
+		userData := make(map[int32]*sample.User)
+		{
+			rels, _ := d.user.SelectMulti(ctx, userPrimaryKeys...)
+			for _, v := range rels {
+				userData[v.Id] = v
+			}
+		}
 		for _, v := range res {
-			v.User = userData[v.UserId]
 			v.Editor = editorData[v.EditorId]
+			v.User = userData[v.UserId]
 		}
 	}
 
@@ -1274,7 +1274,7 @@ func (d *Reply) Select(ctx context.Context, id int32) (*sample.Reply, error) {
 func (d *Reply) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Reply, error) {
 	inCause := strings.Repeat("?, ", len(id))
 	args := make([]any, len(id))
-	for i := 0; i < len(id); i++ {
+	for i := range id {
 		args[i] = id[i]
 	}
 	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `reply` WHERE `id` IN (%s)", inCause[:len(inCause)-2]), args...)
@@ -1526,7 +1526,7 @@ func (d *Like) Select(ctx context.Context, id uint64) (*sample.Like, error) {
 func (d *Like) SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, error) {
 	inCause := strings.Repeat("?, ", len(id))
 	args := make([]any, len(id))
-	for i := 0; i < len(id); i++ {
+	for i := range id {
 		args[i] = id[i]
 	}
 	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `like` WHERE `id` IN (%s)", inCause[:len(inCause)-2]), args...)
@@ -1545,18 +1545,11 @@ func (d *Like) SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, e
 	}
 
 	if len(res) > 0 {
-		blogPrimaryKeys := make([]int64, len(res))
 		userPrimaryKeys := make([]int32, len(res))
+		blogPrimaryKeys := make([]int64, len(res))
 		for i, v := range res {
-			blogPrimaryKeys[i] = v.BlogId
 			userPrimaryKeys[i] = v.UserId
-		}
-		blogData := make(map[int64]*sample.Blog)
-		{
-			rels, _ := d.blog.SelectMulti(ctx, blogPrimaryKeys...)
-			for _, v := range rels {
-				blogData[v.Id] = v
-			}
+			blogPrimaryKeys[i] = v.BlogId
 		}
 		userData := make(map[int32]*sample.User)
 		{
@@ -1565,9 +1558,16 @@ func (d *Like) SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, e
 				userData[v.Id] = v
 			}
 		}
+		blogData := make(map[int64]*sample.Blog)
+		{
+			rels, _ := d.blog.SelectMulti(ctx, blogPrimaryKeys...)
+			for _, v := range rels {
+				blogData[v.Id] = v
+			}
+		}
 		for _, v := range res {
-			v.Blog = blogData[v.BlogId]
 			v.User = userData[v.UserId]
+			v.Blog = blogData[v.BlogId]
 		}
 	}
 	return res, nil
@@ -1726,7 +1726,7 @@ func (d *PostImage) Select(ctx context.Context, id int32) (*sample.PostImage, er
 func (d *PostImage) SelectMulti(ctx context.Context, id ...int32) ([]*sample.PostImage, error) {
 	inCause := strings.Repeat("?, ", len(id))
 	args := make([]any, len(id))
-	for i := 0; i < len(id); i++ {
+	for i := range id {
 		args[i] = id[i]
 	}
 	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `post_image` WHERE `id` IN (%s)", inCause[:len(inCause)-2]), args...)
@@ -1906,7 +1906,7 @@ func (d *Task) Select(ctx context.Context, id int32) (*sample.Task, error) {
 func (d *Task) SelectMulti(ctx context.Context, id ...int32) ([]*sample.Task, error) {
 	inCause := strings.Repeat("?, ", len(id))
 	args := make([]any, len(id))
-	for i := 0; i < len(id); i++ {
+	for i := range id {
 		args[i] = id[i]
 	}
 	rows, err := d.conn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM `task` WHERE `id` IN (%s)", inCause[:len(inCause)-2]), args...)
