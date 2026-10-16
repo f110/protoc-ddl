@@ -508,13 +508,20 @@ func (g GoDAOGenerator) selectSingleRowQuery(m *schema.Message, name string, stm
 }
 
 func (g GoDAOGenerator) selectChildObjects(src *Buffer, m *schema.Message, entityName string) {
-	var bulkFetchFields, serialFetchFields []*schema.Field
+	relFields := make([]*schema.Field, 0, len(m.Relations))
 	for f := range m.Relations {
 		if f.Virtual {
 			continue
 		}
-		rels := m.Relations[f]
-		if len(rels) == 1 {
+		relFields = append(relFields, f)
+	}
+	sort.Slice(relFields, func(i, j int) bool {
+		return relFields[i].Name < relFields[j].Name
+	})
+
+	var bulkFetchFields, serialFetchFields []*schema.Field
+	for _, f := range relFields {
+		if len(m.Relations[f]) == 1 {
 			bulkFetchFields = append(bulkFetchFields, f)
 		} else {
 			serialFetchFields = append(serialFetchFields, f)
