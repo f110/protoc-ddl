@@ -141,13 +141,13 @@ func (d *Blog) RegisterSelectByUserAndTitle(userId int32, value *sample.Blog, er
 	d.Register("SelectByUserAndTitle", map[string]any{"userId": userId}, value, err)
 }
 
-func (d *Blog) ListByEditors(ctx context.Context, opt ...dao.ListOption) ([]*sample.Blog, error) {
-	v, err := d.Call("ListByEditors", map[string]any{})
+func (d *Blog) ListByEditors(ctx context.Context, editorId []int32, opt ...dao.ListOption) ([]*sample.Blog, error) {
+	v, err := d.Call("ListByEditors", map[string]any{"editorId": editorId})
 	return v.([]*sample.Blog), err
 }
 
-func (d *Blog) RegisterListByEditors(value []*sample.Blog, err error) {
-	d.Register("ListByEditors", map[string]any{}, value, err)
+func (d *Blog) RegisterListByEditors(editorId []int32, value []*sample.Blog, err error) {
+	d.Register("ListByEditors", map[string]any{"editorId": editorId}, value, err)
 }
 
 func (d *Blog) Create(ctx context.Context, blog *sample.Blog, opt ...dao.ExecOption) (*sample.Blog, error) {
