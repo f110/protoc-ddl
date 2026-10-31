@@ -9,6 +9,7 @@ go_library(
         "mock.go",
         "mysql.go",
         "util.go",
+        "where.go",
     ],
     importpath = "go.f110.dev/protoc-ddl/internal/generator",
     visibility = ["//:__subpackages__"],
@@ -28,6 +29,7 @@ go_test(
     srcs = [
         "dao_test.go",
         "util_test.go",
+        "where_test.go",
     ],
     embed = [":generator"],
     deps = [
@@ -37,7 +39,6 @@ go_test(
         "@com_github_pingcap_tidb_pkg_parser//test_driver",
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",
-        "@org_golang_google_protobuf//proto",
         "@org_golang_google_protobuf//types/descriptorpb",
     ],
 )

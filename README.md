@@ -84,6 +84,22 @@ $ bazel run //:vendor_schema
 
 You will see the generated schema file in the same directory at `*.sql`.
 
+# Query
+
+The queries of DAO are defined by `dev.f110.ddl.dao`. The conditions of WHERE clause can use `LIKE ?`, `IN (?)` and
+parentheses in addition to the comparison operators.
+
+`IN (?)` takes a slice. If the slice is empty, the condition is always false.
+
+```
+queries: {
+  name: "Search"
+  query: "SELECT * FROM `:table_name:` WHERE `status` IN (?) AND (`title` LIKE ? OR `body` LIKE ?)"
+}
+```
+
+The above query generates `ListSearch(ctx context.Context, status []uint32, title string, body string, opt ...ListOption)`.
+
 # Migration
 
 This tool also supports the migration.

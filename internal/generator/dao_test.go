@@ -267,3 +267,57 @@ func TestGoFunc(t *testing.T) {
 	}
 	t.Log(f.String())
 }
+
+func TestGoDAOGenerator_ConditionQuery(t *testing.T) {
+	pk := &schema.Field{Name: "id", Type: "TYPE_INT32", Sequence: true}
+	gen := func(queries ...*schema.Query) string {
+		buf := new(bytes.Buffer)
+		GoDAOGenerator{}.Generate(
+			buf,
+			&descriptorpb.FileOptions{GoPackage: new("go.f110.dev/protoc-ddl/test/database")},
+			schema.NewMessages([]*schema.Message{
+				{
+					Descriptor:  &descriptorpb.DescriptorProto{Name: new("Item")},
+					TableName:   "item",
+					PrimaryKeys: []*schema.Field{pk},
+					Fields: schema.NewFields([]*schema.Field{
+						pk,
+						{Name: "status", Type: "TYPE_UINT32"},
+						{Name: "title", Type: "TYPE_STRING"},
+						{Name: "body", Type: "TYPE_STRING"},
+						{Name: "deleted_at", Type: schema.TimestampType, Null: true},
+					}),
+					SelectQueries: queries,
+				},
+			}, nil),
+		)
+		return buf.String()
+	}
+
+	t.Run("in and like are built at runtime", func(t *testing.T) {
+		out := gen(&schema.Query{
+			Name:  "Search",
+			Query: "SELECT * FROM `:table_name:` WHERE `status` IN (?) AND (`title` LIKE ? OR `body` LIKE ? OR `id` IN (?)) AND `deleted_at` IS NULL",
+		})
+		require.NotContains(t, out, `"go.f110.dev/protoc-ddl"`)
+		require.Contains(t, out, "ListSearch(ctx context.Context, status []uint32, title string, body string, id []int32, opt ...ListOption) ([]*database.Item, error)")
+		require.Contains(t, out, "where := whereAnd(whereIn(\"`status`\", status), whereOr(whereCond(\"`title` LIKE ?\", title), whereCond(\"`body` LIKE ?\", body), whereIn(\"`id`\", id)), whereCond(\"`deleted_at` IS NULL\"))")
+		require.Contains(t, out, "query := \"SELECT `id`, `status`, `title`, `body`, `deleted_at` FROM `item` WHERE \" + where.sql")
+		require.Contains(t, out, "rows, err := d.conn.QueryContext(ctx, query, where.args...)")
+		require.Contains(t, out, "func whereIn[T any](column string, values []T) *whereCondition {")
+	})
+
+	t.Run("same column is used twice", func(t *testing.T) {
+		out := gen(&schema.Query{
+			Name:  "Title",
+			Query: "SELECT * FROM `:table_name:` WHERE `title` LIKE ? OR `title` = ?",
+		})
+		require.Contains(t, out, "ListTitle(ctx context.Context, title string, title2 string, opt ...ListOption)")
+	})
+
+	t.Run("query without in, like and parentheses is not changed", func(t *testing.T) {
+		out := gen(&schema.Query{Name: "ByStatus", Query: "SELECT * FROM `:table_name:` WHERE `status` = ?"})
+		require.NotContains(t, out, "whereCondition")
+		require.Contains(t, out, "ListByStatus(ctx context.Context, status uint32, opt ...ListOption)")
+	})
+}

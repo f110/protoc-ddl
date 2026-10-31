@@ -371,7 +371,7 @@ type BlogInterface interface {
 	ListByTitle(ctx context.Context, title string, opt ...ListOption) ([]*sample.Blog, error)
 	ListByUserAndCategory(ctx context.Context, userId int32, categoryId int32, opt ...ListOption) ([]*sample.Blog, error)
 	SelectByUserAndTitle(ctx context.Context, userId int32, title string) (*sample.Blog, error)
-	ListByEditors(ctx context.Context, opt ...ListOption) ([]*sample.Blog, error)
+	ListByEditors(ctx context.Context, editorId []int32, opt ...ListOption) ([]*sample.Blog, error)
 	Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption) (*sample.Blog, error)
 	Update(ctx context.Context, blog *sample.Blog, opt ...ExecOption) error
 	Delete(ctx context.Context, id int64, opt ...ExecOption) error
@@ -634,9 +634,10 @@ func (d *Blog) SelectByUserAndTitle(ctx context.Context, userId int32, title str
 	return v, nil
 }
 
-func (d *Blog) ListByEditors(ctx context.Context, opt ...ListOption) ([]*sample.Blog, error) {
+func (d *Blog) ListByEditors(ctx context.Context, editorId []int32, opt ...ListOption) ([]*sample.Blog, error) {
 	listOpts := newListOpt(opt...)
-	query := "SELECT `id`, `user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `created_at`, `updated_at` FROM `blog` WHERE `editor_id` IN (?)"
+	where := whereIn("`editor_id`", editorId)
+	query := "SELECT `id`, `user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `created_at`, `updated_at` FROM `blog` WHERE " + where.sql
 	orderCol := "`" + listOpts.sort + "`"
 	if listOpts.sort == "" {
 		orderCol = "`id`"
@@ -649,10 +650,7 @@ func (d *Blog) ListByEditors(ctx context.Context, opt ...ListOption) ([]*sample.
 	if listOpts.limit > 0 {
 		query = query + fmt.Sprintf(" LIMIT %d", listOpts.limit)
 	}
-	rows, err := d.conn.QueryContext(
-		ctx,
-		query,
-	)
+	rows, err := d.conn.QueryContext(ctx, query, where.args...)
 	if err != nil {
 		return nil, err
 	}
@@ -2145,4 +2143,43 @@ func (d *Task) Update(ctx context.Context, task *sample.Task, opt ...ExecOption)
 
 	task.ResetMark()
 	return nil
+}
+
+type whereCondition struct {
+	sql  string
+	args []any
+}
+
+func whereCond(sql string, args ...any) *whereCondition {
+	return &whereCondition{sql: sql, args: args}
+}
+
+// whereIn returns the condition that column is one of values. If values is empty, the condition is always false.
+func whereIn[T any](column string, values []T) *whereCondition {
+	if len(values) == 0 {
+		return &whereCondition{sql: "1 = 0"}
+	}
+	args := make([]any, len(values))
+	for i, v := range values {
+		args[i] = v
+	}
+	return &whereCondition{sql: column + " IN (" + strings.TrimSuffix(strings.Repeat("?, ", len(values)), ", ") + ")", args: args}
+}
+
+func whereAnd(conds ...*whereCondition) *whereCondition {
+	return whereJoin("AND", conds)
+}
+
+func whereOr(conds ...*whereCondition) *whereCondition {
+	return whereJoin("OR", conds)
+}
+
+func whereJoin(op string, conds []*whereCondition) *whereCondition {
+	sqls := make([]string, len(conds))
+	var args []any
+	for i, c := range conds {
+		sqls[i] = c.sql
+		args = append(args, c.args...)
+	}
+	return &whereCondition{sql: "(" + strings.Join(sqls, " "+op+" ") + ")", args: args}
 }
