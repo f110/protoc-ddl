@@ -409,7 +409,7 @@ func (d *Blog) Select(ctx context.Context, id int64) (*sample.Blog, error) {
 	row := d.conn.QueryRowContext(ctx, "SELECT * FROM `blog` WHERE `id` = ?", id)
 
 	v := &sample.Blog{}
-	if err := row.Scan(&v.Id, &v.UserId, &v.Title, &v.Body, &v.CategoryId, &v.Attach, &v.EditorId, &v.Sign, &v.CreatedAt, &v.UpdatedAt); err != nil {
+	if err := row.Scan(&v.Id, &v.UserId, &v.Title, &v.Body, &v.CategoryId, &v.Attach, &v.EditorId, &v.Sign, &v.Status, &v.CreatedAt, &v.UpdatedAt); err != nil {
 		return nil, err
 	}
 
@@ -443,7 +443,7 @@ func (d *Blog) SelectMulti(ctx context.Context, id ...int64) ([]*sample.Blog, er
 	res := make([]*sample.Blog, 0, len(id))
 	for rows.Next() {
 		r := &sample.Blog{}
-		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.Sign, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.Sign, &r.Status, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, err
 		}
 		res = append(res, r)
@@ -480,7 +480,7 @@ func (d *Blog) SelectMulti(ctx context.Context, id ...int64) ([]*sample.Blog, er
 
 func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption) ([]*sample.Blog, error) {
 	listOpts := newListOpt(opt...)
-	query := "SELECT `id`, `user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `created_at`, `updated_at` FROM `blog` WHERE `title` = ?"
+	query := "SELECT `id`, `user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `status`, `created_at`, `updated_at` FROM `blog` WHERE `title` = ?"
 	orderCol := "`" + listOpts.sort + "`"
 	if listOpts.sort == "" {
 		orderCol = "`id`"
@@ -506,7 +506,7 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 	res := make([]*sample.Blog, 0)
 	for rows.Next() {
 		r := &sample.Blog{}
-		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.Sign, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.Sign, &r.Status, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, err
 		}
 		r.ResetMark()
@@ -544,7 +544,7 @@ func (d *Blog) ListByTitle(ctx context.Context, title string, opt ...ListOption)
 
 func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, categoryId int32, opt ...ListOption) ([]*sample.Blog, error) {
 	listOpts := newListOpt(opt...)
-	query := "SELECT `id`, `user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `created_at`, `updated_at` FROM `blog` WHERE `user_id` = ? AND `category_id` = ?"
+	query := "SELECT `id`, `user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `status`, `created_at`, `updated_at` FROM `blog` WHERE `user_id` = ? AND `category_id` = ?"
 	orderCol := "`" + listOpts.sort + "`"
 	if listOpts.sort == "" {
 		orderCol = "`id`"
@@ -571,7 +571,7 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 	res := make([]*sample.Blog, 0)
 	for rows.Next() {
 		r := &sample.Blog{}
-		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.Sign, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.Sign, &r.Status, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, err
 		}
 		r.ResetMark()
@@ -610,12 +610,12 @@ func (d *Blog) ListByUserAndCategory(ctx context.Context, userId int32, category
 func (d *Blog) SelectByUserAndTitle(ctx context.Context, userId int32, title string) (*sample.Blog, error) {
 	row := d.conn.QueryRowContext(
 		ctx,
-		"SELECT `id`, `user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `created_at`, `updated_at` FROM `blog` WHERE `user_id` = ? AND `title` = ?",
+		"SELECT `id`, `user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `status`, `created_at`, `updated_at` FROM `blog` WHERE `user_id` = ? AND `title` = ?",
 		userId,
 		title,
 	)
 	v := &sample.Blog{}
-	if err := row.Scan(&v.Id, &v.UserId, &v.Title, &v.Body, &v.CategoryId, &v.Attach, &v.EditorId, &v.Sign, &v.CreatedAt, &v.UpdatedAt); err != nil {
+	if err := row.Scan(&v.Id, &v.UserId, &v.Title, &v.Body, &v.CategoryId, &v.Attach, &v.EditorId, &v.Sign, &v.Status, &v.CreatedAt, &v.UpdatedAt); err != nil {
 		return nil, err
 	}
 
@@ -637,7 +637,7 @@ func (d *Blog) SelectByUserAndTitle(ctx context.Context, userId int32, title str
 func (d *Blog) ListByEditors(ctx context.Context, editorId []int32, opt ...ListOption) ([]*sample.Blog, error) {
 	listOpts := newListOpt(opt...)
 	where := whereIn("`editor_id`", editorId)
-	query := "SELECT `id`, `user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `created_at`, `updated_at` FROM `blog` WHERE " + where.sql
+	query := "SELECT `id`, `user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `status`, `created_at`, `updated_at` FROM `blog` WHERE " + where.sql
 	orderCol := "`" + listOpts.sort + "`"
 	if listOpts.sort == "" {
 		orderCol = "`id`"
@@ -659,7 +659,7 @@ func (d *Blog) ListByEditors(ctx context.Context, editorId []int32, opt ...ListO
 	res := make([]*sample.Blog, 0)
 	for rows.Next() {
 		r := &sample.Blog{}
-		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.Sign, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		if err := rows.Scan(&r.Id, &r.UserId, &r.Title, &r.Body, &r.CategoryId, &r.Attach, &r.EditorId, &r.Sign, &r.Status, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, err
 		}
 		r.ResetMark()
@@ -706,8 +706,8 @@ func (d *Blog) Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption)
 
 	res, err := conn.ExecContext(
 		ctx,
-		"INSERT INTO `blog` (`user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		blog.UserId, blog.Title, blog.Body, blog.CategoryId, blog.Attach, blog.EditorId, blog.Sign, time.Now(),
+		"INSERT INTO `blog` (`user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `status`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		blog.UserId, blog.Title, blog.Body, blog.CategoryId, blog.Attach, blog.EditorId, blog.Sign, blog.Status, time.Now(),
 	)
 	if err != nil {
 		return nil, err
