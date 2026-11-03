@@ -26,6 +26,7 @@ CREATE TABLE `blog` (
 	`attach` LONGBLOB NOT NULL,
 	`editor_id` INTEGER NOT NULL,
 	`sign` VARBINARY(20) NOT NULL,
+	`status` INTEGER UNSIGNED NOT NULL,
 	`created_at` DATETIME NOT NULL,
 	`updated_at` DATETIME NULL,
 	UNIQUE `idx_user_id_and_id` (`user_id`, `id`),

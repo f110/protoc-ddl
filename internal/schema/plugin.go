@@ -3,6 +3,7 @@ package schema
 import (
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -196,8 +197,8 @@ func (m *Messages) Each(fn func(m *Message)) {
 }
 
 func (m *Messages) EachEnum(fn func(e *Enum)) {
-	for _, v := range m.enums {
-		fn(v)
+	for _, k := range slices.Sorted(maps.Keys(m.enums)) {
+		fn(m.enums[k])
 	}
 }
 
