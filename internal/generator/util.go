@@ -177,6 +177,8 @@ func (a *queryFormatVisitor) formatBinaryOperationExpr(in *ast.BinaryOperationEx
 	switch v := in.L.(type) {
 	case *ast.BinaryOperationExpr:
 		a.formatBinaryOperationExpr(v)
+	case *ast.IsNullExpr:
+		a.formatIsNullExpr(v)
 	case *ast.ColumnNameExpr:
 		v.Accept(a)
 	case *test_driver.ValueExpr:
@@ -192,6 +194,8 @@ func (a *queryFormatVisitor) formatBinaryOperationExpr(in *ast.BinaryOperationEx
 	switch v := in.R.(type) {
 	case *ast.BinaryOperationExpr:
 		a.formatBinaryOperationExpr(v)
+	case *ast.IsNullExpr:
+		a.formatIsNullExpr(v)
 	case *test_driver.ParamMarkerExpr:
 		v.Accept(a)
 	case *test_driver.ValueExpr:

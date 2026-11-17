@@ -50,6 +50,14 @@ func TestAstFormatter(t *testing.T) {
 			Rendered: "SELECT * FROM `user` WHERE `created_at` IS NULL",
 		},
 		{
+			Query:    "SELECT * FROM `user` WHERE `created_at` IS NULL AND `updated_at` IS NOT NULL",
+			Rendered: "SELECT * FROM `user` WHERE `created_at` IS NULL AND `updated_at` IS NOT NULL",
+		},
+		{
+			Query:    "SELECT * FROM `user` WHERE `id` = ? AND `name` = ? AND `created_at` IS NOT NULL AND `updated_at` IS NULL",
+			Rendered: "SELECT * FROM `user` WHERE `id` = ? AND `name` = ? AND `created_at` IS NOT NULL AND `updated_at` IS NULL",
+		},
+		{
 			Query:    "SELECT DISTINCT `name` FROM `user`",
 			Rendered: "SELECT DISTINCT `name` FROM `user`",
 		},
