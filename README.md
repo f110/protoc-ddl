@@ -100,6 +100,22 @@ queries: {
 
 The above query generates `ListSearch(ctx context.Context, status []uint32, title string, body string, opt ...ListOption)`.
 
+## Count
+
+The query which selects `COUNT(*)` generates `Count<Name>`. It returns `int64` without GROUP BY.
+
+With GROUP BY, the columns must be the same as GROUP BY, and the struct `<Message><Name>Count` which has the columns and
+`Count` is generated in the entity package.
+
+```
+queries: {
+  name: "ByStatus"
+  query: "SELECT `status`, COUNT(*) FROM `:table_name:` WHERE `user_id` IN (?) GROUP BY `status`"
+}
+```
+
+The above query generates `CountByStatus(ctx context.Context, userId []int32) ([]*BlogByStatusCount, error)`.
+
 # Migration
 
 This tool also supports the migration.

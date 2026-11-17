@@ -135,6 +135,7 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOp
 			src.WriteInterface(s.PrimaryKeyMultiSelect(nil))
 		}
 		src.WriteInterface(s.Select(nil)...)
+		src.WriteInterface(s.Count(nil)...)
 		src.WriteInterface(s.Create(nil), s.Update(nil), s.Delete(nil))
 		src.Write("}")
 		src.LineBreak()
@@ -154,6 +155,7 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOp
 		src.WriteFunc(s.PrimaryKeySelect(g.primaryKeySelect))
 		src.WriteFunc(s.PrimaryKeyMultiSelect(g.primaryKeyMultiSelect))
 		src.WriteFunc(s.Select(g.selectRowQuery)...)
+		src.WriteFunc(s.Count(g.count)...)
 		src.WriteFunc(s.Create(g.create), s.Delete(g.delete), s.Update(g.update))
 		if s.useCondition {
 			useCondition = true
@@ -524,6 +526,60 @@ func (g GoDAOGenerator) scanRows(src *Buffer, m *schema.Message, selectCols []st
 
 	src.WriteRune('\n')
 	src.WriteString("return res, nil\n")
+}
+
+// count returns the body of the function of the query of COUNT.
+func (g GoDAOGenerator) count(m *schema.Message, q *countQuery, f *goFunc) string {
+	src := newBuffer()
+	cols := make([]string, 0, len(q.groupBy))
+	for _, v := range q.groupBy {
+		cols = append(cols, "`"+v.Name+"`")
+	}
+	query := "SELECT " + strings.Join(append(cols, "COUNT(*)"), ", ") + " FROM `" + m.TableName + "`"
+	var groupBy string
+	if len(cols) > 0 {
+		groupBy = " GROUP BY " + strings.Join(cols, ", ")
+	}
+	args := ""
+	if q.where != nil {
+		src.Write("where := " + q.where.goExpr())
+		expr := fmt.Sprintf("%q + where.sql", query+" WHERE ")
+		if groupBy != "" {
+			expr += fmt.Sprintf(" + %q", groupBy)
+		}
+		src.Write("query := " + expr)
+		args = ", where.args..."
+	} else {
+		src.Writef("query := %q", query+groupBy)
+	}
+
+	if len(q.groupBy) == 0 {
+		src.Write("var count int64")
+		src.Writef("if err := d.conn.QueryRowContext(ctx, query%s).Scan(&count); err != nil {", args)
+		src.Write("return 0, err\n}")
+		src.Write("return count, nil")
+		return src.String()
+	}
+
+	src.Writef("rows, err := d.conn.QueryContext(ctx, query%s)", args)
+	src.Write("if err != nil {\nreturn nil, err\n}")
+	src.Write("defer rows.Close()")
+	src.LineBreak()
+	src.Writef("res := make(%s, 0)", f.Returns[0])
+	src.Write("for rows.Next() {")
+	src.Writef("r := &%s{}", f.Returns[0].Type)
+	scanCols := make([]string, 0, len(q.groupBy)+1)
+	for _, v := range q.groupBy {
+		scanCols = append(scanCols, "&r."+schema.ToCamel(v.Name))
+	}
+	scanCols = append(scanCols, "&r.Count")
+	src.Writef("if err := rows.Scan(%s); err != nil {", strings.Join(scanCols, ", "))
+	src.Write("return nil, err\n}")
+	src.Write("res = append(res, r)")
+	src.Write("}")
+	src.Write("if err := rows.Err(); err != nil {\nreturn nil, err\n}")
+	src.Write("return res, nil")
+	return src.String()
 }
 
 func (g GoDAOGenerator) selectSingleRowQuery(m *schema.Message, name string, stmt *ast.SelectStmt, comp []*schema.Field, args []string, entityName string) string {
@@ -1100,6 +1156,122 @@ func (s *GoDAOStruct) selectConditionQuery(
 		f.Body = body(s.m, "List"+name, stmt, nil, cols, args, s.entityPackageName, false, where)
 	}
 	return f
+}
+
+// Count returns the functions of the queries of COUNT. The function returns the number of the rows if the query has no
+// GROUP BY. Otherwise, it returns the numbers by the columns of GROUP BY as the slice of the struct of the entity package.
+func (s *GoDAOStruct) Count(body func(m *schema.Message, q *countQuery, f *goFunc) string) []*goFunc {
+	funcs := make([]*goFunc, 0)
+	for _, q := range countQueries(s.m) {
+		args := fieldList{{Name: "ctx", Type: "context.Context"}}
+		if q.where != nil {
+			s.useCondition = true
+			for _, a := range q.where.args() {
+				args = append(args, &field{Name: a.name, Type: GoDataTypeMap[a.field.Type], Slice: a.slice})
+			}
+		}
+		ret := &field{Type: "int64"}
+		if len(q.groupBy) > 0 {
+			ret = &field{Type: s.entityPackageName + "." + q.structName(s.m), Pointer: true, Slice: true}
+		}
+
+		f := &goFunc{
+			Name:     "Count" + q.name,
+			Receiver: &field{Name: "d", Type: s.m.Descriptor.GetName(), Pointer: true},
+			Args:     args,
+			Returns:  fieldList{ret, {Type: "error"}},
+		}
+		if body != nil {
+			f.Body = body(s.m, q, f)
+		}
+		funcs = append(funcs, f)
+	}
+	return funcs
+}
+
+// countQuery is the query of "SELECT <columns>, COUNT(*) FROM <table> WHERE <conditions> GROUP BY <columns>". The
+// columns and GROUP BY are optional, and WHERE is nil if the query has no conditions.
+type countQuery struct {
+	name    string
+	groupBy []*schema.Field
+	where   *whereNode
+}
+
+// structName returns the name of the struct which has the result of the query with GROUP BY.
+func (q *countQuery) structName(m *schema.Message) string {
+	return m.Descriptor.GetName() + q.name + "Count"
+}
+
+// countQueries returns the queries of COUNT of the message. The query which is not supported is logged and skipped.
+func countQueries(m *schema.Message) []*countQuery {
+	p := parser.New()
+	res := make([]*countQuery, 0)
+	for _, q := range m.CountQueries {
+		stmts, _, err := p.Parse(q.Query, "", "")
+		if err != nil {
+			continue
+		}
+		stmt, ok := stmts[0].(*ast.SelectStmt)
+		if !ok {
+			continue
+		}
+		c, err := newCountQuery(m, q.Name, stmt)
+		if err != nil {
+			log.Printf("Failed to generate %s: %v", q.Name, err)
+			continue
+		}
+		res = append(res, c)
+	}
+	return res
+}
+
+func newCountQuery(m *schema.Message, name string, stmt *ast.SelectStmt) (*countQuery, error) {
+	if stmt.From.TableRefs.Right != nil {
+		return nil, fmt.Errorf("multiple tables is not supported")
+	}
+	if stmt.Distinct || stmt.Having != nil || stmt.OrderBy != nil || stmt.Limit != nil {
+		return nil, fmt.Errorf("DISTINCT, HAVING, ORDER BY and LIMIT are not supported with COUNT")
+	}
+	fields := stmt.Fields.Fields
+	count, ok := fields[len(fields)-1].Expr.(*ast.AggregateFuncExpr)
+	if !ok || !strings.EqualFold(count.F, ast.AggFuncCount) || count.Distinct || len(count.Args) != 1 {
+		return nil, fmt.Errorf("only COUNT(*) is supported as the last column")
+	}
+	if _, ok := count.Args[0].(*test_driver.ValueExpr); !ok {
+		return nil, fmt.Errorf("only COUNT(*) is supported as the last column")
+	}
+
+	var items []*ast.ByItem
+	if stmt.GroupBy != nil {
+		items = stmt.GroupBy.Items
+	}
+	if len(items) != len(fields)-1 {
+		return nil, fmt.Errorf("the columns must be the same as GROUP BY")
+	}
+	q := &countQuery{name: name}
+	for i, v := range fields[:len(fields)-1] {
+		col, ok := v.Expr.(*ast.ColumnNameExpr)
+		if !ok {
+			return nil, fmt.Errorf("%T is not supported as the column", v.Expr)
+		}
+		g, ok := items[i].Expr.(*ast.ColumnNameExpr)
+		if !ok || g.Name.Name.L != col.Name.Name.L {
+			return nil, fmt.Errorf("the columns must be the same as GROUP BY")
+		}
+		f := m.Fields.Get(col.Name.Name.String())
+		if f == nil {
+			return nil, fmt.Errorf("column %s is not found", col.Name.Name.String())
+		}
+		q.groupBy = append(q.groupBy, f)
+	}
+	if stmt.Where != nil {
+		where, err := newWhereNode(m, stmt.Where)
+		if err != nil {
+			return nil, err
+		}
+		q.where = where
+	}
+	return q, nil
 }
 
 func (s *GoDAOStruct) findArgs(fields []*schema.Field, stmt ast.ExprNode) []*schema.Field {

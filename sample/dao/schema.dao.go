@@ -372,6 +372,8 @@ type BlogInterface interface {
 	ListByUserAndCategory(ctx context.Context, userId int32, categoryId int32, opt ...ListOption) ([]*sample.Blog, error)
 	SelectByUserAndTitle(ctx context.Context, userId int32, title string) (*sample.Blog, error)
 	ListByEditors(ctx context.Context, editorId []int32, opt ...ListOption) ([]*sample.Blog, error)
+	CountByStatus(ctx context.Context, userId []int32) ([]*sample.BlogByStatusCount, error)
+	CountByUser(ctx context.Context, userId int32) (int64, error)
 	Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption) (*sample.Blog, error)
 	Update(ctx context.Context, blog *sample.Blog, opt ...ExecOption) error
 	Delete(ctx context.Context, id int64, opt ...ExecOption) error
@@ -693,6 +695,39 @@ func (d *Blog) ListByEditors(ctx context.Context, editorId []int32, opt ...ListO
 	}
 
 	return res, nil
+}
+
+func (d *Blog) CountByStatus(ctx context.Context, userId []int32) ([]*sample.BlogByStatusCount, error) {
+	where := whereIn("`user_id`", userId)
+	query := "SELECT `status`, COUNT(*) FROM `blog` WHERE " + where.sql + " GROUP BY `status`"
+	rows, err := d.conn.QueryContext(ctx, query, where.args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	res := make([]*sample.BlogByStatusCount, 0)
+	for rows.Next() {
+		r := &sample.BlogByStatusCount{}
+		if err := rows.Scan(&r.Status, &r.Count); err != nil {
+			return nil, err
+		}
+		res = append(res, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func (d *Blog) CountByUser(ctx context.Context, userId int32) (int64, error) {
+	where := whereCond("`user_id` = ?", userId)
+	query := "SELECT COUNT(*) FROM `blog` WHERE " + where.sql
+	var count int64
+	if err := d.conn.QueryRowContext(ctx, query, where.args...).Scan(&count); err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 func (d *Blog) Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption) (*sample.Blog, error) {

@@ -321,3 +321,72 @@ func TestGoDAOGenerator_ConditionQuery(t *testing.T) {
 		require.Contains(t, out, "ListByStatus(ctx context.Context, status uint32, opt ...ListOption)")
 	})
 }
+
+func TestGoDAOGenerator_CountQuery(t *testing.T) {
+	pk := &schema.Field{Name: "id", Type: "TYPE_INT32", Sequence: true}
+	gen := func(queries ...*schema.Query) string {
+		m := &schema.Message{
+			Descriptor:  &descriptorpb.DescriptorProto{Name: new("Item")},
+			TableName:   "item",
+			PrimaryKeys: []*schema.Field{pk},
+			Fields: schema.NewFields([]*schema.Field{
+				pk,
+				{Name: "status", Type: "TYPE_UINT32"},
+				{Name: "title", Type: "TYPE_STRING"},
+				{Name: "deleted_at", Type: schema.TimestampType, Null: true},
+			}),
+		}
+		for _, q := range queries {
+			m.AddQuery(q.Name, q.Query)
+		}
+		buf := new(bytes.Buffer)
+		GoDAOGenerator{}.Generate(
+			buf,
+			&descriptorpb.FileOptions{GoPackage: new("go.f110.dev/protoc-ddl/test/database")},
+			schema.NewMessages([]*schema.Message{m}, nil),
+		)
+		return buf.String()
+	}
+
+	t.Run("count with group by returns the slice", func(t *testing.T) {
+		out := gen(&schema.Query{
+			Name:  "ActiveByIds",
+			Query: "SELECT `status`, COUNT(*) FROM `:table_name:` WHERE `id` IN (?) AND `deleted_at` IS NULL GROUP BY `status`",
+		})
+		require.NotContains(t, out, "ListActiveByIds")
+		require.Contains(t, out, "CountActiveByIds(ctx context.Context, id []int32) ([]*database.ItemActiveByIdsCount, error)")
+		require.Contains(t, out, "where := whereAnd(whereIn(\"`id`\", id), whereCond(\"`deleted_at` IS NULL\"))")
+		require.Contains(t, out, "query := \"SELECT `status`, COUNT(*) FROM `item` WHERE \" + where.sql + \" GROUP BY `status`\"")
+		require.Contains(t, out, "rows, err := d.conn.QueryContext(ctx, query, where.args...)")
+		require.Contains(t, out, "r := &database.ItemActiveByIdsCount{}")
+		require.Contains(t, out, "if err := rows.Scan(&r.Status, &r.Count); err != nil {")
+	})
+
+	t.Run("count without group by returns the number", func(t *testing.T) {
+		out := gen(&schema.Query{Name: "ByStatus", Query: "SELECT COUNT(*) FROM `:table_name:` WHERE `status` = ?"})
+		require.NotContains(t, out, "ListByStatus")
+		require.Contains(t, out, "CountByStatus(ctx context.Context, status uint32) (int64, error)")
+		require.Contains(t, out, "query := \"SELECT COUNT(*) FROM `item` WHERE \" + where.sql")
+		require.Contains(t, out, "if err := d.conn.QueryRowContext(ctx, query, where.args...).Scan(&count); err != nil {")
+	})
+
+	t.Run("count without where", func(t *testing.T) {
+		out := gen(&schema.Query{Name: "All", Query: "SELECT COUNT(*) FROM `:table_name:`"})
+		require.Contains(t, out, "CountAll(ctx context.Context) (int64, error)")
+		require.Contains(t, out, "query := \"SELECT COUNT(*) FROM `item`\"")
+		require.Contains(t, out, "if err := d.conn.QueryRowContext(ctx, query).Scan(&count); err != nil {")
+	})
+
+	t.Run("unsupported count is not generated", func(t *testing.T) {
+		out := gen(
+			&schema.Query{Name: "Column", Query: "SELECT COUNT(`title`) FROM `:table_name:`"},
+			&schema.Query{Name: "Distinct", Query: "SELECT COUNT(DISTINCT `title`) FROM `:table_name:`"},
+			&schema.Query{Name: "NotGrouped", Query: "SELECT `status`, COUNT(*) FROM `:table_name:`"},
+			&schema.Query{Name: "Ordered", Query: "SELECT `status`, COUNT(*) FROM `:table_name:` GROUP BY `status` ORDER BY `status`"},
+		)
+		for _, name := range []string{"Column", "Distinct", "NotGrouped", "Ordered"} {
+			require.NotContains(t, out, "Count"+name+"(")
+			require.NotContains(t, out, "List"+name+"(")
+		}
+	})
+}

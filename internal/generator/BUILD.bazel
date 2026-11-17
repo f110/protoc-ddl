@@ -28,6 +28,7 @@ go_test(
     name = "generator_test",
     srcs = [
         "dao_test.go",
+        "entity_test.go",
         "util_test.go",
         "where_test.go",
     ],
