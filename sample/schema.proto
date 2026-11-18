@@ -103,6 +103,14 @@ message Blog {
       name: "ByEditors"
       query: "select * from `:table_name:` where editor_id in (?)"
     }
+    queries: {
+      name: "ByStatus"
+      query: "SELECT `status`, COUNT(*) FROM `:table_name:` WHERE `user_id` IN (?) GROUP BY `status`"
+    }
+    queries: {
+      name: "ByUser"
+      query: "SELECT COUNT(*) FROM `:table_name:` WHERE `user_id` = ?"
+    }
   };
 }
 

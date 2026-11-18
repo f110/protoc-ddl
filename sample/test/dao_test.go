@@ -57,4 +57,16 @@ func TestUser(t *testing.T) {
 	l, err = b.ListByTitle(context.TODO(), "err")
 	require.Error(t, err)
 	assert.Nil(t, l)
+
+	b.RegisterCountByUser(1, 2, nil)
+	n, err := b.CountByUser(context.TODO(), 1)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), n)
+
+	b.RegisterCountByStatus([]int32{1}, []*sample.BlogByStatusCount{{Status: sample.BlogStatusDraft, Count: 3}}, nil)
+	counts, err := b.CountByStatus(context.TODO(), []int32{1})
+	require.NoError(t, err)
+	require.Len(t, counts, 1)
+	assert.Equal(t, sample.BlogStatusDraft, counts[0].Status)
+	assert.Equal(t, int64(3), counts[0].Count)
 }

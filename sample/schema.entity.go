@@ -231,6 +231,12 @@ func (e *Blog) Copy() *Blog {
 	return n
 }
 
+// BlogByStatusCount is the result of CountByStatus.
+type BlogByStatusCount struct {
+	Status BlogStatus
+	Count  int64
+}
+
 type CommentImage struct {
 	CommentBlogId int64
 	CommentUserId int32

@@ -68,6 +68,10 @@ func (g GoDAOMockGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.Fi
 			src.WriteFunc(f)
 		}
 
+		for _, v := range s.Count(g.count) {
+			src.WriteFunc(v, g.mockCountQuery(m, v))
+		}
+
 		src.WriteFunc(s.Create(g.create), s.Delete(g.delete), s.Update(g.update))
 	})
 
@@ -203,6 +207,40 @@ func (GoDAOMockGenerator) mockSelectQuery(entityName string, m *schema.Message, 
 
 	return &goFunc{
 		Name:     "Register" + selectFunc.Name,
+		Body:     src.String(),
+		Args:     args,
+		Receiver: &field{Name: "d", Type: m.Descriptor.GetName(), Pointer: true},
+	}
+}
+
+func (GoDAOMockGenerator) count(_ *schema.Message, _ *countQuery, f *goFunc) string {
+	a := make([]string, 0)
+	for _, v := range f.Args[1:] {
+		a = append(a, fmt.Sprintf("\"%s\":%s", v.Name, v.Name))
+	}
+
+	src := newBuffer()
+	src.Writef("v, err := d.Call(\"%s\", map[string]any{%s})", f.Name, strings.Join(a, ","))
+	src.Writef("return v.(%s), err", f.Returns[0])
+
+	return src.String()
+}
+
+func (GoDAOMockGenerator) mockCountQuery(m *schema.Message, countFunc *goFunc) *goFunc {
+	args := append(fieldList{}, countFunc.Args[1:]...)
+	a := make([]string, 0)
+	for _, v := range args {
+		a = append(a, fmt.Sprintf("\"%s\":%s", v.Name, v.Name))
+	}
+	value := countFunc.Returns[0].Copy()
+	value.Name = "value"
+	args = append(args, value, &field{Name: "err", Type: "error"})
+
+	src := newBuffer()
+	src.Writef("d.Register(\"%s\", map[string]any{%s}, value, err)", countFunc.Name, strings.Join(a, ","))
+
+	return &goFunc{
+		Name:     "Register" + countFunc.Name,
 		Body:     src.String(),
 		Args:     args,
 		Receiver: &field{Name: "d", Type: m.Descriptor.GetName(), Pointer: true},

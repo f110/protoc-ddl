@@ -7,6 +7,9 @@ go_library(
     visibility = ["//:__subpackages__"],
     deps = [
         "//:protoc-ddl",
+        "@com_github_pingcap_tidb_pkg_parser//:parser",
+        "@com_github_pingcap_tidb_pkg_parser//ast",
+        "@com_github_pingcap_tidb_pkg_parser//test_driver",
         "@org_golang_google_protobuf//proto",
         "@org_golang_google_protobuf//types/descriptorpb",
         "@org_golang_google_protobuf//types/pluginpb",

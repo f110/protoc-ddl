@@ -150,6 +150,24 @@ func (d *Blog) RegisterListByEditors(editorId []int32, value []*sample.Blog, err
 	d.Register("ListByEditors", map[string]any{"editorId": editorId}, value, err)
 }
 
+func (d *Blog) CountByStatus(ctx context.Context, userId []int32) ([]*sample.BlogByStatusCount, error) {
+	v, err := d.Call("CountByStatus", map[string]any{"userId": userId})
+	return v.([]*sample.BlogByStatusCount), err
+}
+
+func (d *Blog) RegisterCountByStatus(userId []int32, value []*sample.BlogByStatusCount, err error) {
+	d.Register("CountByStatus", map[string]any{"userId": userId}, value, err)
+}
+
+func (d *Blog) CountByUser(ctx context.Context, userId int32) (int64, error) {
+	v, err := d.Call("CountByUser", map[string]any{"userId": userId})
+	return v.(int64), err
+}
+
+func (d *Blog) RegisterCountByUser(userId int32, value int64, err error) {
+	d.Register("CountByUser", map[string]any{"userId": userId}, value, err)
+}
+
 func (d *Blog) Create(ctx context.Context, blog *sample.Blog, opt ...dao.ExecOption) (*sample.Blog, error) {
 	_, _ = d.Call("Create", map[string]any{"blog": blog})
 	return blog, nil

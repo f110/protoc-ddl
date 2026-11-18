@@ -9,6 +9,9 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/pingcap/tidb/pkg/parser"
+	"github.com/pingcap/tidb/pkg/parser/ast"
+	_ "github.com/pingcap/tidb/pkg/parser/test_driver"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
@@ -64,6 +67,7 @@ type Message struct {
 	Comment       string
 
 	SelectQueries []*Query
+	CountQueries  []*Query
 
 	fileDescriptor *descriptorpb.FileDescriptorProto
 }
@@ -82,6 +86,29 @@ func NewMessage(d *descriptorpb.DescriptorProto, f *descriptorpb.FileDescriptorP
 		Deprecated:     deprecated,
 		fileDescriptor: f,
 	}
+}
+
+// AddQuery adds the query to CountQueries if the query selects the aggregate function. Otherwise, the query is added to
+// SelectQueries. The query which can not be parsed is added to SelectQueries.
+func (m *Message) AddQuery(name, query string) {
+	q := &Query{Name: name, Query: query}
+	stmts, _, err := parser.New().Parse(query, "", "")
+	if err == nil {
+		if stmt, ok := stmts[0].(*ast.SelectStmt); ok && isCountQuery(stmt) {
+			m.CountQueries = append(m.CountQueries, q)
+			return
+		}
+	}
+	m.SelectQueries = append(m.SelectQueries, q)
+}
+
+func isCountQuery(stmt *ast.SelectStmt) bool {
+	for _, v := range stmt.Fields.Fields {
+		if _, ok := v.Expr.(*ast.AggregateFuncExpr); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Message) IsPrimaryKey(f *Field) bool {
@@ -593,7 +620,7 @@ func parseTables(req *pluginpb.CodeGeneratorRequest) *Messages {
 		e = proto.GetExtension(m.Descriptor.GetOptions(), ddl.E_Dao)
 		if ext := e.(*ddl.DAOOptions); ext != nil {
 			for _, v := range ext.Queries {
-				m.SelectQueries = append(m.SelectQueries, &Query{Name: v.Name, Query: v.Query})
+				m.AddQuery(v.Name, v.Query)
 			}
 		}
 
