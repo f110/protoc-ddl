@@ -88,7 +88,7 @@ def _sql_schema_impl(ctx):
         ),
         OutputGroupInfo(
             schema = [out],
-            hash = [hash_out],
+            hash = extra_out,
         ),
     ] + extra
 
