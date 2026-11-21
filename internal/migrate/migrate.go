@@ -22,6 +22,10 @@ import (
 	"go.f110.dev/protoc-ddl/internal/schema"
 )
 
+const (
+	sqliteDriver = "sqlite"
+)
+
 var (
 	ErrMigrated = errors.New("already migrated")
 )
@@ -41,6 +45,7 @@ func init() {
 }
 
 type Migration struct {
+	driver             string
 	schema             string
 	versionTableSchema string
 	schemaHash         string
@@ -49,10 +54,23 @@ type Migration struct {
 	db   *sql.DB
 	mu   sync.Mutex
 	lock *sql.Tx
-	diff *Diff
+	diff *mysqlDiff
 }
 
+// NewMigration returns the migration which applies schemaFile to the database. driver is mysql or sqlite.
 func NewMigration(schemaFile, driver, dsn string) (*Migration, error) {
+	if driver == sqliteDriver {
+		sch, err := os.ReadFile(schemaFile)
+		if err != nil {
+			return nil, xerrors.WithStack(err)
+		}
+		db, err := sql.Open(sqliteDriver, dsn)
+		if err != nil {
+			return nil, xerrors.WithStack(err)
+		}
+		return NewSQLiteMigration(db, string(sch))
+	}
+
 	switch driver {
 	case "mysql":
 		cfg, err := mysql.ParseDSN(dsn)
@@ -82,7 +100,7 @@ func NewMigration(schemaFile, driver, dsn string) (*Migration, error) {
 	}
 	h := sha256.Sum256(sch)
 
-	m := &Migration{schema: string(sch), versionTableSchema: buf.String(), schemaHash: hex.EncodeToString(h[:]), dsn: dsn, db: db}
+	m := &Migration{driver: driver, schema: string(sch), versionTableSchema: buf.String(), schemaHash: hex.EncodeToString(h[:]), dsn: dsn, db: db}
 	if err := m.plan(); err != nil {
 		return nil, err
 	}
@@ -90,7 +108,24 @@ func NewMigration(schemaFile, driver, dsn string) (*Migration, error) {
 	return m, nil
 }
 
+// NewSQLiteMigration returns the migration which applies ddl to db. db must be opened by modernc.org/sqlite.
+// The migration is executed in a transaction started by BEGIN IMMEDIATE, so set busy_timeout to db if other processes
+// may access the database at the same time.
+func NewSQLiteMigration(db *sql.DB, ddl string) (*Migration, error) {
+	buf := new(bytes.Buffer)
+	if err := (generator.SQLiteGenerator{}).Generate(buf, schema.NewMessages([]*schema.Message{SchemaVersionTable}, nil)); err != nil {
+		return nil, err
+	}
+	h := sha256.Sum256([]byte(ddl))
+
+	return &Migration{driver: sqliteDriver, schema: ddl, versionTableSchema: buf.String(), schemaHash: hex.EncodeToString(h[:]), db: db}, nil
+}
+
 func (m *Migration) Execute(ctx context.Context, execute bool) error {
+	if m.driver == sqliteDriver {
+		return m.executeSQLite(ctx, execute)
+	}
+
 	if !execute {
 		return m.dryRun()
 	}
@@ -134,7 +169,7 @@ func (m *Migration) dryRun() error {
 func (m *Migration) plan() error {
 	targetDB := schemalex.NewMySQLSource(m.dsn)
 
-	d, err := NewDiff(targetDB, m.schema)
+	d, err := newMySQLDiff(targetDB, m.schema)
 	if err != nil {
 		return err
 	}
@@ -241,5 +276,85 @@ func (m *Migration) finishMigration(ctx context.Context, now time.Time) error {
 	}
 
 	m.lock = nil
+	return nil
+}
+
+func (m *Migration) executeSQLite(ctx context.Context, execute bool) error {
+	conn, err := m.db.Conn(ctx)
+	if err != nil {
+		return xerrors.WithStack(err)
+	}
+	defer conn.Close()
+
+	if !execute {
+		queries, err := sqliteDiff(ctx, conn, m.schema)
+		if err != nil {
+			return err
+		}
+		for _, q := range queries {
+			fmt.Println(q)
+		}
+		return nil
+	}
+
+	if _, err := conn.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
+		return xerrors.WithStack(err)
+	}
+	if err := m.migrateSQLite(ctx, conn); err != nil {
+		conn.ExecContext(context.WithoutCancel(ctx), "ROLLBACK")
+		return err
+	}
+	if _, err := conn.ExecContext(ctx, "COMMIT"); err != nil {
+		conn.ExecContext(context.WithoutCancel(ctx), "ROLLBACK")
+		return xerrors.WithStack(err)
+	}
+
+	return nil
+}
+
+func (m *Migration) migrateSQLite(ctx context.Context, conn *sql.Conn) error {
+	startAt := time.Now()
+
+	var n int
+	row := conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM `sqlite_master` WHERE `type` = 'table' AND `name` = ?", SchemaVersionTable.TableName)
+	if err := row.Scan(&n); err != nil {
+		return xerrors.WithStack(err)
+	}
+	if n == 0 {
+		log.Printf("Create schema version table: %s", m.versionTableSchema)
+		if _, err := conn.ExecContext(ctx, m.versionTableSchema); err != nil {
+			return xerrors.WithStack(err)
+		}
+	}
+
+	var finishedAt *time.Time
+	row = conn.QueryRowContext(ctx, fmt.Sprintf("SELECT `finished_at` FROM `%s` WHERE `sha256` = ?", SchemaVersionTable.TableName), m.schemaHash)
+	if err := row.Scan(&finishedAt); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return xerrors.WithStack(err)
+	}
+	if finishedAt != nil {
+		return nil
+	}
+
+	queries, err := sqliteDiff(ctx, conn, m.schema)
+	if err != nil {
+		return err
+	}
+	for _, q := range queries {
+		log.Printf("Execute: %s", q)
+		if _, err := conn.ExecContext(ctx, q); err != nil {
+			return xerrors.WithStack(err)
+		}
+	}
+
+	_, err = conn.ExecContext(
+		ctx,
+		fmt.Sprintf("INSERT OR REPLACE INTO `%s` (`sha256`, `start_at`, `finished_at`) VALUES (?, ?, ?)", SchemaVersionTable.TableName),
+		m.schemaHash, startAt, time.Now(),
+	)
+	if err != nil {
+		return xerrors.WithStack(err)
+	}
+
 	return nil
 }

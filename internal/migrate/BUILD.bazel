@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "migrate",
@@ -17,5 +17,16 @@ go_library(
         "@com_github_schemalex_schemalex//format",
         "@com_github_schemalex_schemalex//model",
         "@dev_f110_go_xerrors//:xerrors",
+        "@org_modernc_sqlite//:sqlite",
+    ],
+)
+
+go_test(
+    name = "migrate_test",
+    srcs = ["migrate_test.go"],
+    embed = [":migrate"],
+    deps = [
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
     ],
 )

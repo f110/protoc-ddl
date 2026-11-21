@@ -17,8 +17,12 @@ sample/dao/schema.dao.go: sample/schema.proto
 sample/dao/daotest/schema.mock.go: sample/schema.proto
 	$(BAZEL) run //sample/dao/daotest:vendor_mock
 
+.PHONY: sample/sqlite/schema.sql
+sample/sqlite/schema.sql: sample/schema.proto
+	$(BAZEL) run //sample/sqlite:vendor_schema
+
 .PHONY: gen-sample
-gen-sample: sample/schema.sql sample/schema.entity.go sample/dao/schema.dao.go sample/dao/daotest/schema.mock.go
+gen-sample: sample/schema.sql sample/sqlite/schema.sql sample/schema.entity.go sample/dao/schema.dao.go sample/dao/daotest/schema.mock.go
 
 update-deps:
 	$(GO) mod tidy

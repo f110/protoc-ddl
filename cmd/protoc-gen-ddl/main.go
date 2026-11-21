@@ -25,6 +25,10 @@ func main() {
 	switch opt.Dialect {
 	case "mysql":
 		generator.MySQLGenerator{}.Generate(buf, tables)
+	case "sqlite":
+		if err := (generator.SQLiteGenerator{}).Generate(buf, tables); err != nil {
+			panic(err)
+		}
 	}
 
 	res.File = append(res.File, &pluginpb.CodeGeneratorResponse_File{

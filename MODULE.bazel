@@ -25,4 +25,5 @@ use_repo(
     "com_github_stretchr_testify",
     "dev_f110_go_xerrors",
     "org_golang_google_protobuf",
+    "org_modernc_sqlite",
 )
