@@ -23,7 +23,9 @@ func main() {
 
 	switch opt.Lang {
 	case "go":
-		generator.GoEntityGenerator{}.Generate(buf, fileOpt, messages)
+		if err := (generator.GoEntityGenerator{}).Generate(buf, fileOpt, messages); err != nil {
+			res.Error = new(err.Error())
+		}
 	}
 
 	res.File = append(res.File, &pluginpb.CodeGeneratorResponse_File{
