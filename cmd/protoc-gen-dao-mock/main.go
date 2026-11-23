@@ -23,7 +23,9 @@ func main() {
 
 	switch opt.Lang {
 	case "go":
-		generator.GoDAOMockGenerator{}.Generate(buf, fileOpt, messages, opt.DAOPath)
+		if err := (generator.GoDAOMockGenerator{}).Generate(buf, fileOpt, messages, opt.DAOPath); err != nil {
+			res.Error = new(err.Error())
+		}
 	}
 
 	res.File = append(res.File, &pluginpb.CodeGeneratorResponse_File{

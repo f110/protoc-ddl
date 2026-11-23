@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,7 +16,7 @@ import (
 
 type GoDAOMockGenerator struct{}
 
-func (g GoDAOMockGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOptions, messages *schema.Messages, daoPath string) {
+func (g GoDAOMockGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOptions, messages *schema.Messages, daoPath string) error {
 	src := newBuffer()
 
 	entityPackageName := fileOpt.GetGoPackage()
@@ -85,10 +84,10 @@ func (g GoDAOMockGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.Fi
 			fmt.Fprintf(os.Stderr, "%d: %s\n", line, r.Text())
 			line++
 		}
-		log.Print(err)
-		return
+		return fmt.Errorf("failed to format the generated source: %w", err)
 	}
 	buf.Write(b)
+	return nil
 }
 
 func (GoDAOMockGenerator) tx(m *schema.Message, f *goFunc) string {
@@ -102,7 +101,7 @@ func (GoDAOMockGenerator) primaryKeySelect(entityName string, m *schema.Message,
 	src := newBuffer()
 	a := make([]string, 0)
 	for _, v := range m.PrimaryKeys {
-		a = append(a, "\""+schema.ToLowerCamel(v.Name)+"\":"+schema.ToLowerCamel(v.Name))
+		a = append(a, "\""+goVarName(v.Name)+"\":"+goVarName(v.Name))
 	}
 
 	src.WriteString("v, err := d.Call(\"Select\",map[string]any{")
@@ -116,7 +115,7 @@ func (GoDAOMockGenerator) primaryKeySelect(entityName string, m *schema.Message,
 func (GoDAOMockGenerator) primaryKeyMultiSelect(entityName string, m *schema.Message, _, _, _ []string) string {
 	src := newBuffer()
 
-	src.Writef("v, err := d.Call(\"SelectMulti\",map[string]any{\"%s\":%s})", schema.ToLowerCamel(m.PrimaryKeys[0].Name), schema.ToLowerCamel(m.PrimaryKeys[0].Name))
+	src.Writef("v, err := d.Call(\"SelectMulti\",map[string]any{\"%s\":%s})", goVarName(m.PrimaryKeys[0].Name), goVarName(m.PrimaryKeys[0].Name))
 	src.Writef("return v.([]*%s.%s), err", entityName, m.Descriptor.GetName())
 
 	return src.String()
@@ -126,7 +125,7 @@ func (GoDAOMockGenerator) mockPrimaryKeySelect(entityName string, m *schema.Mess
 	src := newBuffer()
 	funcArgs := make([]*field, 0)
 	for _, v := range m.PrimaryKeys {
-		funcArgs = append(funcArgs, &field{Name: schema.ToLowerCamel(v.Name), Type: GoDataTypeMap[v.Type]})
+		funcArgs = append(funcArgs, &field{Name: goVarName(v.Name), Type: GoDataTypeMap[v.Type]})
 	}
 	funcArgs = append(funcArgs, &field{Name: "value", Type: entityName + "." + m.Descriptor.GetName(), Pointer: true})
 
@@ -149,12 +148,12 @@ func (GoDAOMockGenerator) mockPrimaryKeySelect(entityName string, m *schema.Mess
 func (GoDAOMockGenerator) mockPrimaryKeyMultiSelect(entityName string, m *schema.Message) *goFunc {
 	funcArgs := make([]*field, 0)
 	funcArgs = append(funcArgs,
-		&field{Name: schema.ToLowerCamel(m.PrimaryKeys[0].Name), Type: "[]" + GoDataTypeMap[m.PrimaryKeys[0].Type]},
+		&field{Name: goVarName(m.PrimaryKeys[0].Name), Type: "[]" + GoDataTypeMap[m.PrimaryKeys[0].Type]},
 		&field{Name: "value", Type: "[]*" + entityName + "." + m.Descriptor.GetName()},
 	)
 
 	src := newBuffer()
-	src.Writef("d.Register(\"SelectMulti\",map[string]any{\"%s\":%s},value,nil)", schema.ToLowerCamel(m.PrimaryKeys[0].Name), schema.ToLowerCamel(m.PrimaryKeys[0].Name))
+	src.Writef("d.Register(\"SelectMulti\",map[string]any{\"%s\":%s},value,nil)", goVarName(m.PrimaryKeys[0].Name), goVarName(m.PrimaryKeys[0].Name))
 
 	return &goFunc{
 		Name:     "RegisterSelectMulti",
@@ -256,7 +255,7 @@ func (GoDAOMockGenerator) create(m *schema.Message, f *goFunc) string {
 	}
 
 	src.Writef("_, _ = d.Call(\"%s\", map[string]any{%s})", f.Name, strings.Join(a, ","))
-	src.Writef("return %s, nil", schema.ToLowerCamel(m.Descriptor.GetName()))
+	src.Writef("return %s, nil", goVarName(m.Descriptor.GetName()))
 
 	return src.String()
 }

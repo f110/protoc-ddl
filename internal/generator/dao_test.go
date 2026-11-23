@@ -390,3 +390,90 @@ func TestGoDAOGenerator_CountQuery(t *testing.T) {
 		}
 	})
 }
+
+func TestGoDAOGenerator_GoIdentifierColumn(t *testing.T) {
+	pk := &schema.Field{Name: "type", Type: "TYPE_INT32"}
+	buf := new(bytes.Buffer)
+	err := GoDAOGenerator{}.Generate(
+		buf,
+		&descriptorpb.FileOptions{GoPackage: new("go.f110.dev/protoc-ddl/test/database")},
+		schema.NewMessages([]*schema.Message{
+			{
+				Descriptor:  &descriptorpb.DescriptorProto{Name: new("Item")},
+				TableName:   "item",
+				PrimaryKeys: []*schema.Field{pk},
+				Fields:      schema.NewFields([]*schema.Field{pk, {Name: "len", Type: "TYPE_UINT32"}}),
+				SelectQueries: []*schema.Query{
+					{Name: "ByLen", Query: "SELECT * FROM `:table_name:` WHERE `len` = ?"},
+					{Name: "ByType", Query: "SELECT * FROM `:table_name:` WHERE `type` IN (?)"},
+				},
+			},
+		}, nil),
+	)
+	require.NoError(t, err)
+	out := buf.String()
+	require.Contains(t, out, "Select(ctx context.Context, type_ int32)")
+	require.Contains(t, out, "SelectMulti(ctx context.Context, type_ ...int32)")
+	require.Contains(t, out, "ListByLen(ctx context.Context, len_ uint32, opt ...ListOption)")
+	require.Contains(t, out, "ListByType(ctx context.Context, type_ []int32, opt ...ListOption)")
+}
+
+func TestGoDAOGenerator_InvalidSource(t *testing.T) {
+	pk := &schema.Field{Name: "id", Type: "TYPE_INT32", Sequence: true}
+	buf := new(bytes.Buffer)
+	err := GoDAOGenerator{}.Generate(
+		buf,
+		&descriptorpb.FileOptions{GoPackage: new("go.f110.dev/protoc-ddl/test/database")},
+		schema.NewMessages([]*schema.Message{
+			{
+				Descriptor:  &descriptorpb.DescriptorProto{Name: new("Invalid Name")},
+				TableName:   "item",
+				PrimaryKeys: []*schema.Field{pk},
+				Fields:      schema.NewFields([]*schema.Field{pk}),
+			},
+		}, nil),
+	)
+	require.Error(t, err)
+}
+
+func TestGoDAOMockGenerator_GoIdentifierColumn(t *testing.T) {
+	pk := &schema.Field{Name: "type", Type: "TYPE_INT32"}
+	buf := new(bytes.Buffer)
+	err := GoDAOMockGenerator{}.Generate(
+		buf,
+		&descriptorpb.FileOptions{GoPackage: new("go.f110.dev/protoc-ddl/test/database")},
+		schema.NewMessages([]*schema.Message{
+			{
+				Descriptor:    &descriptorpb.DescriptorProto{Name: new("Item")},
+				TableName:     "item",
+				PrimaryKeys:   []*schema.Field{pk},
+				Fields:        schema.NewFields([]*schema.Field{pk, {Name: "len", Type: "TYPE_UINT32"}}),
+				SelectQueries: []*schema.Query{{Name: "ByLen", Query: "SELECT * FROM `:table_name:` WHERE `len` = ?"}},
+			},
+		}, nil),
+		"go.f110.dev/protoc-ddl/test/database/dao",
+	)
+	require.NoError(t, err)
+	out := buf.String()
+	require.Contains(t, out, `d.Call("Select", map[string]any{"type_": type_})`)
+	require.Contains(t, out, "RegisterSelect(type_ int32, value *database.Item)")
+	require.Contains(t, out, "ListByLen(ctx context.Context, len_ uint32, opt ...dao.ListOption)")
+}
+
+func TestGoDAOMockGenerator_InvalidSource(t *testing.T) {
+	pk := &schema.Field{Name: "id", Type: "TYPE_INT32", Sequence: true}
+	err := GoDAOMockGenerator{}.Generate(
+		new(bytes.Buffer),
+		&descriptorpb.FileOptions{GoPackage: new("go.f110.dev/protoc-ddl/test/database")},
+		schema.NewMessages([]*schema.Message{
+			{
+				Descriptor:  &descriptorpb.DescriptorProto{Name: new("Invalid Name")},
+				TableName:   "item",
+				PrimaryKeys: []*schema.Field{pk},
+				Fields:      schema.NewFields([]*schema.Field{pk}),
+			},
+		}, nil),
+		"go.f110.dev/protoc-ddl/test/database/dao",
+	)
+	require.Error(t, err)
+}

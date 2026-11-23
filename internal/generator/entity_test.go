@@ -48,3 +48,20 @@ func TestGoEntityGenerator_CountStruct(t *testing.T) {
 	require.NotContains(t, out, "ItemAllCount")
 	require.NotContains(t, out, "ItemListCount")
 }
+
+func TestGoEntityGenerator_InvalidSource(t *testing.T) {
+	pk := &schema.Field{Name: "id", Type: "TYPE_INT32", Sequence: true}
+	err := GoEntityGenerator{}.Generate(
+		new(bytes.Buffer),
+		&descriptorpb.FileOptions{GoPackage: new("go.f110.dev/protoc-ddl/test/database")},
+		schema.NewMessages([]*schema.Message{
+			{
+				Descriptor:  &descriptorpb.DescriptorProto{Name: new("Invalid Name")},
+				TableName:   "item",
+				PrimaryKeys: []*schema.Field{pk},
+				Fields:      schema.NewFields([]*schema.Field{pk}),
+			},
+		}, nil),
+	)
+	require.Error(t, err)
+}

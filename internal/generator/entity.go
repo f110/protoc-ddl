@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -44,7 +43,7 @@ var (
 var importPackages = []string{"time", "bytes", "sync"}
 var thirdPartyPackages = []string{"go.f110.dev/protoc-ddl"}
 
-func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOptions, messages *schema.Messages) {
+func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOptions, messages *schema.Messages) error {
 	src := new(bytes.Buffer)
 
 	packageName := fileOpt.GetGoPackage()
@@ -299,10 +298,10 @@ func (GoEntityGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileO
 			fmt.Fprintf(os.Stderr, "%d: %s\n", line, r.Text())
 			line++
 		}
-		log.Print(err)
-		return
+		return fmt.Errorf("failed to format the generated source: %w", err)
 	}
 	buf.Write(b)
+	return nil
 }
 
 // goFieldType returns the type of the field of the entity. The type of the nullable field is the pointer.

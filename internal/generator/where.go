@@ -184,7 +184,7 @@ func (b *whereBuilder) arg(col string, slice bool) (*queryArg, error) {
 	if !ok {
 		return nil, fmt.Errorf("column %s is not found", col)
 	}
-	name := schema.ToLowerCamel(f.Name)
+	name := goVarName(f.Name)
 	b.names[name]++
 	if n := b.names[name]; n > 1 {
 		name += strconv.Itoa(n)

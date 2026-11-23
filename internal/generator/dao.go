@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
+	"go/token"
+	"go/types"
 	"log"
 	"os"
 	"path/filepath"
@@ -24,7 +26,7 @@ const GoDAOGeneratorVersion = "v0.1"
 
 type GoDAOGenerator struct{}
 
-func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOptions, messages *schema.Messages) {
+func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOptions, messages *schema.Messages) error {
 	src := newBuffer()
 
 	entityPackageName := fileOpt.GetGoPackage()
@@ -124,7 +126,7 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOp
 
 		src.WriteString(fmt.Sprintf("type %s struct {\nconn *sql.DB\n\n", m.Descriptor.GetName()))
 		for _, r := range relations {
-			src.WriteString(fmt.Sprintf("%s *%s\n", schema.ToLowerCamel(r), schema.ToCamel(r)))
+			src.WriteString(fmt.Sprintf("%s *%s\n", goVarName(r), schema.ToCamel(r)))
 		}
 		src.Write("}")
 		src.LineBreak()
@@ -144,7 +146,7 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOp
 		src.WriteString(fmt.Sprintf("func New%s(conn *sql.DB) *%s {\n", m.Descriptor.GetName(), m.Descriptor.GetName()))
 		src.WriteString(fmt.Sprintf("return &%s{\nconn: conn,\n", m.Descriptor.GetName()))
 		for _, r := range relations {
-			src.WriteString(fmt.Sprintf("%s: New%s(conn),\n", schema.ToLowerCamel(r), schema.ToCamel(r)))
+			src.WriteString(fmt.Sprintf("%s: New%s(conn),\n", goVarName(r), schema.ToCamel(r)))
 		}
 		src.WriteString("}\n")
 		src.WriteString("}\n\n")
@@ -177,10 +179,10 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOp
 			fmt.Fprintf(os.Stderr, "%d: %s\n", line, r.Text())
 			line++
 		}
-		log.Print(err)
-		return
+		return fmt.Errorf("failed to format the generated source: %w", err)
 	}
 	buf.Write(b)
+	return nil
 }
 
 func (g GoDAOGenerator) tx(m *schema.Message, f *goFunc) string {
@@ -383,14 +385,14 @@ func (g GoDAOGenerator) primaryKeySelect(entityName string, m *schema.Message, _
 
 func (g GoDAOGenerator) primaryKeyMultiSelect(entityName string, m *schema.Message, _, _, _ []string) string {
 	src := newBuffer()
-	src.Writef("inCause := strings.Repeat(\"?, \", len(%s))", schema.ToLowerCamel(m.PrimaryKeys[0].Name))
-	src.Writef("args := make([]any, len(%s))", schema.ToLowerCamel(m.PrimaryKeys[0].Name))
-	src.Writef("for i := range %s {\nargs[i] = %s[i]}", schema.ToLowerCamel(m.PrimaryKeys[0].Name), schema.ToLowerCamel(m.PrimaryKeys[0].Name))
+	src.Writef("inCause := strings.Repeat(\"?, \", len(%s))", goVarName(m.PrimaryKeys[0].Name))
+	src.Writef("args := make([]any, len(%s))", goVarName(m.PrimaryKeys[0].Name))
+	src.Writef("for i := range %s {\nargs[i] = %s[i]}", goVarName(m.PrimaryKeys[0].Name), goVarName(m.PrimaryKeys[0].Name))
 	src.Writef("rows, err := d.conn.QueryContext(ctx,fmt.Sprintf(\"SELECT * FROM `%s` WHERE `%s` IN (%%s)\", inCause[:len(inCause)-2]),args...)", m.TableName, m.PrimaryKeys[0].Name)
 	src.WriteString("if err != nil {\nreturn nil, err\n}\n")
 	src.WriteString("defer rows.Close()\n")
 	src.LineBreak()
-	src.Writef("res := make([]*%s.%s,0,len(%s))", entityName, m.Descriptor.GetName(), schema.ToLowerCamel(m.PrimaryKeys[0].Name))
+	src.Writef("res := make([]*%s.%s,0,len(%s))", entityName, m.Descriptor.GetName(), goVarName(m.PrimaryKeys[0].Name))
 	src.WriteString("for rows.Next() {\n")
 	src.WriteString(fmt.Sprintf("r := &%s.%s{}\n", entityName, m.Descriptor.GetName()))
 	cols := make([]string, 0)
@@ -457,7 +459,7 @@ func (g GoDAOGenerator) selectMultipleRowQuery(m *schema.Message, name string, s
 	src.WriteString("}\n")
 	src.WriteString("rows, err := d.conn.QueryContext(\nctx,\nquery,\n")
 	for _, a := range comp {
-		src.WriteString(schema.ToLowerCamel(a.Name) + ",\n")
+		src.WriteString(goVarName(a.Name) + ",\n")
 	}
 	src.WriteString(")\n")
 	src.WriteString("if err != nil {\nreturn nil, err\n}\n")
@@ -594,7 +596,7 @@ func (g GoDAOGenerator) selectSingleRowQuery(m *schema.Message, name string, stm
 	f.Format(buf)
 	src.WriteString(fmt.Sprintf("row := d.conn.QueryRowContext(\nctx,\n%q,\n", buf.String()))
 	for _, a := range comp {
-		src.WriteString(schema.ToLowerCamel(a.Name) + ",\n")
+		src.WriteString(goVarName(a.Name) + ",\n")
 	}
 	src.WriteString(")\n")
 
@@ -649,7 +651,7 @@ func (g GoDAOGenerator) selectChildObjects(src *Buffer, m *schema.Message, entit
 			s := strings.Split(f.Type, ".")
 			src.Writef("%sData := make(map[%s]*%s.%s)", schema.ToLowerCamel(f.Name), GoDataTypeMap[m.Relations[f][0].Type], entityName, s[len(s)-1])
 			src.WriteString("{\n")
-			src.Writef("rels,_ := d.%s.SelectMulti(ctx,%sPrimaryKeys...)", schema.ToLowerCamel(s[len(s)-1]), schema.ToLowerCamel(f.Name))
+			src.Writef("rels,_ := d.%s.SelectMulti(ctx,%sPrimaryKeys...)", goVarName(s[len(s)-1]), schema.ToLowerCamel(f.Name))
 			src.WriteString("for _, v := range rels {\n")
 			src.Writef("%sData[v.%s] = v", schema.ToLowerCamel(f.Name), schema.ToCamel(m.Relations[f][0].Descriptor.GetName()))
 			src.WriteString("}\n")
@@ -689,7 +691,7 @@ func (GoDAOGenerator) selectChildObjectBySerial(src *Buffer, m *schema.Message, 
 		src.Writef("if %s {", strings.Join(check, " && "))
 	}
 	s := strings.Split(f.Type, ".")
-	src.Writef("if rel, _ := d.%s.Select(ctx, %s); rel != nil {", schema.ToLowerCamel(s[len(s)-1]), strings.Join(r, ","))
+	src.Writef("if rel, _ := d.%s.Select(ctx, %s); rel != nil {", goVarName(s[len(s)-1]), strings.Join(r, ","))
 	src.Writef("v.%s = rel", schema.ToCamel(f.Name))
 	src.Write("}")
 	if f.Null {
@@ -841,11 +843,11 @@ func (s *GoDAOStruct) PrimaryKeySelect(
 	where := make([]string, 0)
 	whereArgs := make([]string, 0)
 	for _, v := range s.m.PrimaryKeys {
-		funcArgs = append(funcArgs, &field{Name: schema.ToLowerCamel(v.Name), Type: GoDataTypeMap[v.Type]})
+		funcArgs = append(funcArgs, &field{Name: goVarName(v.Name), Type: GoDataTypeMap[v.Type]})
 
-		args = append(args, fmt.Sprintf("%s %s", schema.ToLowerCamel(v.Name), GoDataTypeMap[v.Type]))
+		args = append(args, fmt.Sprintf("%s %s", goVarName(v.Name), GoDataTypeMap[v.Type]))
 		where = append(where, fmt.Sprintf("`%s` = ?", v.Name))
-		whereArgs = append(whereArgs, schema.ToLowerCamel(v.Name))
+		whereArgs = append(whereArgs, goVarName(v.Name))
 	}
 
 	f := &goFunc{
@@ -870,7 +872,7 @@ func (s *GoDAOStruct) PrimaryKeyMultiSelect(
 		return nil
 	}
 	funcArgs := fieldList{{Name: "ctx", Type: "context.Context"}}
-	funcArgs = append(funcArgs, &field{Name: schema.ToLowerCamel(s.m.PrimaryKeys[0].Name), Type: "..." + GoDataTypeMap[s.m.PrimaryKeys[0].Type]})
+	funcArgs = append(funcArgs, &field{Name: goVarName(s.m.PrimaryKeys[0].Name), Type: "..." + GoDataTypeMap[s.m.PrimaryKeys[0].Type]})
 
 	f := &goFunc{
 		Name:     "SelectMulti",
@@ -922,7 +924,7 @@ func (s *GoDAOStruct) Create(body func(m *schema.Message, f *goFunc) string) *go
 	}
 	funcArgs := fieldList{
 		{Name: "ctx", Type: "context.Context"},
-		{Name: schema.ToLowerCamel(s.m.Descriptor.GetName()), Type: s.entityPackageName + "." + s.m.Descriptor.GetName(), Pointer: true},
+		{Name: goVarName(s.m.Descriptor.GetName()), Type: s.entityPackageName + "." + s.m.Descriptor.GetName(), Pointer: true},
 		{Name: "opt", Type: execOptionType, Variable: true},
 	}
 
@@ -947,9 +949,9 @@ func (s *GoDAOStruct) Delete(body func(m *schema.Message, f *goFunc, where, wher
 	where := make([]string, 0)
 	whereArgs := make([]string, 0)
 	for _, v := range s.m.PrimaryKeys {
-		funcArgs = append(funcArgs, &field{Name: schema.ToLowerCamel(v.Name), Type: GoDataTypeMap[v.Type]})
+		funcArgs = append(funcArgs, &field{Name: goVarName(v.Name), Type: GoDataTypeMap[v.Type]})
 		where = append(where, fmt.Sprintf("`%s` = ?", v.Name))
-		whereArgs = append(whereArgs, schema.ToLowerCamel(v.Name))
+		whereArgs = append(whereArgs, goVarName(v.Name))
 	}
 	execOptionType := "ExecOption"
 	if s.daoPath != "" {
@@ -977,7 +979,7 @@ func (s *GoDAOStruct) Update(body func(m *schema.Message, f *goFunc) string) *go
 	}
 	funcArgs := fieldList{
 		{Name: "ctx", Type: "context.Context"},
-		{Name: schema.ToLowerCamel(s.m.Descriptor.GetName()), Type: s.entityPackageName + "." + s.m.Descriptor.GetName(), Pointer: true},
+		{Name: goVarName(s.m.Descriptor.GetName()), Type: s.entityPackageName + "." + s.m.Descriptor.GetName(), Pointer: true},
 		{Name: "opt", Type: execOptionType, Variable: true},
 	}
 
@@ -1070,8 +1072,8 @@ func (s *GoDAOStruct) selectQuery(
 	funcArgs := make([]*field, 0)
 	args := make([]string, len(comp))
 	for i := range comp {
-		funcArgs = append(funcArgs, &field{Name: schema.ToLowerCamel(comp[i].Name), Type: GoDataTypeMap[comp[i].Type]})
-		args[i] = fmt.Sprintf("%s %s", schema.ToLowerCamel(comp[i].Name), GoDataTypeMap[comp[i].Type])
+		funcArgs = append(funcArgs, &field{Name: goVarName(comp[i].Name), Type: GoDataTypeMap[comp[i].Type]})
+		args[i] = fmt.Sprintf("%s %s", goVarName(comp[i].Name), GoDataTypeMap[comp[i].Type])
 	}
 	if !isReturningSingleRow {
 		args = append(args, "opt ...ListOption")
@@ -1359,4 +1361,14 @@ func (s *GoDAOStruct) findArgFieldFromOrExprIfExist(fields map[string]*schema.Fi
 	}
 
 	return res
+}
+
+// goVarName returns the lower camel case of str that is usable as the variable name in the generated code.
+// The keyword and the predeclared identifier get "_" suffix.
+func goVarName(str string) string {
+	v := schema.ToLowerCamel(str)
+	if token.IsKeyword(v) || types.Universe.Lookup(v) != nil {
+		return v + "_"
+	}
+	return v
 }
