@@ -74,6 +74,11 @@ func (d *User) Create(ctx context.Context, user *sample.User, opt ...dao.ExecOpt
 	return user, nil
 }
 
+func (d *User) CreateMulti(ctx context.Context, user []*sample.User, opt ...dao.ExecOption) error {
+	_, _ = d.Call("CreateMulti", map[string]any{"user": user})
+	return nil
+}
+
 func (d *User) Delete(ctx context.Context, id int32, opt ...dao.ExecOption) error {
 	_, _ = d.Call("Delete", map[string]any{"id": id})
 	return nil
@@ -173,6 +178,11 @@ func (d *Blog) Create(ctx context.Context, blog *sample.Blog, opt ...dao.ExecOpt
 	return blog, nil
 }
 
+func (d *Blog) CreateMulti(ctx context.Context, blog []*sample.Blog, opt ...dao.ExecOption) error {
+	_, _ = d.Call("CreateMulti", map[string]any{"blog": blog})
+	return nil
+}
+
 func (d *Blog) Delete(ctx context.Context, id int64, opt ...dao.ExecOption) error {
 	_, _ = d.Call("Delete", map[string]any{"id": id})
 	return nil
@@ -218,6 +228,11 @@ func (d *CommentImage) Create(ctx context.Context, commentImage *sample.CommentI
 	return commentImage, nil
 }
 
+func (d *CommentImage) CreateMulti(ctx context.Context, commentImage []*sample.CommentImage, opt ...dao.ExecOption) error {
+	_, _ = d.Call("CreateMulti", map[string]any{"commentImage": commentImage})
+	return nil
+}
+
 func (d *CommentImage) Delete(ctx context.Context, commentBlogId int64, commentUserId int32, likeId uint64, opt ...dao.ExecOption) error {
 	_, _ = d.Call("Delete", map[string]any{"commentBlogId": commentBlogId, "commentUserId": commentUserId, "likeId": likeId})
 	return nil
@@ -261,6 +276,11 @@ func (d *Comment) RegisterSelectByUser(value *sample.Comment, err error) {
 func (d *Comment) Create(ctx context.Context, comment *sample.Comment, opt ...dao.ExecOption) (*sample.Comment, error) {
 	_, _ = d.Call("Create", map[string]any{"comment": comment})
 	return comment, nil
+}
+
+func (d *Comment) CreateMulti(ctx context.Context, comment []*sample.Comment, opt ...dao.ExecOption) error {
+	_, _ = d.Call("CreateMulti", map[string]any{"comment": comment})
+	return nil
 }
 
 func (d *Comment) Delete(ctx context.Context, blogId int64, userId int32, opt ...dao.ExecOption) error {
@@ -317,6 +337,11 @@ func (d *Reply) Create(ctx context.Context, reply *sample.Reply, opt ...dao.Exec
 	return reply, nil
 }
 
+func (d *Reply) CreateMulti(ctx context.Context, reply []*sample.Reply, opt ...dao.ExecOption) error {
+	_, _ = d.Call("CreateMulti", map[string]any{"reply": reply})
+	return nil
+}
+
 func (d *Reply) Delete(ctx context.Context, id int32, opt ...dao.ExecOption) error {
 	_, _ = d.Call("Delete", map[string]any{"id": id})
 	return nil
@@ -362,6 +387,11 @@ func (d *Like) Create(ctx context.Context, like *sample.Like, opt ...dao.ExecOpt
 	return like, nil
 }
 
+func (d *Like) CreateMulti(ctx context.Context, like []*sample.Like, opt ...dao.ExecOption) error {
+	_, _ = d.Call("CreateMulti", map[string]any{"like": like})
+	return nil
+}
+
 func (d *Like) Delete(ctx context.Context, id uint64, opt ...dao.ExecOption) error {
 	_, _ = d.Call("Delete", map[string]any{"id": id})
 	return nil
@@ -405,6 +435,11 @@ func (d *PostImage) RegisterSelectMulti(id []int32, value []*sample.PostImage) {
 func (d *PostImage) Create(ctx context.Context, postImage *sample.PostImage, opt ...dao.ExecOption) (*sample.PostImage, error) {
 	_, _ = d.Call("Create", map[string]any{"postImage": postImage})
 	return postImage, nil
+}
+
+func (d *PostImage) CreateMulti(ctx context.Context, postImage []*sample.PostImage, opt ...dao.ExecOption) error {
+	_, _ = d.Call("CreateMulti", map[string]any{"postImage": postImage})
+	return nil
 }
 
 func (d *PostImage) Delete(ctx context.Context, id int32, opt ...dao.ExecOption) error {
@@ -468,6 +503,11 @@ func (d *Task) RegisterListPending(value []*sample.Task, err error) {
 func (d *Task) Create(ctx context.Context, task *sample.Task, opt ...dao.ExecOption) (*sample.Task, error) {
 	_, _ = d.Call("Create", map[string]any{"task": task})
 	return task, nil
+}
+
+func (d *Task) CreateMulti(ctx context.Context, task []*sample.Task, opt ...dao.ExecOption) error {
+	_, _ = d.Call("CreateMulti", map[string]any{"task": task})
+	return nil
 }
 
 func (d *Task) Delete(ctx context.Context, id int32, opt ...dao.ExecOption) error {

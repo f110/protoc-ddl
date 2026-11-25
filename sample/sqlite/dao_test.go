@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	_ "embed"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -75,6 +76,50 @@ func TestDAO(t *testing.T) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	assert.True(t, probe.NewProbe(db).Ready(ctx, schemaHash(t, db)))
+}
+
+func TestCreateMulti(t *testing.T) {
+	ctx := context.Background()
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "sample.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { db.Close() })
+
+	m, err := migrate.NewSQLiteMigration(db, schema)
+	require.NoError(t, err)
+	require.NoError(t, m.Execute(ctx, true))
+
+	users := dao.NewUser(db)
+	require.NoError(t, users.CreateMulti(ctx, nil))
+	list := make([]*sample.User, 6000)
+	for i := range list {
+		list[i] = &sample.User{Age: int32(i), Name: "alice", Title: fmt.Sprintf("title-%d", i), Status: sample.UserStatusActive}
+	}
+	require.NoError(t, users.CreateMulti(ctx, list))
+	all, err := users.ListAll(ctx)
+	require.NoError(t, err)
+	require.Len(t, all, len(list))
+	assert.Equal(t, "title-5999", all[5999].Title)
+	assert.Equal(t, int32(5999), all[5999].Age)
+
+	dup := make([]*sample.User, 6000)
+	for i := range dup {
+		dup[i] = &sample.User{Name: "bob", Title: fmt.Sprintf("dup-%d", i)}
+	}
+	dup[len(dup)-1].Title = "title-0"
+	require.Error(t, users.CreateMulti(ctx, dup))
+	all, err = users.ListAll(ctx)
+	require.NoError(t, err)
+	assert.Len(t, all, len(list))
+
+	blogs := dao.NewBlog(db)
+	require.NoError(t, blogs.CreateMulti(ctx, []*sample.Blog{
+		{UserId: all[0].Id, Title: "first", Attach: []byte{}, EditorId: all[0].Id, Sign: []byte{}},
+		{UserId: all[0].Id, Title: "second", Attach: []byte{}, EditorId: all[0].Id, Sign: []byte{}},
+	}))
+	l, err := blogs.ListByTitle(ctx, "second")
+	require.NoError(t, err)
+	require.Len(t, l, 1)
+	assert.False(t, l[0].CreatedAt.IsZero())
 }
 
 func schemaHash(t *testing.T, db *sql.DB) string {
