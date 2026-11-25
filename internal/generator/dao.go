@@ -105,6 +105,58 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOp
 		ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	}
 
+	const (
+		// maxPlaceholders is the maximum number of the placeholders in a statement. It is the limit of SQLite which is
+		// lower than the limit of MySQL.
+		maxPlaceholders = 32766
+		// maxStatementSize is the maximum size of a statement. It is the default of max_allowed_packet of MySQL 5.7
+		// which is the smallest among the defaults of MySQL and MariaDB.
+		maxStatementSize = 4 << 20
+	)
+
+	// insertMulti executes INSERT of the rows. query is the statement until VALUES and placeholder is the placeholders
+	// of a row. The rows are split into the statements so that each statement does not exceed maxPlaceholders and
+	// maxStatementSize. The string and the binary count twice their length because the driver may escape them.
+	func insertMulti(ctx context.Context, conn execConn, query, placeholder string, rows [][]any) error {
+		values := make([]string, 0)
+		args := make([]any, 0)
+		size := len(query)
+		for _, row := range rows {
+			rowSize := len(placeholder) + 2
+			for _, v := range row {
+				switch v := v.(type) {
+				case string:
+					rowSize += 2*len(v) + 10
+				case []byte:
+					rowSize += 2*len(v) + 10
+				case *string:
+					if v != nil {
+						rowSize += 2*len(*v) + 10
+					}
+				case *[]byte:
+					if v != nil {
+						rowSize += 2*len(*v) + 10
+					}
+				default:
+					rowSize += 32
+				}
+			}
+			if len(values) > 0 && (len(args)+len(row) > maxPlaceholders || size+rowSize > maxStatementSize) {
+				if _, err := conn.ExecContext(ctx, query+strings.Join(values, ", "), args...); err != nil {
+					return err
+				}
+				values = make([]string, 0)
+				args = make([]any, 0)
+				size = len(query)
+			}
+			values = append(values, placeholder)
+			args = append(args, row...)
+			size += rowSize
+		}
+		_, err := conn.ExecContext(ctx, query+strings.Join(values, ", "), args...)
+		return err
+	}
+
 `)
 
 	messages.Each(func(m *schema.Message) {
@@ -138,7 +190,7 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOp
 		}
 		src.WriteInterface(s.Select(nil)...)
 		src.WriteInterface(s.Count(nil)...)
-		src.WriteInterface(s.Create(nil), s.Update(nil), s.Delete(nil))
+		src.WriteInterface(s.Create(nil), s.CreateMulti(nil), s.Update(nil), s.Delete(nil))
 		src.Write("}")
 		src.LineBreak()
 		src.Writef("var _ %sInterface = (*%s)(nil)", m.Descriptor.GetName(), m.Descriptor.GetName())
@@ -158,7 +210,7 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOp
 		src.WriteFunc(s.PrimaryKeyMultiSelect(g.primaryKeyMultiSelect))
 		src.WriteFunc(s.Select(g.selectRowQuery)...)
 		src.WriteFunc(s.Count(g.count)...)
-		src.WriteFunc(s.Create(g.create), s.Delete(g.delete), s.Update(g.update))
+		src.WriteFunc(s.Create(g.create), s.CreateMulti(g.createMulti), s.Delete(g.delete), s.Update(g.update))
 		if s.useCondition {
 			useCondition = true
 		}
@@ -222,22 +274,7 @@ func (g GoDAOGenerator) create(m *schema.Message, f *goFunc) string {
 	}`)
 	src.LineBreak()
 	src.Write("res, err := conn.ExecContext(\nctx,")
-	cols := make([]string, 0, m.Fields.Len())
-	queryArgs := make([]string, 0, m.Fields.Len())
-	m.Fields.Each(func(f *schema.Field) {
-		if f.Sequence {
-			return
-		}
-		if m.WithTimestamp && (f.Name == "created_at" || f.Name == "updated_at") {
-			return
-		}
-		cols = append(cols, "`"+f.Name+"`")
-		queryArgs = append(queryArgs, fmt.Sprintf("%s.%s", valueArg.Name, schema.ToCamel(f.Name)))
-	})
-	if m.WithTimestamp {
-		cols = append(cols, "`created_at`")
-		queryArgs = append(queryArgs, "time.Now()")
-	}
+	cols, queryArgs := insertColumns(m, valueArg.Name, "time.Now()")
 	args := make([]string, len(cols))
 	for i := range args {
 		args[i] = "?"
@@ -266,6 +303,43 @@ func (g GoDAOGenerator) create(m *schema.Message, f *goFunc) string {
 
 	src.Writef("%s.ResetMark()", valueArg.Name)
 	src.Writef("return %s, nil", valueArg.Name)
+
+	return src.String()
+}
+
+// createMulti returns the body of CreateMulti. The statements are executed in a transaction if the transaction is not
+// given so that all the rows are inserted or none of them.
+func (g GoDAOGenerator) createMulti(m *schema.Message, f *goFunc) string {
+	src := newBuffer()
+
+	valueArg := f.Args[1]
+	src.Writef("if len(%s) == 0 {\nreturn nil\n}", valueArg.Name)
+	src.Write("execOpts := newExecOpt(opt...)")
+	src.Write("if execOpts.tx == nil {")
+	src.Write("return d.Tx(ctx, func(tx *sql.Tx) error {")
+	src.Writef("return d.%s(ctx, %s, append(opt, WithTx(tx))...)", f.Name, valueArg.Name)
+	src.Write("})")
+	src.Write("}")
+	src.LineBreak()
+
+	now := ""
+	if m.WithTimestamp {
+		src.Write("now := time.Now()")
+		now = "now"
+	}
+	cols, rowArgs := insertColumns(m, "v", now)
+	placeholders := make([]string, len(cols))
+	for i := range placeholders {
+		placeholders[i] = "?"
+	}
+	src.Writef("rows := make([][]any, len(%s))", valueArg.Name)
+	src.Writef("for i, v := range %s {", valueArg.Name)
+	src.Writef("rows[i] = []any{%s}", strings.Join(rowArgs, ", "))
+	src.Write("}")
+	src.Writef(
+		"return insertMulti(ctx, execOpts.tx, \"INSERT INTO `%s` (%s) VALUES \", \"(%s)\", rows)",
+		m.TableName, strings.Join(cols, ", "), strings.Join(placeholders, ", "),
+	)
 
 	return src.String()
 }
@@ -944,6 +1018,29 @@ func (s *GoDAOStruct) Create(body func(m *schema.Message, f *goFunc) string) *go
 	return f
 }
 
+// CreateMulti returns the function which inserts the entities by INSERT of multiple rows.
+func (s *GoDAOStruct) CreateMulti(body func(m *schema.Message, f *goFunc) string) *goFunc {
+	execOptionType := "ExecOption"
+	if s.daoPath != "" {
+		execOptionType = s.daoPath + "." + execOptionType
+	}
+	f := &goFunc{
+		Name:     "CreateMulti",
+		Receiver: &field{Name: "d", Type: s.m.Descriptor.GetName(), Pointer: true},
+		Args: fieldList{
+			{Name: "ctx", Type: "context.Context"},
+			{Name: goVarName(s.m.Descriptor.GetName()), Type: s.entityPackageName + "." + s.m.Descriptor.GetName(), Slice: true, Pointer: true},
+			{Name: "opt", Type: execOptionType, Variable: true},
+		},
+		Returns: fieldList{{Type: "error"}},
+	}
+	if body != nil {
+		f.Body = body(s.m, f)
+	}
+
+	return f
+}
+
 func (s *GoDAOStruct) Delete(body func(m *schema.Message, f *goFunc, where, whereArgs []string) string) *goFunc {
 	funcArgs := fieldList{{Name: "ctx", Type: "context.Context"}}
 	where := make([]string, 0)
@@ -1371,4 +1468,24 @@ func goVarName(str string) string {
 		return v + "_"
 	}
 	return v
+}
+
+// insertColumns returns the quoted columns of INSERT and the expressions of the values of the entity named value.
+// The sequence and the timestamps are excluded, and created_at is set to now if the table has the timestamps.
+func insertColumns(m *schema.Message, value, now string) (cols, values []string) {
+	m.Fields.Each(func(f *schema.Field) {
+		if f.Sequence {
+			return
+		}
+		if m.WithTimestamp && (f.Name == "created_at" || f.Name == "updated_at") {
+			return
+		}
+		cols = append(cols, "`"+f.Name+"`")
+		values = append(values, value+"."+schema.ToCamel(f.Name))
+	})
+	if m.WithTimestamp {
+		cols = append(cols, "`created_at`")
+		values = append(values, now)
+	}
+	return cols, values
 }

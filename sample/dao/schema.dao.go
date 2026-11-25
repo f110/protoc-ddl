@@ -69,6 +69,58 @@ type execConn interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
+const (
+	// maxPlaceholders is the maximum number of the placeholders in a statement. It is the limit of SQLite which is
+	// lower than the limit of MySQL.
+	maxPlaceholders = 32766
+	// maxStatementSize is the maximum size of a statement. It is the default of max_allowed_packet of MySQL 5.7
+	// which is the smallest among the defaults of MySQL and MariaDB.
+	maxStatementSize = 4 << 20
+)
+
+// insertMulti executes INSERT of the rows. query is the statement until VALUES and placeholder is the placeholders
+// of a row. The rows are split into the statements so that each statement does not exceed maxPlaceholders and
+// maxStatementSize. The string and the binary count twice their length because the driver may escape them.
+func insertMulti(ctx context.Context, conn execConn, query, placeholder string, rows [][]any) error {
+	values := make([]string, 0)
+	args := make([]any, 0)
+	size := len(query)
+	for _, row := range rows {
+		rowSize := len(placeholder) + 2
+		for _, v := range row {
+			switch v := v.(type) {
+			case string:
+				rowSize += 2*len(v) + 10
+			case []byte:
+				rowSize += 2*len(v) + 10
+			case *string:
+				if v != nil {
+					rowSize += 2*len(*v) + 10
+				}
+			case *[]byte:
+				if v != nil {
+					rowSize += 2*len(*v) + 10
+				}
+			default:
+				rowSize += 32
+			}
+		}
+		if len(values) > 0 && (len(args)+len(row) > maxPlaceholders || size+rowSize > maxStatementSize) {
+			if _, err := conn.ExecContext(ctx, query+strings.Join(values, ", "), args...); err != nil {
+				return err
+			}
+			values = make([]string, 0)
+			args = make([]any, 0)
+			size = len(query)
+		}
+		values = append(values, placeholder)
+		args = append(args, row...)
+		size += rowSize
+	}
+	_, err := conn.ExecContext(ctx, query+strings.Join(values, ", "), args...)
+	return err
+}
+
 type User struct {
 	conn *sql.DB
 }
@@ -81,6 +133,7 @@ type UserInterface interface {
 	ListOffsetAll(ctx context.Context, id int32, opt ...ListOption) ([]*sample.User, error)
 	ListOverTwenty(ctx context.Context, opt ...ListOption) ([]*sample.User, error)
 	Create(ctx context.Context, user *sample.User, opt ...ExecOption) (*sample.User, error)
+	CreateMulti(ctx context.Context, user []*sample.User, opt ...ExecOption) error
 	Update(ctx context.Context, user *sample.User, opt ...ExecOption) error
 	Delete(ctx context.Context, id int32, opt ...ExecOption) error
 }
@@ -295,6 +348,24 @@ func (d *User) Create(ctx context.Context, user *sample.User, opt ...ExecOption)
 	return user, nil
 }
 
+func (d *User) CreateMulti(ctx context.Context, user []*sample.User, opt ...ExecOption) error {
+	if len(user) == 0 {
+		return nil
+	}
+	execOpts := newExecOpt(opt...)
+	if execOpts.tx == nil {
+		return d.Tx(ctx, func(tx *sql.Tx) error {
+			return d.CreateMulti(ctx, user, append(opt, WithTx(tx))...)
+		})
+	}
+
+	rows := make([][]any, len(user))
+	for i, v := range user {
+		rows[i] = []any{v.Age, v.Name, v.Title, v.LastName, v.Status, v.CreatedAt}
+	}
+	return insertMulti(ctx, execOpts.tx, "INSERT INTO `users` (`age`, `name`, `title`, `last_name`, `status`, `created_at`) VALUES ", "(?, ?, ?, ?, ?, ?)", rows)
+}
+
 func (d *User) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
 	execOpts := newExecOpt(opt...)
 	var conn execConn
@@ -375,6 +446,7 @@ type BlogInterface interface {
 	CountByStatus(ctx context.Context, userId []int32) ([]*sample.BlogByStatusCount, error)
 	CountByUser(ctx context.Context, userId int32) (int64, error)
 	Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption) (*sample.Blog, error)
+	CreateMulti(ctx context.Context, blog []*sample.Blog, opt ...ExecOption) error
 	Update(ctx context.Context, blog *sample.Blog, opt ...ExecOption) error
 	Delete(ctx context.Context, id int64, opt ...ExecOption) error
 }
@@ -765,6 +837,25 @@ func (d *Blog) Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption)
 	return blog, nil
 }
 
+func (d *Blog) CreateMulti(ctx context.Context, blog []*sample.Blog, opt ...ExecOption) error {
+	if len(blog) == 0 {
+		return nil
+	}
+	execOpts := newExecOpt(opt...)
+	if execOpts.tx == nil {
+		return d.Tx(ctx, func(tx *sql.Tx) error {
+			return d.CreateMulti(ctx, blog, append(opt, WithTx(tx))...)
+		})
+	}
+
+	now := time.Now()
+	rows := make([][]any, len(blog))
+	for i, v := range blog {
+		rows[i] = []any{v.UserId, v.Title, v.Body, v.CategoryId, v.Attach, v.EditorId, v.Sign, v.Status, now}
+	}
+	return insertMulti(ctx, execOpts.tx, "INSERT INTO `blog` (`user_id`, `title`, `body`, `category_id`, `attach`, `editor_id`, `sign`, `status`, `created_at`) VALUES ", "(?, ?, ?, ?, ?, ?, ?, ?, ?)", rows)
+}
+
 func (d *Blog) Delete(ctx context.Context, id int64, opt ...ExecOption) error {
 	execOpts := newExecOpt(opt...)
 	var conn execConn
@@ -842,6 +933,7 @@ type CommentImageInterface interface {
 	Select(ctx context.Context, commentBlogId int64, commentUserId int32, likeId uint64) (*sample.CommentImage, error)
 	ListByLikeId(ctx context.Context, likeId uint64, opt ...ListOption) ([]*sample.CommentImage, error)
 	Create(ctx context.Context, commentImage *sample.CommentImage, opt ...ExecOption) (*sample.CommentImage, error)
+	CreateMulti(ctx context.Context, commentImage []*sample.CommentImage, opt ...ExecOption) error
 	Update(ctx context.Context, commentImage *sample.CommentImage, opt ...ExecOption) error
 	Delete(ctx context.Context, commentBlogId int64, commentUserId int32, likeId uint64, opt ...ExecOption) error
 }
@@ -990,6 +1082,24 @@ func (d *CommentImage) Create(ctx context.Context, commentImage *sample.CommentI
 	return commentImage, nil
 }
 
+func (d *CommentImage) CreateMulti(ctx context.Context, commentImage []*sample.CommentImage, opt ...ExecOption) error {
+	if len(commentImage) == 0 {
+		return nil
+	}
+	execOpts := newExecOpt(opt...)
+	if execOpts.tx == nil {
+		return d.Tx(ctx, func(tx *sql.Tx) error {
+			return d.CreateMulti(ctx, commentImage, append(opt, WithTx(tx))...)
+		})
+	}
+
+	rows := make([][]any, len(commentImage))
+	for i, v := range commentImage {
+		rows[i] = []any{v.CommentBlogId, v.CommentUserId, v.LikeId}
+	}
+	return insertMulti(ctx, execOpts.tx, "INSERT INTO `comment_image` (`comment_blog_id`, `comment_user_id`, `like_id`) VALUES ", "(?, ?, ?)", rows)
+}
+
 func (d *CommentImage) Delete(ctx context.Context, commentBlogId int64, commentUserId int32, likeId uint64, opt ...ExecOption) error {
 	execOpts := newExecOpt(opt...)
 	var conn execConn
@@ -1065,6 +1175,7 @@ type CommentInterface interface {
 	Select(ctx context.Context, blogId int64, userId int32) (*sample.Comment, error)
 	SelectByUser(ctx context.Context, userId int32) (*sample.Comment, error)
 	Create(ctx context.Context, comment *sample.Comment, opt ...ExecOption) (*sample.Comment, error)
+	CreateMulti(ctx context.Context, comment []*sample.Comment, opt ...ExecOption) error
 	Update(ctx context.Context, comment *sample.Comment, opt ...ExecOption) error
 	Delete(ctx context.Context, blogId int64, userId int32, opt ...ExecOption) error
 }
@@ -1177,6 +1288,24 @@ func (d *Comment) Create(ctx context.Context, comment *sample.Comment, opt ...Ex
 	return comment, nil
 }
 
+func (d *Comment) CreateMulti(ctx context.Context, comment []*sample.Comment, opt ...ExecOption) error {
+	if len(comment) == 0 {
+		return nil
+	}
+	execOpts := newExecOpt(opt...)
+	if execOpts.tx == nil {
+		return d.Tx(ctx, func(tx *sql.Tx) error {
+			return d.CreateMulti(ctx, comment, append(opt, WithTx(tx))...)
+		})
+	}
+
+	rows := make([][]any, len(comment))
+	for i, v := range comment {
+		rows[i] = []any{v.BlogId, v.UserId}
+	}
+	return insertMulti(ctx, execOpts.tx, "INSERT INTO `comment` (`blog_id`, `user_id`) VALUES ", "(?, ?)", rows)
+}
+
 func (d *Comment) Delete(ctx context.Context, blogId int64, userId int32, opt ...ExecOption) error {
 	execOpts := newExecOpt(opt...)
 	var conn execConn
@@ -1252,6 +1381,7 @@ type ReplyInterface interface {
 	SelectMulti(ctx context.Context, id ...int32) ([]*sample.Reply, error)
 	ListByBody(ctx context.Context, body string, opt ...ListOption) ([]*sample.Reply, error)
 	Create(ctx context.Context, reply *sample.Reply, opt ...ExecOption) (*sample.Reply, error)
+	CreateMulti(ctx context.Context, reply []*sample.Reply, opt ...ExecOption) error
 	Update(ctx context.Context, reply *sample.Reply, opt ...ExecOption) error
 	Delete(ctx context.Context, id int32, opt ...ExecOption) error
 }
@@ -1425,6 +1555,24 @@ func (d *Reply) Create(ctx context.Context, reply *sample.Reply, opt ...ExecOpti
 	return reply, nil
 }
 
+func (d *Reply) CreateMulti(ctx context.Context, reply []*sample.Reply, opt ...ExecOption) error {
+	if len(reply) == 0 {
+		return nil
+	}
+	execOpts := newExecOpt(opt...)
+	if execOpts.tx == nil {
+		return d.Tx(ctx, func(tx *sql.Tx) error {
+			return d.CreateMulti(ctx, reply, append(opt, WithTx(tx))...)
+		})
+	}
+
+	rows := make([][]any, len(reply))
+	for i, v := range reply {
+		rows[i] = []any{v.CommentBlogId, v.CommentUserId, v.Body}
+	}
+	return insertMulti(ctx, execOpts.tx, "INSERT INTO `reply` (`comment_blog_id`, `comment_user_id`, `body`) VALUES ", "(?, ?, ?)", rows)
+}
+
 func (d *Reply) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
 	execOpts := newExecOpt(opt...)
 	var conn execConn
@@ -1500,6 +1648,7 @@ type LikeInterface interface {
 	Select(ctx context.Context, id uint64) (*sample.Like, error)
 	SelectMulti(ctx context.Context, id ...uint64) ([]*sample.Like, error)
 	Create(ctx context.Context, like *sample.Like, opt ...ExecOption) (*sample.Like, error)
+	CreateMulti(ctx context.Context, like []*sample.Like, opt ...ExecOption) error
 	Update(ctx context.Context, like *sample.Like, opt ...ExecOption) error
 	Delete(ctx context.Context, id uint64, opt ...ExecOption) error
 }
@@ -1641,6 +1790,24 @@ func (d *Like) Create(ctx context.Context, like *sample.Like, opt ...ExecOption)
 	return like, nil
 }
 
+func (d *Like) CreateMulti(ctx context.Context, like []*sample.Like, opt ...ExecOption) error {
+	if len(like) == 0 {
+		return nil
+	}
+	execOpts := newExecOpt(opt...)
+	if execOpts.tx == nil {
+		return d.Tx(ctx, func(tx *sql.Tx) error {
+			return d.CreateMulti(ctx, like, append(opt, WithTx(tx))...)
+		})
+	}
+
+	rows := make([][]any, len(like))
+	for i, v := range like {
+		rows[i] = []any{v.UserId, v.BlogId}
+	}
+	return insertMulti(ctx, execOpts.tx, "INSERT INTO `like` (`user_id`, `blog_id`) VALUES ", "(?, ?)", rows)
+}
+
 func (d *Like) Delete(ctx context.Context, id uint64, opt ...ExecOption) error {
 	execOpts := newExecOpt(opt...)
 	var conn execConn
@@ -1713,6 +1880,7 @@ type PostImageInterface interface {
 	Select(ctx context.Context, id int32) (*sample.PostImage, error)
 	SelectMulti(ctx context.Context, id ...int32) ([]*sample.PostImage, error)
 	Create(ctx context.Context, postImage *sample.PostImage, opt ...ExecOption) (*sample.PostImage, error)
+	CreateMulti(ctx context.Context, postImage []*sample.PostImage, opt ...ExecOption) error
 	Update(ctx context.Context, postImage *sample.PostImage, opt ...ExecOption) error
 	Delete(ctx context.Context, id int32, opt ...ExecOption) error
 }
@@ -1810,6 +1978,24 @@ func (d *PostImage) Create(ctx context.Context, postImage *sample.PostImage, opt
 	return postImage, nil
 }
 
+func (d *PostImage) CreateMulti(ctx context.Context, postImage []*sample.PostImage, opt ...ExecOption) error {
+	if len(postImage) == 0 {
+		return nil
+	}
+	execOpts := newExecOpt(opt...)
+	if execOpts.tx == nil {
+		return d.Tx(ctx, func(tx *sql.Tx) error {
+			return d.CreateMulti(ctx, postImage, append(opt, WithTx(tx))...)
+		})
+	}
+
+	rows := make([][]any, len(postImage))
+	for i, v := range postImage {
+		rows[i] = []any{v.Id, v.Url}
+	}
+	return insertMulti(ctx, execOpts.tx, "INSERT INTO `post_image` (`id`, `url`) VALUES ", "(?, ?)", rows)
+}
+
 func (d *PostImage) Delete(ctx context.Context, id int32, opt ...ExecOption) error {
 	execOpts := newExecOpt(opt...)
 	var conn execConn
@@ -1886,6 +2072,7 @@ type TaskInterface interface {
 	ListAll(ctx context.Context, opt ...ListOption) ([]*sample.Task, error)
 	ListPending(ctx context.Context, opt ...ListOption) ([]*sample.Task, error)
 	Create(ctx context.Context, task *sample.Task, opt ...ExecOption) (*sample.Task, error)
+	CreateMulti(ctx context.Context, task []*sample.Task, opt ...ExecOption) error
 	Update(ctx context.Context, task *sample.Task, opt ...ExecOption) error
 	Delete(ctx context.Context, id int32, opt ...ExecOption) error
 }
@@ -2115,6 +2302,24 @@ func (d *Task) Create(ctx context.Context, task *sample.Task, opt ...ExecOption)
 
 	task.ResetMark()
 	return task, nil
+}
+
+func (d *Task) CreateMulti(ctx context.Context, task []*sample.Task, opt ...ExecOption) error {
+	if len(task) == 0 {
+		return nil
+	}
+	execOpts := newExecOpt(opt...)
+	if execOpts.tx == nil {
+		return d.Tx(ctx, func(tx *sql.Tx) error {
+			return d.CreateMulti(ctx, task, append(opt, WithTx(tx))...)
+		})
+	}
+
+	rows := make([][]any, len(task))
+	for i, v := range task {
+		rows[i] = []any{v.ImageId, v.StartAt}
+	}
+	return insertMulti(ctx, execOpts.tx, "INSERT INTO `task` (`image_id`, `start_at`) VALUES ", "(?, ?)", rows)
 }
 
 func (d *Task) Delete(ctx context.Context, id int32, opt ...ExecOption) error {

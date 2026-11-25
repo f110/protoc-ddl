@@ -28,6 +28,13 @@ func TestUser(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, int32(2), user.Id)
 
+	require.NoError(t, u.CreateMulti(context.TODO(), []*sample.User{{Id: 3}, {Id: 4}}))
+	call = u.Called("CreateMulti")
+	require.Len(t, call, 1)
+	users, ok := call[0].Args["user"].([]*sample.User)
+	require.True(t, ok)
+	assert.Len(t, users, 2)
+
 	err = u.Update(context.TODO(), &sample.User{Id: 2, Name: "Test2"})
 	require.NoError(t, err)
 	call = u.Called("Update")
