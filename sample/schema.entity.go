@@ -237,6 +237,13 @@ type BlogByStatusCount struct {
 	Count  int64
 }
 
+// BlogAttachSizeRow is the row of ListAttachSize.
+type BlogAttachSizeRow struct {
+	Id         int64
+	AttachSize int64
+	UpperTitle string
+}
+
 type CommentImage struct {
 	CommentBlogId int64
 	CommentUserId int32

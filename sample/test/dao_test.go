@@ -76,4 +76,10 @@ func TestUser(t *testing.T) {
 	require.Len(t, counts, 1)
 	assert.Equal(t, sample.BlogStatusDraft, counts[0].Status)
 	assert.Equal(t, int64(3), counts[0].Count)
+
+	b.RegisterListAttachSize(1, []*sample.BlogAttachSizeRow{{Id: 1, AttachSize: 10}}, nil)
+	sizes, err := b.ListAttachSize(context.TODO(), 1)
+	require.NoError(t, err)
+	require.Len(t, sizes, 1)
+	assert.Equal(t, int64(10), sizes[0].AttachSize)
 }

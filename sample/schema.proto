@@ -111,6 +111,10 @@ message Blog {
       name: "ByUser"
       query: "SELECT COUNT(*) FROM `:table_name:` WHERE `user_id` = ?"
     }
+    queries: {
+      name: "AttachSize"
+      query: "SELECT `id`, LENGTH(`attach`) AS `attach_size`, UPPER(`title`) AS `upper_title` FROM `:table_name:` WHERE `user_id` = ?"
+    }
   };
 }
 

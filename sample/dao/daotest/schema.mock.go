@@ -173,6 +173,15 @@ func (d *Blog) RegisterCountByUser(userId int32, value int64, err error) {
 	d.Register("CountByUser", map[string]any{"userId": userId}, value, err)
 }
 
+func (d *Blog) ListAttachSize(ctx context.Context, userId int32, opt ...dao.ListOption) ([]*sample.BlogAttachSizeRow, error) {
+	v, err := d.Call("ListAttachSize", map[string]any{"userId": userId})
+	return v.([]*sample.BlogAttachSizeRow), err
+}
+
+func (d *Blog) RegisterListAttachSize(userId int32, value []*sample.BlogAttachSizeRow, err error) {
+	d.Register("ListAttachSize", map[string]any{"userId": userId}, value, err)
+}
+
 func (d *Blog) Create(ctx context.Context, blog *sample.Blog, opt ...dao.ExecOption) (*sample.Blog, error) {
 	_, _ = d.Call("Create", map[string]any{"blog": blog})
 	return blog, nil

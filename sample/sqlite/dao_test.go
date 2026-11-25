@@ -70,6 +70,13 @@ func TestDAO(t *testing.T) {
 	counts, err := blogs.CountByStatus(ctx, []int32{user.Id})
 	require.NoError(t, err)
 	assert.Len(t, counts, 2)
+	sizes, err := blogs.ListAttachSize(ctx, user.Id)
+	require.NoError(t, err)
+	require.Len(t, sizes, 2)
+	assert.Equal(t, int64(1), sizes[0].AttachSize)
+	assert.Equal(t, "FIRST", sizes[0].UpperTitle)
+	assert.Equal(t, int64(0), sizes[1].AttachSize)
+	assert.Equal(t, "SECOND", sizes[1].UpperTitle)
 
 	require.NoError(t, blogs.Delete(ctx, l[0].Id))
 	_, err = blogs.Select(ctx, l[0].Id)

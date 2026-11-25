@@ -49,6 +49,43 @@ func TestGoEntityGenerator_CountStruct(t *testing.T) {
 	require.NotContains(t, out, "ItemListCount")
 }
 
+func TestGoEntityGenerator_ExprRowStruct(t *testing.T) {
+	pk := &schema.Field{Name: "id", Type: "TYPE_INT32", Sequence: true}
+	buf := new(bytes.Buffer)
+	err := GoEntityGenerator{}.Generate(
+		buf,
+		&descriptorpb.FileOptions{GoPackage: new("go.f110.dev/protoc-ddl/test/database")},
+		schema.NewMessages([]*schema.Message{
+			{
+				Descriptor:  &descriptorpb.DescriptorProto{Name: new("Item")},
+				TableName:   "item",
+				PrimaryKeys: []*schema.Field{pk},
+				Fields: schema.NewFields([]*schema.Field{
+					pk,
+					{Name: "category_id", Type: "TYPE_INT32", Null: true},
+					{Name: "body", Type: "TYPE_BYTES"},
+					{Name: "note", Type: "TYPE_STRING", Null: true},
+				}),
+				ExprQueries: []*schema.Query{
+					{
+						Name: "Size",
+						Query: "SELECT `id`, `category_id`, LENGTH(`body`) AS `body_size`, CHAR_LENGTH(`note`) AS `note_size`, " +
+							"HEX(`body`) AS `body_hex`, UPPER(`note`) AS `upper_note` FROM `:table_name:`",
+					},
+				},
+			},
+		}, nil),
+	)
+	require.NoError(t, err)
+	out := buf.String()
+
+	require.Contains(
+		t,
+		out,
+		"// ItemSizeRow is the row of ListSize.\ntype ItemSizeRow struct {\n\tId         int32\n\tCategoryId *int32\n\tBodySize   int64\n\tNoteSize   *int64\n\tBodyHex    string\n\tUpperNote  *string\n}\n",
+	)
+}
+
 func TestGoEntityGenerator_InvalidSource(t *testing.T) {
 	pk := &schema.Field{Name: "id", Type: "TYPE_INT32", Sequence: true}
 	err := GoEntityGenerator{}.Generate(
