@@ -1,0 +1,27 @@
+load("@rules_go//go:def.bzl", "go_test")
+load("//rules:def.bzl", "sql_schema", "vendor_ddl")
+
+sql_schema(
+    name = "schema",
+    dialect = "sqlite",
+    proto = "//sample:sample_proto",
+)
+
+vendor_ddl(
+    name = "vendor_schema",
+    src = ":schema",
+)
+
+go_test(
+    name = "sqlite_test",
+    srcs = ["dao_test.go"],
+    embedsrcs = ["schema.sql"],
+    deps = [
+        "//internal/migrate",
+        "//probe",
+        "//sample",
+        "//sample/dao",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

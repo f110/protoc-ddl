@@ -84,6 +84,16 @@ $ bazel run //:vendor_schema
 
 You will see the generated schema file in the same directory at `*.sql`.
 
+## Dialect
+
+`sql_schema` generates the schema for MySQL by default. Set `dialect = "sqlite"` to generate the schema for SQLite.
+The command line plugin takes the dialect by `--ddl_opt dialect=sqlite`.
+
+SQLite has some limitations.
+
+- `sequence` is allowed only for the column which is the only primary key. The column becomes `INTEGER PRIMARY KEY AUTOINCREMENT`.
+- The name of the index must be unique in the database, not in the table.
+
 # Query
 
 The queries of DAO are defined by `dev.f110.ddl.dao`. The conditions of WHERE clause can use `LIKE ?`, `IN (?)` and
@@ -122,6 +132,8 @@ This tool also supports the migration.
 
 ```
 $ migrate --schema ./schema.sql --driver mysql --dsn "root@tcp(localhost)/protoc_ddl" --execute
+$ migrate --schema ./schema.sql --driver sqlite --dsn ./local.db --execute
 ```
 
-Currently, Only mysql is supported.
+The driver is `mysql` or `sqlite`. The migration of SQLite is executed in a single transaction started by `BEGIN IMMEDIATE`. The table which has the changed columns is recreated and the data is copied
+from the old table. The new `NOT NULL` column without the default value is filled with the zero value.

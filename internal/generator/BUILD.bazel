@@ -8,6 +8,7 @@ go_library(
         "entity.go",
         "mock.go",
         "mysql.go",
+        "sqlite.go",
         "util.go",
         "where.go",
     ],
@@ -20,6 +21,7 @@ go_library(
         "@com_github_pingcap_tidb_pkg_parser//opcode",
         "@com_github_pingcap_tidb_pkg_parser//test_driver",
         "@com_github_pingcap_tidb_pkg_parser//types",
+        "@dev_f110_go_xerrors//:xerrors",
         "@org_golang_google_protobuf//types/descriptorpb",
     ],
 )
@@ -29,6 +31,7 @@ go_test(
     srcs = [
         "dao_test.go",
         "entity_test.go",
+        "sqlite_test.go",
         "util_test.go",
         "where_test.go",
     ],

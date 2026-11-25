@@ -100,14 +100,7 @@ func (MySQLGenerator) generateIndexDefinition(table *schema.Message) []string {
 	colLine := make([]string, 0)
 
 	for _, i := range table.Indexes {
-		idxName := i.Name
-		if idxName == "" {
-			colNames := make([]string, 0, i.Columns.Len())
-			i.Columns.Each(func(f *schema.Field) {
-				colNames = append(colNames, f.Name)
-			})
-			idxName = "idx_" + strings.Join(colNames, "_")
-		}
+		idxName := indexName(i)
 		cols := make([]string, 0, i.Columns.Len())
 		i.Columns.Each(func(f *schema.Field) {
 			cols = append(cols, fmt.Sprintf("`%s`", f.Name))
