@@ -71,6 +71,10 @@ func (g GoDAOMockGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.Fi
 			src.WriteFunc(v, g.mockCountQuery(m, v))
 		}
 
+		for _, v := range s.SelectExpr(g.selectExpr) {
+			src.WriteFunc(v, g.mockSelectExpr(m, v))
+		}
+
 		src.WriteFunc(s.Create(g.create), s.CreateMulti(g.createMulti), s.Delete(g.delete), s.Update(g.update))
 	})
 
@@ -240,6 +244,40 @@ func (GoDAOMockGenerator) mockCountQuery(m *schema.Message, countFunc *goFunc) *
 
 	return &goFunc{
 		Name:     "Register" + countFunc.Name,
+		Body:     src.String(),
+		Args:     args,
+		Receiver: &field{Name: "d", Type: m.Descriptor.GetName(), Pointer: true},
+	}
+}
+
+func (GoDAOMockGenerator) selectExpr(_ *schema.Message, _ *exprQuery, f *goFunc) string {
+	a := make([]string, 0)
+	for _, v := range f.Args[1 : len(f.Args)-1] {
+		a = append(a, fmt.Sprintf("\"%s\":%s", v.Name, v.Name))
+	}
+
+	src := newBuffer()
+	src.Writef("v, err := d.Call(\"%s\", map[string]any{%s})", f.Name, strings.Join(a, ","))
+	src.Writef("return v.(%s), err", f.Returns[0])
+
+	return src.String()
+}
+
+func (GoDAOMockGenerator) mockSelectExpr(m *schema.Message, selectFunc *goFunc) *goFunc {
+	args := append(fieldList{}, selectFunc.Args[1:len(selectFunc.Args)-1]...)
+	a := make([]string, 0)
+	for _, v := range args {
+		a = append(a, fmt.Sprintf("\"%s\":%s", v.Name, v.Name))
+	}
+	value := selectFunc.Returns[0].Copy()
+	value.Name = "value"
+	args = append(args, value, &field{Name: "err", Type: "error"})
+
+	src := newBuffer()
+	src.Writef("d.Register(\"%s\", map[string]any{%s}, value, err)", selectFunc.Name, strings.Join(a, ","))
+
+	return &goFunc{
+		Name:     "Register" + selectFunc.Name,
 		Body:     src.String(),
 		Args:     args,
 		Receiver: &field{Name: "d", Type: m.Descriptor.GetName(), Pointer: true},

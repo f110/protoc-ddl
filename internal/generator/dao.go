@@ -190,6 +190,7 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOp
 		}
 		src.WriteInterface(s.Select(nil)...)
 		src.WriteInterface(s.Count(nil)...)
+		src.WriteInterface(s.SelectExpr(nil)...)
 		src.WriteInterface(s.Create(nil), s.CreateMulti(nil), s.Update(nil), s.Delete(nil))
 		src.Write("}")
 		src.LineBreak()
@@ -210,6 +211,7 @@ func (g GoDAOGenerator) Generate(buf *bytes.Buffer, fileOpt *descriptorpb.FileOp
 		src.WriteFunc(s.PrimaryKeyMultiSelect(g.primaryKeyMultiSelect))
 		src.WriteFunc(s.Select(g.selectRowQuery)...)
 		src.WriteFunc(s.Count(g.count)...)
+		src.WriteFunc(s.SelectExpr(g.selectExpr)...)
 		src.WriteFunc(s.Create(g.create), s.CreateMulti(g.createMulti), s.Delete(g.delete), s.Update(g.update))
 		if s.useCondition {
 			useCondition = true
@@ -649,6 +651,54 @@ func (g GoDAOGenerator) count(m *schema.Message, q *countQuery, f *goFunc) strin
 		scanCols = append(scanCols, "&r."+schema.ToCamel(v.Name))
 	}
 	scanCols = append(scanCols, "&r.Count")
+	src.Writef("if err := rows.Scan(%s); err != nil {", strings.Join(scanCols, ", "))
+	src.Write("return nil, err\n}")
+	src.Write("res = append(res, r)")
+	src.Write("}")
+	src.Write("if err := rows.Err(); err != nil {\nreturn nil, err\n}")
+	src.Write("return res, nil")
+	return src.String()
+}
+
+// selectExpr returns the body of the function of the query which selects the expressions.
+func (g GoDAOGenerator) selectExpr(m *schema.Message, q *exprQuery, f *goFunc) string {
+	src := newBuffer()
+	cols := make([]string, 0, len(q.columns))
+	scanCols := make([]string, 0, len(q.columns))
+	for _, v := range q.columns {
+		cols = append(cols, v.sql())
+		scanCols = append(scanCols, "&r."+schema.ToCamel(v.name))
+	}
+	primaryKeys := make([]string, 0, len(m.PrimaryKeys))
+	for _, v := range m.PrimaryKeys {
+		primaryKeys = append(primaryKeys, "`"+v.Name+"`")
+	}
+	query := "SELECT " + strings.Join(cols, ", ") + " FROM `" + m.TableName + "`"
+
+	src.Write("listOpts := newListOpt(opt...)")
+	args := ""
+	if q.where != nil {
+		src.Write("where := " + q.where.goExpr())
+		src.Writef("query := %q + where.sql", query+" WHERE ")
+		args = ", where.args..."
+	} else {
+		src.Writef("query := %q", query)
+	}
+	src.Write("orderCol := \"`\" + listOpts.sort + \"`\"")
+	src.Write("if listOpts.sort == \"\" {")
+	src.Writef("orderCol = %q", strings.Join(primaryKeys, ","))
+	src.Write("}")
+	src.Write("orderDi := \"ASC\"")
+	src.Write("if listOpts.desc {\norderDi = \"DESC\"\n}")
+	src.Write("query = query + fmt.Sprintf(\" ORDER BY %s %s\", orderCol, orderDi)")
+	src.Write("if listOpts.limit > 0 {\nquery = query + fmt.Sprintf(\" LIMIT %d\", listOpts.limit)\n}")
+	src.Writef("rows, err := d.conn.QueryContext(ctx, query%s)", args)
+	src.Write("if err != nil {\nreturn nil, err\n}")
+	src.Write("defer rows.Close()")
+	src.LineBreak()
+	src.Writef("res := make(%s, 0)", f.Returns[0])
+	src.Write("for rows.Next() {")
+	src.Writef("r := &%s{}", f.Returns[0].Type)
 	src.Writef("if err := rows.Scan(%s); err != nil {", strings.Join(scanCols, ", "))
 	src.Write("return nil, err\n}")
 	src.Write("res = append(res, r)")
@@ -1362,6 +1412,172 @@ func newCountQuery(m *schema.Message, name string, stmt *ast.SelectStmt) (*count
 			return nil, fmt.Errorf("column %s is not found", col.Name.Name.String())
 		}
 		q.groupBy = append(q.groupBy, f)
+	}
+	if stmt.Where != nil {
+		where, err := newWhereNode(m, stmt.Where)
+		if err != nil {
+			return nil, err
+		}
+		q.where = where
+	}
+	return q, nil
+}
+
+// SelectExpr returns the functions of the queries which select the expressions. The function always returns the list of
+// the struct of the entity package which has the selected columns and expressions.
+func (s *GoDAOStruct) SelectExpr(body func(m *schema.Message, q *exprQuery, f *goFunc) string) []*goFunc {
+	funcs := make([]*goFunc, 0)
+	listOptionType := "ListOption"
+	if s.daoPath != "" {
+		listOptionType = s.daoPath + "." + listOptionType
+	}
+	for _, q := range exprQueries(s.m) {
+		args := fieldList{{Name: "ctx", Type: "context.Context"}}
+		if q.where != nil {
+			s.useCondition = true
+			for _, a := range q.where.args() {
+				args = append(args, &field{Name: a.name, Type: GoDataTypeMap[a.field.Type], Slice: a.slice})
+			}
+		}
+		args = append(args, &field{Name: "opt", Variable: true, Type: listOptionType})
+
+		f := &goFunc{
+			Name:     "List" + q.name,
+			Receiver: &field{Name: "d", Type: s.m.Descriptor.GetName(), Pointer: true},
+			Args:     args,
+			Returns: fieldList{
+				{Type: s.entityPackageName + "." + q.structName(s.m), Pointer: true, Slice: true},
+				{Type: "error"},
+			},
+		}
+		if body != nil {
+			f.Body = body(s.m, q, f)
+		}
+		funcs = append(funcs, f)
+	}
+	return funcs
+}
+
+// exprFuncTypes is the functions which can be used as the expression of the column and the types of the results. The
+// type of the result does not depend on the type of the argument. These functions return NULL if the argument is NULL.
+var exprFuncTypes = map[string]string{
+	ast.Length:          "TYPE_INT64",
+	ast.CharLength:      "TYPE_INT64",
+	ast.CharacterLength: "TYPE_INT64",
+	ast.OctetLength:     "TYPE_INT64",
+	ast.BitLength:       "TYPE_INT64",
+	ast.Upper:           "TYPE_STRING",
+	ast.Lower:           "TYPE_STRING",
+	ast.Hex:             "TYPE_STRING",
+}
+
+// exprQuery is the query of "SELECT <columns and expressions> FROM <table> WHERE <conditions>". WHERE is nil if the query
+// has no conditions.
+type exprQuery struct {
+	name    string
+	columns []*exprColumn
+	where   *whereNode
+}
+
+// structName returns the name of the struct which has the row of the result of the query.
+func (q *exprQuery) structName(m *schema.Message) string {
+	return m.Descriptor.GetName() + q.name + "Row"
+}
+
+// exprColumn is the selected column or expression. The expression is the function fn which takes the column field and is
+// named by the alias name. The column has no fn and is named by the name of the column.
+type exprColumn struct {
+	name  string
+	fn    string
+	field *schema.Field
+}
+
+func (c *exprColumn) sql() string {
+	s := "`" + c.field.Name + "`"
+	if c.fn != "" {
+		s = strings.ToUpper(c.fn) + "(" + s + ")"
+	}
+	if c.fn != "" || c.name != c.field.Name {
+		s += " AS `" + c.name + "`"
+	}
+	return s
+}
+
+// goType returns the type of the field of the struct. The type of the expression is defined by exprFuncTypes, and it is
+// the pointer if the column of the argument is nullable.
+func (c *exprColumn) goType(messages *schema.Messages) string {
+	if c.fn == "" {
+		return goFieldType(messages, c.field)
+	}
+	return goFieldType(messages, &schema.Field{Type: exprFuncTypes[c.fn], Null: c.field.Null})
+}
+
+// exprQueries returns the queries of the message which select the expressions. The query which is not supported is
+// logged and skipped.
+func exprQueries(m *schema.Message) []*exprQuery {
+	p := parser.New()
+	res := make([]*exprQuery, 0)
+	for _, q := range m.ExprQueries {
+		stmts, _, err := p.Parse(q.Query, "", "")
+		if err != nil {
+			continue
+		}
+		stmt, ok := stmts[0].(*ast.SelectStmt)
+		if !ok {
+			continue
+		}
+		e, err := newExprQuery(m, q.Name, stmt)
+		if err != nil {
+			log.Printf("Failed to generate %s: %v", q.Name, err)
+			continue
+		}
+		res = append(res, e)
+	}
+	return res
+}
+
+func newExprQuery(m *schema.Message, name string, stmt *ast.SelectStmt) (*exprQuery, error) {
+	if stmt.From.TableRefs.Right != nil {
+		return nil, fmt.Errorf("multiple tables is not supported")
+	}
+	if stmt.Distinct || stmt.GroupBy != nil || stmt.Having != nil || stmt.OrderBy != nil || stmt.Limit != nil {
+		return nil, fmt.Errorf("DISTINCT, GROUP BY, HAVING, ORDER BY and LIMIT are not supported with the expression")
+	}
+	q := &exprQuery{name: name}
+	for _, v := range stmt.Fields.Fields {
+		switch e := v.Expr.(type) {
+		case *ast.ColumnNameExpr:
+			f := m.Fields.Get(e.Name.Name.String())
+			if f == nil {
+				return nil, fmt.Errorf("column %s is not found", e.Name.Name.String())
+			}
+			name := f.Name
+			if v.AsName.L != "" {
+				name = v.AsName.O
+			}
+			q.columns = append(q.columns, &exprColumn{name: name, field: f})
+		case *ast.FuncCallExpr:
+			if _, ok := exprFuncTypes[e.FnName.L]; !ok {
+				return nil, fmt.Errorf("function %s is not supported", e.FnName.O)
+			}
+			if v.AsName.L == "" {
+				return nil, fmt.Errorf("the expression must have the alias")
+			}
+			if len(e.Args) != 1 {
+				return nil, fmt.Errorf("function %s must take a column", e.FnName.O)
+			}
+			col, ok := e.Args[0].(*ast.ColumnNameExpr)
+			if !ok {
+				return nil, fmt.Errorf("function %s must take a column", e.FnName.O)
+			}
+			f := m.Fields.Get(col.Name.Name.String())
+			if f == nil {
+				return nil, fmt.Errorf("column %s is not found", col.Name.Name.String())
+			}
+			q.columns = append(q.columns, &exprColumn{name: v.AsName.O, fn: e.FnName.L, field: f})
+		default:
+			return nil, fmt.Errorf("%T is not supported as the column", v.Expr)
+		}
 	}
 	if stmt.Where != nil {
 		where, err := newWhereNode(m, stmt.Where)

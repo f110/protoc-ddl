@@ -23,6 +23,7 @@ func TestMessage_AddQuery(t *testing.T) {
 	m.AddQuery("All", "SELECT * FROM `:table_name:`")
 	m.AddQuery("ByStatus", "SELECT `status`, COUNT(*) FROM `:table_name:` GROUP BY `status`")
 	m.AddQuery("Total", "SELECT COUNT(*) FROM `:table_name:`")
+	m.AddQuery("Size", "SELECT `id`, LENGTH(`body`) AS `body_size` FROM `:table_name:`")
 	m.AddQuery("Invalid", "SELECT FROM")
 
 	names := func(queries []*Query) []string {
@@ -37,6 +38,9 @@ func TestMessage_AddQuery(t *testing.T) {
 	}
 	if got := names(m.CountQueries); !slices.Equal(got, []string{"ByStatus", "Total"}) {
 		t.Errorf("unexpected CountQueries: %v", got)
+	}
+	if got := names(m.ExprQueries); !slices.Equal(got, []string{"Size"}) {
+		t.Errorf("unexpected ExprQueries: %v", got)
 	}
 }
 

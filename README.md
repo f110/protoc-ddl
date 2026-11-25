@@ -126,6 +126,27 @@ queries: {
 
 The above query generates `CountByStatus(ctx context.Context, userId []int32) ([]*BlogByStatusCount, error)`.
 
+## Expression
+
+The columns can have the expression with the alias in addition to the columns. The expression is the function which
+takes a column. The query generates `List<Name>`, and the struct `<Message><Name>Row` which has the columns and the
+aliases is generated in the entity package. The type of the expression is defined by the function, and it is the
+pointer if the column is nullable.
+
+| Function                                                                  | Type     |
+|---------------------------------------------------------------------------|----------|
+| `LENGTH`, `CHAR_LENGTH`, `CHARACTER_LENGTH`, `OCTET_LENGTH`, `BIT_LENGTH` | `int64`  |
+| `UPPER`, `LOWER`, `HEX`                                                   | `string` |
+
+```
+queries: {
+  name: "AttachSize"
+  query: "SELECT `id`, LENGTH(`attach`) AS `attach_size`, UPPER(`title`) AS `upper_title` FROM `:table_name:` WHERE `user_id` = ?"
+}
+```
+
+The above query generates `ListAttachSize(ctx context.Context, userId int32, opt ...ListOption) ([]*BlogAttachSizeRow, error)`.
+
 # Migration
 
 This tool also supports the migration.

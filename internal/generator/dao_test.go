@@ -391,6 +391,77 @@ func TestGoDAOGenerator_CountQuery(t *testing.T) {
 	})
 }
 
+func TestGoDAOGenerator_ExprQuery(t *testing.T) {
+	pk := &schema.Field{Name: "id", Type: "TYPE_INT32", Sequence: true}
+	gen := func(queries ...*schema.Query) string {
+		m := &schema.Message{
+			Descriptor:  &descriptorpb.DescriptorProto{Name: new("Item")},
+			TableName:   "item",
+			PrimaryKeys: []*schema.Field{pk},
+			Fields: schema.NewFields([]*schema.Field{
+				pk,
+				{Name: "status", Type: "TYPE_UINT32"},
+				{Name: "body", Type: "TYPE_BYTES"},
+				{Name: "note", Type: "TYPE_STRING", Null: true},
+			}),
+		}
+		for _, q := range queries {
+			m.AddQuery(q.Name, q.Query)
+		}
+		buf := new(bytes.Buffer)
+		err := GoDAOGenerator{}.Generate(
+			buf,
+			&descriptorpb.FileOptions{GoPackage: new("go.f110.dev/protoc-ddl/test/database")},
+			schema.NewMessages([]*schema.Message{m}, nil),
+		)
+		require.NoError(t, err)
+		return buf.String()
+	}
+
+	t.Run("expression with where returns the slice of the row", func(t *testing.T) {
+		out := gen(&schema.Query{
+			Name:  "BodySize",
+			Query: "SELECT `id`, `status`, LENGTH(`body`) AS `body_size` FROM `:table_name:` WHERE `status` IN (?)",
+		})
+		require.Contains(t, out, "ListBodySize(ctx context.Context, status []uint32, opt ...ListOption) ([]*database.ItemBodySizeRow, error)")
+		require.Contains(t, out, "where := whereIn(\"`status`\", status)")
+		require.Contains(t, out, "query := \"SELECT `id`, `status`, LENGTH(`body`) AS `body_size` FROM `item` WHERE \" + where.sql")
+		require.Contains(t, out, "rows, err := d.conn.QueryContext(ctx, query, where.args...)")
+		require.Contains(t, out, "r := &database.ItemBodySizeRow{}")
+		require.Contains(t, out, "if err := rows.Scan(&r.Id, &r.Status, &r.BodySize); err != nil {")
+	})
+
+	t.Run("expression without where", func(t *testing.T) {
+		out := gen(&schema.Query{Name: "NoteSize", Query: "SELECT CHAR_LENGTH(`note`) AS `note_size` FROM `:table_name:`"})
+		require.Contains(t, out, "ListNoteSize(ctx context.Context, opt ...ListOption) ([]*database.ItemNoteSizeRow, error)")
+		require.Contains(t, out, "query := \"SELECT CHAR_LENGTH(`note`) AS `note_size` FROM `item`\"")
+		require.Contains(t, out, "rows, err := d.conn.QueryContext(ctx, query)")
+		require.Contains(t, out, "if err := rows.Scan(&r.NoteSize); err != nil {")
+	})
+
+	t.Run("expression which returns the string", func(t *testing.T) {
+		out := gen(&schema.Query{Name: "UpperNote", Query: "SELECT `id`, UPPER(`note`) AS `upper_note` FROM `:table_name:`"})
+		require.Contains(t, out, "ListUpperNote(ctx context.Context, opt ...ListOption) ([]*database.ItemUpperNoteRow, error)")
+		require.Contains(t, out, "query := \"SELECT `id`, UPPER(`note`) AS `upper_note` FROM `item`\"")
+		require.Contains(t, out, "if err := rows.Scan(&r.Id, &r.UpperNote); err != nil {")
+	})
+
+	t.Run("unsupported expression is not generated", func(t *testing.T) {
+		out := gen(
+			&schema.Query{Name: "NoAlias", Query: "SELECT LENGTH(`body`) FROM `:table_name:`"},
+			&schema.Query{Name: "UnknownFunc", Query: "SELECT ROUND(`status`) AS `rounded` FROM `:table_name:`"},
+			&schema.Query{Name: "NotColumn", Query: "SELECT LENGTH('foo') AS `size` FROM `:table_name:`"},
+			&schema.Query{Name: "UnknownColumn", Query: "SELECT LENGTH(`foo`) AS `size` FROM `:table_name:`"},
+			&schema.Query{Name: "Wildcard", Query: "SELECT *, LENGTH(`body`) AS `body_size` FROM `:table_name:`"},
+			&schema.Query{Name: "Ordered", Query: "SELECT LENGTH(`body`) AS `body_size` FROM `:table_name:` ORDER BY `id`"},
+		)
+		for _, name := range []string{"NoAlias", "UnknownFunc", "NotColumn", "UnknownColumn", "Wildcard", "Ordered"} {
+			require.NotContains(t, out, "List"+name+"(")
+			require.NotContains(t, out, "Select"+name+"(")
+		}
+	})
+}
+
 func TestGoDAOGenerator_GoIdentifierColumn(t *testing.T) {
 	pk := &schema.Field{Name: "type", Type: "TYPE_INT32"}
 	buf := new(bytes.Buffer)

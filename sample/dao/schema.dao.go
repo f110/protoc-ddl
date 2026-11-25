@@ -445,6 +445,7 @@ type BlogInterface interface {
 	ListByEditors(ctx context.Context, editorId []int32, opt ...ListOption) ([]*sample.Blog, error)
 	CountByStatus(ctx context.Context, userId []int32) ([]*sample.BlogByStatusCount, error)
 	CountByUser(ctx context.Context, userId int32) (int64, error)
+	ListAttachSize(ctx context.Context, userId int32, opt ...ListOption) ([]*sample.BlogAttachSizeRow, error)
 	Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption) (*sample.Blog, error)
 	CreateMulti(ctx context.Context, blog []*sample.Blog, opt ...ExecOption) error
 	Update(ctx context.Context, blog *sample.Blog, opt ...ExecOption) error
@@ -800,6 +801,42 @@ func (d *Blog) CountByUser(ctx context.Context, userId int32) (int64, error) {
 		return 0, err
 	}
 	return count, nil
+}
+
+func (d *Blog) ListAttachSize(ctx context.Context, userId int32, opt ...ListOption) ([]*sample.BlogAttachSizeRow, error) {
+	listOpts := newListOpt(opt...)
+	where := whereCond("`user_id` = ?", userId)
+	query := "SELECT `id`, LENGTH(`attach`) AS `attach_size`, UPPER(`title`) AS `upper_title` FROM `blog` WHERE " + where.sql
+	orderCol := "`" + listOpts.sort + "`"
+	if listOpts.sort == "" {
+		orderCol = "`id`"
+	}
+	orderDi := "ASC"
+	if listOpts.desc {
+		orderDi = "DESC"
+	}
+	query = query + fmt.Sprintf(" ORDER BY %s %s", orderCol, orderDi)
+	if listOpts.limit > 0 {
+		query = query + fmt.Sprintf(" LIMIT %d", listOpts.limit)
+	}
+	rows, err := d.conn.QueryContext(ctx, query, where.args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	res := make([]*sample.BlogAttachSizeRow, 0)
+	for rows.Next() {
+		r := &sample.BlogAttachSizeRow{}
+		if err := rows.Scan(&r.Id, &r.AttachSize, &r.UpperTitle); err != nil {
+			return nil, err
+		}
+		res = append(res, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 func (d *Blog) Create(ctx context.Context, blog *sample.Blog, opt ...ExecOption) (*sample.Blog, error) {

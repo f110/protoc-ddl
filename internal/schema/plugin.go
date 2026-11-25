@@ -68,6 +68,7 @@ type Message struct {
 
 	SelectQueries []*Query
 	CountQueries  []*Query
+	ExprQueries   []*Query
 
 	fileDescriptor *descriptorpb.FileDescriptorProto
 }
@@ -88,15 +89,22 @@ func NewMessage(d *descriptorpb.DescriptorProto, f *descriptorpb.FileDescriptorP
 	}
 }
 
-// AddQuery adds the query to CountQueries if the query selects the aggregate function. Otherwise, the query is added to
-// SelectQueries. The query which can not be parsed is added to SelectQueries.
+// AddQuery adds the query to CountQueries if the query selects the aggregate function, and to ExprQueries if the query
+// selects the expression which is not a column. Otherwise, the query is added to SelectQueries. The query which can not
+// be parsed is added to SelectQueries.
 func (m *Message) AddQuery(name, query string) {
 	q := &Query{Name: name, Query: query}
 	stmts, _, err := parser.New().Parse(query, "", "")
 	if err == nil {
-		if stmt, ok := stmts[0].(*ast.SelectStmt); ok && isCountQuery(stmt) {
-			m.CountQueries = append(m.CountQueries, q)
-			return
+		if stmt, ok := stmts[0].(*ast.SelectStmt); ok {
+			switch {
+			case isCountQuery(stmt):
+				m.CountQueries = append(m.CountQueries, q)
+				return
+			case isExprQuery(stmt):
+				m.ExprQueries = append(m.ExprQueries, q)
+				return
+			}
 		}
 	}
 	m.SelectQueries = append(m.SelectQueries, q)
@@ -105,6 +113,18 @@ func (m *Message) AddQuery(name, query string) {
 func isCountQuery(stmt *ast.SelectStmt) bool {
 	for _, v := range stmt.Fields.Fields {
 		if _, ok := v.Expr.(*ast.AggregateFuncExpr); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func isExprQuery(stmt *ast.SelectStmt) bool {
+	for _, v := range stmt.Fields.Fields {
+		if v.WildCard != nil {
+			continue
+		}
+		if _, ok := v.Expr.(*ast.ColumnNameExpr); !ok {
 			return true
 		}
 	}
