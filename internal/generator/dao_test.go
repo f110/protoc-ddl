@@ -209,6 +209,11 @@ func TestGoDAOStruct_findArgs(t *testing.T) {
 			Fields: []*schema.Field{fieldMap["age"]},
 		},
 		{
+			Name:   "Not equal",
+			Where:  "name = ? AND age != ?",
+			Fields: []*schema.Field{fieldMap["name"], fieldMap["age"]},
+		},
+		{
 			Name:   "Multi product set fields",
 			Where:  "name = ? AND age = ?",
 			Fields: []*schema.Field{fieldMap["name"], fieldMap["age"]},
