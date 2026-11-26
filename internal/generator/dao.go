@@ -504,7 +504,7 @@ func (g GoDAOGenerator) selectRowQuery(m *schema.Message, name string, stmt *ast
 		return g.selectConditionQuery(m, cols, where, entityName)
 	}
 	if single {
-		return g.selectSingleRowQuery(m, name, stmt, comp, args, entityName)
+		return g.selectSingleRowQuery(m, name, stmt, cols, comp, args, entityName)
 	} else {
 		return g.selectMultipleRowQuery(m, name, stmt, cols, comp, args, entityName)
 	}
@@ -708,7 +708,7 @@ func (g GoDAOGenerator) selectExpr(m *schema.Message, q *exprQuery, f *goFunc) s
 	return src.String()
 }
 
-func (g GoDAOGenerator) selectSingleRowQuery(m *schema.Message, name string, stmt *ast.SelectStmt, comp []*schema.Field, args []string, entityName string) string {
+func (g GoDAOGenerator) selectSingleRowQuery(m *schema.Message, name string, stmt *ast.SelectStmt, selectCols []string, comp []*schema.Field, args []string, entityName string) string {
 	src := newBuffer()
 
 	primaryKeys := make([]string, 0)
@@ -725,11 +725,11 @@ func (g GoDAOGenerator) selectSingleRowQuery(m *schema.Message, name string, stm
 	src.WriteString(")\n")
 
 	src.WriteString(fmt.Sprintf("v := &%s.%s{}\n", entityName, m.Descriptor.GetName()))
-	cols := make([]string, 0, m.Fields.Len())
-	m.Fields.Each(func(f *schema.Field) {
-		cols = append(cols, "&v."+schema.ToCamel(f.Name))
-	})
-	src.WriteString(fmt.Sprintf("if err := row.Scan(%s); err != nil {\n", strings.Join(cols, ",")))
+	scanCols := make([]string, len(selectCols))
+	for i, v := range selectCols {
+		scanCols[i] = "&v." + schema.ToCamel(v)
+	}
+	src.WriteString(fmt.Sprintf("if err := row.Scan(%s); err != nil {\n", strings.Join(scanCols, ",")))
 	src.WriteString("return nil, err\n}\n\n")
 
 	g.selectChildObject(src, m)

@@ -322,6 +322,35 @@ func TestGoDAOGenerator_ConditionQuery(t *testing.T) {
 	})
 }
 
+func TestGoDAOGenerator_SelectSingleRowColumns(t *testing.T) {
+	pk := &schema.Field{Name: "id", Type: "TYPE_INT32", Sequence: true}
+	hash := &schema.Field{Name: "hash", Type: "TYPE_STRING"}
+	buf := new(bytes.Buffer)
+	err := GoDAOGenerator{}.Generate(
+		buf,
+		&descriptorpb.FileOptions{GoPackage: new("go.f110.dev/protoc-ddl/test/database")},
+		schema.NewMessages([]*schema.Message{
+			{
+				Descriptor:  &descriptorpb.DescriptorProto{Name: new("Item")},
+				TableName:   "item",
+				PrimaryKeys: []*schema.Field{pk},
+				Fields:      schema.NewFields([]*schema.Field{pk, hash, {Name: "encoding", Type: "TYPE_INT32"}, {Name: "size", Type: "TYPE_INT64"}}),
+				Indexes:     []*schema.Index{{Name: "idx_hash", Columns: schema.NewFields([]*schema.Field{hash}), Unique: true}},
+				SelectQueries: []*schema.Query{
+					{Name: "SizeByHash", Query: "SELECT `encoding`, `size` FROM `:table_name:` WHERE `hash` = ?"},
+					{Name: "ByHash", Query: "SELECT * FROM `:table_name:` WHERE `hash` = ?"},
+				},
+			},
+		}, nil),
+	)
+	require.NoError(t, err)
+	out := buf.String()
+	require.Contains(t, out, "SelectSizeByHash(ctx context.Context, hash string) (*database.Item, error)")
+	require.Contains(t, out, "if err := row.Scan(&v.Encoding, &v.Size); err != nil {")
+	require.Contains(t, out, "SelectByHash(ctx context.Context, hash string) (*database.Item, error)")
+	require.Contains(t, out, "if err := row.Scan(&v.Id, &v.Hash, &v.Encoding, &v.Size); err != nil {")
+}
+
 func TestGoDAOGenerator_CountQuery(t *testing.T) {
 	pk := &schema.Field{Name: "id", Type: "TYPE_INT32", Sequence: true}
 	gen := func(queries ...*schema.Query) string {
