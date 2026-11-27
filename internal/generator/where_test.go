@@ -125,3 +125,62 @@ func TestNewWhereNode(t *testing.T) {
 		})
 	}
 }
+
+func TestWhereNode_Static(t *testing.T) {
+	pk := &schema.Field{Name: "id", Type: "TYPE_INT32", Sequence: true}
+	m := &schema.Message{
+		TableName:   "item",
+		PrimaryKeys: []*schema.Field{pk},
+		Fields: schema.NewFields([]*schema.Field{
+			pk,
+			{Name: "status", Type: "TYPE_UINT32"},
+			{Name: "title", Type: "TYPE_STRING"},
+			{Name: "deleted_at", Type: schema.TimestampType, Null: true},
+		}),
+	}
+	p := parser.New()
+
+	cases := []struct {
+		where      string
+		wantSQL    string
+		wantValues []string
+		wantFields []string
+	}{
+		{where: "id = ?", wantSQL: "`id` = ?", wantValues: []string{"id"}, wantFields: []string{"id"}},
+		{where: "status > 20", wantSQL: "`status` > 20"},
+		{where: "`id` < ?", wantSQL: "`id` < ?", wantValues: []string{"id"}},
+		{
+			where:      "`id` = ? AND `status` = ? AND `deleted_at` IS NULL",
+			wantSQL:    "`id` = ? AND `status` = ? AND `deleted_at` IS NULL",
+			wantValues: []string{"id", "status"},
+			wantFields: []string{"id", "status"},
+		},
+		{where: "`id` = ? OR `status` = ?", wantSQL: "`id` = ? OR `status` = ?", wantValues: []string{"id", "status"}},
+		{
+			where:      "`id` = ? AND (`status` = 1 OR `deleted_at` IS NOT NULL)",
+			wantSQL:    "`id` = ? AND (`status` = 1 OR `deleted_at` IS NOT NULL)",
+			wantValues: []string{"id"},
+			wantFields: []string{"id"},
+		},
+		{where: "`id` = ? AND `title` LIKE ?", wantSQL: "`id` = ? AND `title` LIKE ?", wantValues: []string{"id", "title"}},
+		{where: "`title` != 'foo'", wantSQL: "`title` != ?", wantValues: []string{`"foo"`}},
+		{where: "`id` >= ? AND `id` <= ?", wantSQL: "`id` >= ? AND `id` <= ?", wantValues: []string{"id", "id2"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.where, func(t *testing.T) {
+			stmt, _, err := p.Parse("SELECT * FROM `item` WHERE "+tc.where, "", "")
+			require.NoError(t, err)
+			n, err := newWhereNode(m, stmt[0].(*ast.SelectStmt).Where)
+			require.NoError(t, err)
+
+			sql, values := n.static()
+			assert.Equal(t, tc.wantSQL, sql)
+			assert.Equal(t, tc.wantValues, values)
+			var fields []string
+			for _, f := range n.equalFields() {
+				fields = append(fields, f.Name)
+			}
+			assert.Equal(t, tc.wantFields, fields)
+		})
+	}
+}

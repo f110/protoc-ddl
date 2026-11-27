@@ -37,13 +37,15 @@ func (a *queryArg) goType() string {
 }
 
 // whereNode is a node of the condition tree of WHERE clause. A branch node has op and children. A leaf node has sql
-// and optionally arg or value. value is the Go literal which is given to the placeholder.
+// and optionally arg or value. value is the Go literal which is given to the placeholder. equal is true if the leaf
+// compares the column with =.
 type whereNode struct {
 	op       string
 	children []*whereNode
 	sql      string
 	arg      *queryArg
 	value    string
+	equal    bool
 }
 
 // needsConditionTree reports whether the expression has LIKE, IN or parentheses. These expressions are generated with
@@ -111,7 +113,7 @@ func (b *whereBuilder) build(e ast.ExprNode) (*whereNode, error) {
 			if err != nil {
 				return nil, err
 			}
-			return &whereNode{sql: fmt.Sprintf("`%s` %s ?", col, op), arg: arg}, nil
+			return &whereNode{sql: fmt.Sprintf("`%s` %s ?", col, op), arg: arg, equal: v.Op == opcode.EQ}, nil
 		case *test_driver.ValueExpr:
 			switch r.Type.EvalType() {
 			case types.ETInt:
@@ -203,6 +205,57 @@ func (n *whereNode) args() []*queryArg {
 	var res []*queryArg
 	for _, c := range n.children {
 		res = append(res, c.args()...)
+	}
+	return res
+}
+
+// static returns the SQL of the condition and the Go expressions which are given to the placeholders in the order.
+// The nested condition is enclosed in parentheses. The condition must not have IN because IN is expanded at runtime.
+func (n *whereNode) static() (string, []string) {
+	if n.op == "" {
+		switch {
+		case n.arg != nil:
+			return n.sql, []string{n.arg.name}
+		case n.value != "":
+			return n.sql, []string{n.value}
+		}
+		return n.sql, nil
+	}
+	sqls := make([]string, len(n.children))
+	var values []string
+	for i, c := range n.children {
+		sql, v := c.static()
+		if c.op != "" {
+			sql = "(" + sql + ")"
+		}
+		sqls[i] = sql
+		values = append(values, v...)
+	}
+	return strings.Join(sqls, " "+n.op+" "), values
+}
+
+// equalFields returns the fields of the placeholders if all of them are compared with = and joined by AND. Otherwise,
+// it returns nil. The conditions without the placeholder are ignored.
+func (n *whereNode) equalFields() []*schema.Field {
+	nodes := []*whereNode{n}
+	if n.op == "AND" {
+		nodes = n.children
+	}
+	var res []*schema.Field
+	for _, c := range nodes {
+		if c.op != "" {
+			if len(c.args()) > 0 {
+				return nil
+			}
+			continue
+		}
+		if c.arg == nil {
+			continue
+		}
+		if !c.equal {
+			return nil
+		}
+		res = append(res, c.arg.field)
 	}
 	return res
 }

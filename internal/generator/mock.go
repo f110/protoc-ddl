@@ -173,7 +173,7 @@ func (GoDAOMockGenerator) mockMember(f *goFunc) string {
 	return v.String()
 }
 
-func (GoDAOMockGenerator) selectRowQuery(m *schema.Message, name string, stmt *ast.SelectStmt, comp []*schema.Field, cols, args []string, entityName string, single bool, _ *whereNode) string {
+func (GoDAOMockGenerator) selectRowQuery(m *schema.Message, name string, stmt *ast.SelectStmt, cols, args []string, entityName string, single bool, _ *whereNode) string {
 	src := newBuffer()
 	a := make([]string, 0)
 	for _, v := range args[:len(args)-1] {

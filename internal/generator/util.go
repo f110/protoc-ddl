@@ -22,9 +22,7 @@ const (
 	binaryOperationRightState
 	fieldListState
 	fieldListSubsequentState
-	inStatementState
 	fromCauseState
-	whereCauseState
 )
 
 type formatContext struct {
@@ -70,11 +68,6 @@ func (f *QueryFormatter) selectFormat(w io.Writer, stmt *ast.SelectStmt) {
 		vis := newVisitor(fromCauseState, f.message, w, f.debug)
 		stmt.From.Accept(vis)
 	}
-	if stmt.Where != nil {
-		w.Write([]byte(" WHERE "))
-		vis := newVisitor(whereCauseState, f.message, w, f.debug)
-		stmt.Where.Accept(vis)
-	}
 }
 
 type queryFormatVisitor struct {
@@ -119,12 +112,7 @@ func (a *queryFormatVisitor) Enter(in ast.Node) (node ast.Node, skipChildren boo
 			a.writer.Write(fmt.Appendf(nil, "`%s`", v.Name.String()))
 		}
 	case *test_driver.ParamMarkerExpr:
-		switch a.ctx.state {
-		case inStatementState:
-			a.writer.Write([]byte(" IN (?)"))
-		default:
-			a.writer.Write([]byte("?"))
-		}
+		a.writer.Write([]byte("?"))
 	case *test_driver.ValueExpr:
 		switch v.Type.EvalType() {
 		case types.ETInt:
@@ -136,18 +124,12 @@ func (a *queryFormatVisitor) Enter(in ast.Node) (node ast.Node, skipChildren boo
 		a.writer.Write([]byte(v.FnName.String()))
 		a.writer.Write([]byte("("))
 		a.writer.Write([]byte(")"))
-	case *ast.IsNullExpr:
-		a.formatIsNullExpr(v)
-		return in, true
 	case *ast.AggregateFuncExpr:
 		a.writer.Write([]byte(strings.ToUpper(v.F)))
 		a.writer.Write([]byte("("))
 		if v.Distinct {
 			a.writer.Write([]byte("distinct "))
 		}
-	case *ast.PatternInExpr:
-		a.ctx.state = inStatementState
-		log.Printf("%T", v.Expr)
 	default:
 		if a.debug {
 			log.Printf("Not supported: %T", v)
@@ -167,8 +149,6 @@ func (a *queryFormatVisitor) Leave(in ast.Node) (node ast.Node, ok bool) {
 		a.ctx.state = 0
 	case *ast.AggregateFuncExpr:
 		a.writer.Write([]byte(")"))
-	case *ast.PatternInExpr:
-		a.ctx.state = whereCauseState
 	}
 	return in, true
 }
@@ -177,8 +157,6 @@ func (a *queryFormatVisitor) formatBinaryOperationExpr(in *ast.BinaryOperationEx
 	switch v := in.L.(type) {
 	case *ast.BinaryOperationExpr:
 		a.formatBinaryOperationExpr(v)
-	case *ast.IsNullExpr:
-		a.formatIsNullExpr(v)
 	case *ast.ColumnNameExpr:
 		v.Accept(a)
 	case *test_driver.ValueExpr:
@@ -194,8 +172,6 @@ func (a *queryFormatVisitor) formatBinaryOperationExpr(in *ast.BinaryOperationEx
 	switch v := in.R.(type) {
 	case *ast.BinaryOperationExpr:
 		a.formatBinaryOperationExpr(v)
-	case *ast.IsNullExpr:
-		a.formatIsNullExpr(v)
 	case *test_driver.ParamMarkerExpr:
 		v.Accept(a)
 	case *test_driver.ValueExpr:
@@ -203,17 +179,4 @@ func (a *queryFormatVisitor) formatBinaryOperationExpr(in *ast.BinaryOperationEx
 	default:
 		log.Printf("%T", in.R)
 	}
-}
-
-func (a *queryFormatVisitor) formatIsNullExpr(in *ast.IsNullExpr) {
-	switch v := in.Expr.(type) {
-	case *ast.ColumnNameExpr:
-		v.Accept(a)
-	}
-
-	a.writer.Write([]byte(" IS"))
-	if in.Not {
-		a.writer.Write([]byte(" NOT"))
-	}
-	a.writer.Write([]byte(" NULL"))
 }
