@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/pingcap/tidb/pkg/parser"
-	"github.com/pingcap/tidb/pkg/parser/ast"
 	_ "github.com/pingcap/tidb/pkg/parser/test_driver"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -172,89 +170,6 @@ func TestGoDAOGenerator_RelationOrderIsStable(t *testing.T) {
 	}
 }
 
-func TestGoDAOStruct_findArgs(t *testing.T) {
-	tableFields := []*schema.Field{
-		{
-			Name:     "id",
-			Sequence: true,
-			Type:     "TYPE_INT32",
-		},
-		{
-			Name: "age",
-			Type: "TYPE_INT32",
-		},
-		{
-			Name: "name",
-			Type: "TYPE_STRING",
-		},
-	}
-	fieldMap := make(map[string]*schema.Field)
-	for _, v := range tableFields {
-		fieldMap[v.Name] = v
-	}
-
-	tests := []struct {
-		Name   string
-		Where  string
-		Fields []*schema.Field
-	}{
-		{
-			Name:   "constant value",
-			Where:  "age > 20",
-			Fields: nil,
-		},
-		{
-			Name:   "Single field",
-			Where:  "age = ?",
-			Fields: []*schema.Field{fieldMap["age"]},
-		},
-		{
-			Name:   "Not equal",
-			Where:  "name = ? AND age != ?",
-			Fields: []*schema.Field{fieldMap["name"], fieldMap["age"]},
-		},
-		{
-			Name:   "Multi product set fields",
-			Where:  "name = ? AND age = ?",
-			Fields: []*schema.Field{fieldMap["name"], fieldMap["age"]},
-		},
-		{
-			Name:   "Multi union fields",
-			Where:  "name = ? OR age = ?",
-			Fields: []*schema.Field{fieldMap["name"], fieldMap["age"]},
-		},
-		{
-			Name:   "is operator",
-			Where:  "`start_at` IS NULL",
-			Fields: nil,
-		},
-	}
-
-	s := &GoDAOStruct{}
-	p := parser.New()
-	for _, v := range tests {
-		tt := v
-		t.Run(tt.Where, func(t *testing.T) {
-			stmt, w, err := p.Parse("SELECT * FROM tmp WHERE "+tt.Where, "", "")
-			require.NoError(t, err)
-			require.Len(t, w, 0)
-			sel := stmt[0].(*ast.SelectStmt)
-
-			fields := s.findArgs(tableFields, sel.Where)
-			if tt.Fields == nil {
-				require.Nil(t, fields, "Expect no field")
-			}
-			require.Len(t, fields, len(tt.Fields), "Expect the number of fields is %d", len(tt.Fields))
-
-			for i, f := range tt.Fields {
-				if fields[i] != f {
-					t.Errorf("Expect %s got %s", f.Name, fields[i].Name)
-				}
-			}
-		})
-	}
-}
-
 func TestGoFunc(t *testing.T) {
 	f := &goFunc{
 		Name: "Tx",
@@ -354,6 +269,88 @@ func TestGoDAOGenerator_SelectSingleRowColumns(t *testing.T) {
 	require.Contains(t, out, "if err := row.Scan(&v.Encoding, &v.Size); err != nil {")
 	require.Contains(t, out, "SelectByHash(ctx context.Context, hash string) (*database.Item, error)")
 	require.Contains(t, out, "if err := row.Scan(&v.Id, &v.Hash, &v.Encoding, &v.Size); err != nil {")
+}
+
+func TestGoDAOGenerator_StaticWhereQuery(t *testing.T) {
+	pk := &schema.Field{Name: "id", Type: "TYPE_INT32", Sequence: true}
+	hash := &schema.Field{Name: "hash", Type: "TYPE_STRING"}
+	encoding := &schema.Field{Name: "encoding", Type: "TYPE_INT32"}
+	size := &schema.Field{Name: "size", Type: "TYPE_INT64"}
+	gen := func(t *testing.T, query string) string {
+		buf := new(bytes.Buffer)
+		err := GoDAOGenerator{}.Generate(
+			buf,
+			&descriptorpb.FileOptions{GoPackage: new("go.f110.dev/protoc-ddl/test/database")},
+			schema.NewMessages([]*schema.Message{
+				{
+					Descriptor:  &descriptorpb.DescriptorProto{Name: new("Item")},
+					TableName:   "item",
+					PrimaryKeys: []*schema.Field{pk},
+					Fields:      schema.NewFields([]*schema.Field{pk, hash, encoding, size}),
+					Indexes: []*schema.Index{
+						{Name: "idx_hash", Columns: schema.NewFields([]*schema.Field{hash}), Unique: true},
+						{Name: "idx_encoding_size", Columns: schema.NewFields([]*schema.Field{encoding, size}), Unique: true},
+					},
+					SelectQueries: []*schema.Query{{Name: "Q", Query: query}},
+				},
+			}, nil),
+		)
+		require.NoError(t, err)
+		return buf.String()
+	}
+
+	t.Run("less than", func(t *testing.T) {
+		out := gen(t, "SELECT * FROM `:table_name:` WHERE `size` < ?")
+		require.Contains(t, out, "ListQ(ctx context.Context, size int64, opt ...ListOption)")
+		require.Contains(t, out, "query := \"SELECT `id`, `hash`, `encoding`, `size` FROM `item` WHERE `size` < ?\"")
+		require.Contains(t, out, "query,\n\t\tsize,\n\t)")
+	})
+
+	t.Run("not equal to unique column returns list", func(t *testing.T) {
+		out := gen(t, "SELECT * FROM `:table_name:` WHERE `hash` != ?")
+		require.Contains(t, out, "ListQ(ctx context.Context, hash string, opt ...ListOption)")
+	})
+
+	t.Run("greater than unique column returns list", func(t *testing.T) {
+		out := gen(t, "SELECT * FROM `:table_name:` WHERE `hash` > ?")
+		require.Contains(t, out, "ListQ(ctx context.Context, hash string, opt ...ListOption)")
+	})
+
+	t.Run("or of unique index returns list", func(t *testing.T) {
+		out := gen(t, "SELECT * FROM `:table_name:` WHERE `encoding` = ? OR `size` = ?")
+		require.Contains(t, out, "ListQ(ctx context.Context, encoding int32, size int64, opt ...ListOption)")
+	})
+
+	t.Run("equal to unique index returns single row", func(t *testing.T) {
+		out := gen(t, "SELECT * FROM `:table_name:` WHERE `encoding` = ? AND `size` = ? AND `hash` IS NOT NULL")
+		require.Contains(t, out, "SelectQ(ctx context.Context, encoding int32, size int64) (*database.Item, error)")
+		require.Contains(t, out, "\"SELECT `id`, `hash`, `encoding`, `size` FROM `item` WHERE `encoding` = ? AND `size` = ? AND `hash` IS NOT NULL\",\n\t\tencoding,\n\t\tsize,\n\t)")
+	})
+
+	t.Run("same column is used twice", func(t *testing.T) {
+		out := gen(t, "SELECT * FROM `:table_name:` WHERE `size` >= ? AND `size` <= ?")
+		require.Contains(t, out, "ListQ(ctx context.Context, size int64, size2 int64, opt ...ListOption)")
+		require.Contains(t, out, "query,\n\t\tsize,\n\t\tsize2,\n\t)")
+	})
+
+	t.Run("string literal is given as the argument", func(t *testing.T) {
+		out := gen(t, "SELECT * FROM `:table_name:` WHERE `hash` = 'abc' AND `size` = 1")
+		require.Contains(t, out, "ListQ(ctx context.Context, opt ...ListOption)")
+		require.Contains(t, out, "query := \"SELECT `id`, `hash`, `encoding`, `size` FROM `item` WHERE `hash` = ? AND `size` = 1\"")
+		require.Contains(t, out, "query,\n\t\t\"abc\",\n\t)")
+	})
+
+	t.Run("nested condition is enclosed in parentheses", func(t *testing.T) {
+		out := gen(t, "SELECT * FROM `:table_name:` WHERE `hash` = ? OR `size` = ? AND `encoding` = ?")
+		require.Contains(t, out, "ListQ(ctx context.Context, hash string, size int64, encoding int32, opt ...ListOption)")
+		require.Contains(t, out, "WHERE `hash` = ? OR (`size` = ? AND `encoding` = ?)\"")
+	})
+
+	t.Run("placeholder on the left side is not generated", func(t *testing.T) {
+		out := gen(t, "SELECT * FROM `:table_name:` WHERE ? = `size`")
+		require.NotContains(t, out, "ListQ")
+		require.NotContains(t, out, "SelectQ")
+	})
 }
 
 func TestGoDAOGenerator_CountQuery(t *testing.T) {

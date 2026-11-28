@@ -22,18 +22,6 @@ func TestAstFormatter(t *testing.T) {
 			Rendered: "SELECT * FROM `user`",
 		},
 		{
-			Query:    "select * FROM `user` WHERE id = ?",
-			Rendered: "SELECT * FROM `user` WHERE `id` = ?",
-		},
-		{
-			Query:    "select * from user where age > 20",
-			Rendered: "SELECT * FROM `user` WHERE `age` > 20",
-		},
-		{
-			Query:    "SELECT `id`, `name` FROM `user` WHERE `id` = ?",
-			Rendered: "SELECT `id`, `name` FROM `user` WHERE `id` = ?",
-		},
-		{
 			Query:    "SELECT 1 + 1",
 			Rendered: "SELECT 1 + 1",
 		},
@@ -46,32 +34,12 @@ func TestAstFormatter(t *testing.T) {
 			Rendered: "SELECT * FROM `user`",
 		},
 		{
-			Query:    "SELECT * FROM `user` WHERE `created_at` IS NULL",
-			Rendered: "SELECT * FROM `user` WHERE `created_at` IS NULL",
-		},
-		{
-			Query:    "SELECT * FROM `user` WHERE `created_at` IS NULL AND `updated_at` IS NOT NULL",
-			Rendered: "SELECT * FROM `user` WHERE `created_at` IS NULL AND `updated_at` IS NOT NULL",
-		},
-		{
-			Query:    "SELECT * FROM `user` WHERE `id` = ? AND `name` = ? AND `created_at` IS NOT NULL AND `updated_at` IS NULL",
-			Rendered: "SELECT * FROM `user` WHERE `id` = ? AND `name` = ? AND `created_at` IS NOT NULL AND `updated_at` IS NULL",
-		},
-		{
 			Query:    "SELECT DISTINCT `name` FROM `user`",
 			Rendered: "SELECT DISTINCT `name` FROM `user`",
 		},
 		{
 			Query:    "SELECT count(distinct `age`) FROM `user`",
 			Rendered: "SELECT COUNT(distinct `age`) FROM `user`",
-		},
-		{
-			Query:    "SELECT * FROM `user` WHERE `name` != \"\"",
-			Rendered: "SELECT * FROM `user` WHERE `name` != \"\"",
-		},
-		{
-			Query:    "SELECT * FROM `user` WHERE `name` = \"foo\"",
-			Rendered: "SELECT * FROM `user` WHERE `name` = \"foo\"",
 		},
 	}
 

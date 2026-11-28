@@ -15,7 +15,6 @@ import (
 
 	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
-	"github.com/pingcap/tidb/pkg/parser/opcode"
 	"github.com/pingcap/tidb/pkg/parser/test_driver"
 	"google.golang.org/protobuf/types/descriptorpb"
 
@@ -499,28 +498,26 @@ func (g GoDAOGenerator) primaryKeyMultiSelect(entityName string, m *schema.Messa
 	return src.String()
 }
 
-func (g GoDAOGenerator) selectRowQuery(m *schema.Message, name string, stmt *ast.SelectStmt, comp []*schema.Field, cols, args []string, entityName string, single bool, where *whereNode) string {
-	if where != nil {
+func (g GoDAOGenerator) selectRowQuery(m *schema.Message, name string, stmt *ast.SelectStmt, cols, args []string, entityName string, single bool, where *whereNode) string {
+	if where != nil && needsConditionTree(stmt.Where) {
 		return g.selectConditionQuery(m, cols, where, entityName)
 	}
+	query, values := staticSelectQuery(m, stmt, where)
 	if single {
-		return g.selectSingleRowQuery(m, name, stmt, cols, comp, args, entityName)
+		return g.selectSingleRowQuery(m, query, values, cols, entityName)
 	} else {
-		return g.selectMultipleRowQuery(m, name, stmt, cols, comp, args, entityName)
+		return g.selectMultipleRowQuery(m, query, values, cols, entityName)
 	}
 }
 
-func (g GoDAOGenerator) selectMultipleRowQuery(m *schema.Message, name string, stmt *ast.SelectStmt, selectCols []string, comp []*schema.Field, args []string, entityName string) string {
+func (g GoDAOGenerator) selectMultipleRowQuery(m *schema.Message, query string, values, selectCols []string, entityName string) string {
 	src := newBuffer()
 	primaryKeys := make([]string, 0)
 	for _, v := range m.PrimaryKeys {
 		primaryKeys = append(primaryKeys, "`"+v.Name+"`")
 	}
 	src.WriteString("listOpts := newListOpt(opt...)\n")
-	f := NewQueryFormatter(m, stmt)
-	buf := new(bytes.Buffer)
-	f.Format(buf)
-	src.WriteString(fmt.Sprintf("query := %q\n", buf.String()))
+	src.WriteString(fmt.Sprintf("query := %q\n", query))
 	src.WriteString("orderCol := \"`\"+listOpts.sort+\"`\"\n")
 	src.WriteString("if listOpts.sort == \"\" {\n")
 	src.WriteString(fmt.Sprintf("orderCol = \"%s\"\n", strings.Join(primaryKeys, ",")))
@@ -534,8 +531,8 @@ func (g GoDAOGenerator) selectMultipleRowQuery(m *schema.Message, name string, s
 	src.WriteString("query = query + fmt.Sprintf(\" LIMIT %d\", listOpts.limit)\n")
 	src.WriteString("}\n")
 	src.WriteString("rows, err := d.conn.QueryContext(\nctx,\nquery,\n")
-	for _, a := range comp {
-		src.WriteString(goVarName(a.Name) + ",\n")
+	for _, v := range values {
+		src.WriteString(v + ",\n")
 	}
 	src.WriteString(")\n")
 	src.WriteString("if err != nil {\nreturn nil, err\n}\n")
@@ -708,19 +705,12 @@ func (g GoDAOGenerator) selectExpr(m *schema.Message, q *exprQuery, f *goFunc) s
 	return src.String()
 }
 
-func (g GoDAOGenerator) selectSingleRowQuery(m *schema.Message, name string, stmt *ast.SelectStmt, selectCols []string, comp []*schema.Field, args []string, entityName string) string {
+func (g GoDAOGenerator) selectSingleRowQuery(m *schema.Message, query string, values, selectCols []string, entityName string) string {
 	src := newBuffer()
 
-	primaryKeys := make([]string, 0)
-	for _, v := range m.PrimaryKeys {
-		primaryKeys = append(primaryKeys, "`"+v.Name+"`")
-	}
-	f := NewQueryFormatter(m, stmt)
-	buf := new(bytes.Buffer)
-	f.Format(buf)
-	src.WriteString(fmt.Sprintf("row := d.conn.QueryRowContext(\nctx,\n%q,\n", buf.String()))
-	for _, a := range comp {
-		src.WriteString(goVarName(a.Name) + ",\n")
+	src.WriteString(fmt.Sprintf("row := d.conn.QueryRowContext(\nctx,\n%q,\n", query))
+	for _, v := range values {
+		src.WriteString(v + ",\n")
 	}
 	src.WriteString(")\n")
 
@@ -1014,7 +1004,7 @@ func (s *GoDAOStruct) PrimaryKeyMultiSelect(
 }
 
 func (s *GoDAOStruct) Select(
-	body func(m *schema.Message, name string, stmt *ast.SelectStmt, comp []*schema.Field, cols, args []string, entityName string, single bool, where *whereNode) string,
+	body func(m *schema.Message, name string, stmt *ast.SelectStmt, cols, args []string, entityName string, single bool, where *whereNode) string,
 ) []*goFunc {
 	funcs := make([]*goFunc, 0)
 
@@ -1169,7 +1159,7 @@ func (s *GoDAOStruct) Tx(body func(m *schema.Message, f *goFunc) string) *goFunc
 func (s *GoDAOStruct) selectQuery(
 	stmt *ast.SelectStmt,
 	name string,
-	body func(m *schema.Message, name string, stmt *ast.SelectStmt, comp []*schema.Field, cols, args []string, entityName string, single bool, where *whereNode) string,
+	body func(m *schema.Message, name string, stmt *ast.SelectStmt, cols, args []string, entityName string, single bool, where *whereNode) string,
 ) *goFunc {
 	if stmt.From.TableRefs.Right != nil {
 		log.Printf("Multiple tables is not supported")
@@ -1210,17 +1200,22 @@ func (s *GoDAOStruct) selectQuery(
 		return s.selectConditionQuery(stmt, name, cols, body)
 	}
 
-	var comp []*schema.Field
-	if stmt.Where != nil {
-		comp = s.findArgs(s.m.Fields.List(), stmt.Where)
-	}
-
-	isReturningSingleRow := s.m.IsReturningSingleRow(comp...)
+	var where *whereNode
+	isReturningSingleRow := false
 	funcArgs := make([]*field, 0)
-	args := make([]string, len(comp))
-	for i := range comp {
-		funcArgs = append(funcArgs, &field{Name: goVarName(comp[i].Name), Type: GoDataTypeMap[comp[i].Type]})
-		args[i] = fmt.Sprintf("%s %s", goVarName(comp[i].Name), GoDataTypeMap[comp[i].Type])
+	args := make([]string, 0)
+	if stmt.Where != nil {
+		w, err := newWhereNode(s.m, stmt.Where)
+		if err != nil {
+			log.Printf("Failed to generate %s: %v", name, err)
+			return nil
+		}
+		where = w
+		isReturningSingleRow = s.m.IsReturningSingleRow(where.equalFields()...)
+		for _, a := range where.args() {
+			funcArgs = append(funcArgs, &field{Name: a.name, Type: GoDataTypeMap[a.field.Type]})
+			args = append(args, a.name+" "+a.goType())
+		}
 	}
 	if !isReturningSingleRow {
 		args = append(args, "opt ...ListOption")
@@ -1237,7 +1232,7 @@ func (s *GoDAOStruct) selectQuery(
 			},
 		}
 		if body != nil {
-			f.Body = body(s.m, "Select"+name, stmt, comp, cols, args, s.entityPackageName, true, nil)
+			f.Body = body(s.m, "Select"+name, stmt, cols, args, s.entityPackageName, true, where)
 		}
 		return f
 	} else {
@@ -1258,7 +1253,7 @@ func (s *GoDAOStruct) selectQuery(
 			},
 		}
 		if body != nil {
-			f.Body = body(s.m, "List"+name, stmt, comp, cols, args, s.entityPackageName, false, nil)
+			f.Body = body(s.m, "List"+name, stmt, cols, args, s.entityPackageName, false, where)
 		}
 		return f
 	}
@@ -1270,7 +1265,7 @@ func (s *GoDAOStruct) selectConditionQuery(
 	stmt *ast.SelectStmt,
 	name string,
 	cols []string,
-	body func(m *schema.Message, name string, stmt *ast.SelectStmt, comp []*schema.Field, cols, args []string, entityName string, single bool, where *whereNode) string,
+	body func(m *schema.Message, name string, stmt *ast.SelectStmt, cols, args []string, entityName string, single bool, where *whereNode) string,
 ) *goFunc {
 	where, err := newWhereNode(s.m, stmt.Where)
 	if err != nil {
@@ -1302,7 +1297,7 @@ func (s *GoDAOStruct) selectConditionQuery(
 		},
 	}
 	if body != nil {
-		f.Body = body(s.m, "List"+name, stmt, nil, cols, args, s.entityPackageName, false, where)
+		f.Body = body(s.m, "List"+name, stmt, cols, args, s.entityPackageName, false, where)
 	}
 	return f
 }
@@ -1589,91 +1584,15 @@ func newExprQuery(m *schema.Message, name string, stmt *ast.SelectStmt) (*exprQu
 	return q, nil
 }
 
-func (s *GoDAOStruct) findArgs(fields []*schema.Field, stmt ast.ExprNode) []*schema.Field {
-	fieldMap := make(map[string]*schema.Field)
-	for _, v := range fields {
-		fieldMap[v.Name] = v
+// staticSelectQuery returns the SQL of stmt and the Go expressions which are given to the placeholders of where.
+func staticSelectQuery(m *schema.Message, stmt *ast.SelectStmt, where *whereNode) (string, []string) {
+	buf := new(bytes.Buffer)
+	NewQueryFormatter(m, stmt).Format(buf)
+	if where == nil {
+		return buf.String(), nil
 	}
-
-	res := s.findArgFieldFromExprIfExist(fieldMap, stmt)
-	if len(res) == 0 {
-		return nil
-	}
-
-	return res
-}
-
-func (s *GoDAOStruct) findArgFieldFromExprIfExist(fields map[string]*schema.Field, e ast.ExprNode) []*schema.Field {
-	res := make([]*schema.Field, 0)
-	stmt, ok := e.(*ast.BinaryOperationExpr)
-	if !ok {
-		return res
-	}
-
-	switch stmt.Op {
-	case opcode.EQ, opcode.NE, opcode.GT, opcode.GE, opcode.LE:
-		f := s.findArgFieldFromComparisonExprIfExist(fields, stmt)
-		if len(f) > 0 {
-			res = append(res, f...)
-		}
-	case opcode.LogicAnd:
-		f := s.findArgFieldFromAndExprIfExist(fields, stmt)
-		if len(f) > 0 {
-			res = append(res, f...)
-		}
-	case opcode.LogicOr:
-		f := s.findArgFieldFromOrExprIfExist(fields, stmt)
-		if len(f) > 0 {
-			res = append(res, f...)
-		}
-	default:
-		log.Printf("%T: %#v", stmt, stmt)
-	}
-
-	return res
-}
-
-func (*GoDAOStruct) findArgFieldFromComparisonExprIfExist(fields map[string]*schema.Field, stmt ast.ExprNode) []*schema.Field {
-	res := make([]*schema.Field, 0)
-	switch v := stmt.(type) {
-	case *ast.BinaryOperationExpr:
-		if left, ok := v.L.(*ast.ColumnNameExpr); ok {
-			switch v.R.(type) {
-			case *test_driver.ParamMarkerExpr:
-				if f, ok := fields[left.Name.Name.String()]; ok {
-					res = append(res, f)
-				}
-			}
-		}
-	}
-
-	return res
-}
-
-func (s *GoDAOStruct) findArgFieldFromAndExprIfExist(fields map[string]*schema.Field, stmt *ast.BinaryOperationExpr) []*schema.Field {
-	res := make([]*schema.Field, 0)
-
-	for _, st := range []ast.ExprNode{stmt.L, stmt.R} {
-		f := s.findArgFieldFromExprIfExist(fields, st)
-		if len(f) > 0 {
-			res = append(res, f...)
-		}
-	}
-
-	return res
-}
-
-func (s *GoDAOStruct) findArgFieldFromOrExprIfExist(fields map[string]*schema.Field, stmt *ast.BinaryOperationExpr) []*schema.Field {
-	res := make([]*schema.Field, 0)
-
-	for _, st := range []ast.ExprNode{stmt.L, stmt.R} {
-		f := s.findArgFieldFromExprIfExist(fields, st)
-		if len(f) > 0 {
-			res = append(res, f...)
-		}
-	}
-
-	return res
+	sql, values := where.static()
+	return buf.String() + " WHERE " + sql, values
 }
 
 // goVarName returns the lower camel case of str that is usable as the variable name in the generated code.
